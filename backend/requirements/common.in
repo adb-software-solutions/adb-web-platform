@@ -19,7 +19,7 @@ django-ninja==1.4.3
 pydantic[email]==2.10.6
 email-validator==2.3.0
 inquirer==3.4.1
-starlette==0.47.2
+starlette==1.6.0
 channels==4.3.2
 
 # Celery / Cache Dependencies
