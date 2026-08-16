@@ -4,7 +4,7 @@ Django==5.2.5
 psycopg2==2.9.10
 Pillow==11.3.0
 python-dotenv==1.1.1
-gunicorn==23.0.0
+gunicorn==26.0.0
 uvicorn[standard]==0.35.0
 django-debug-toolbar==6.0.0
 graphene-django==3.2.3
