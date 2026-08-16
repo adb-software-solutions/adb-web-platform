@@ -9,7 +9,7 @@
 isort==6.0.1
 
 # Python reformatter
-black==25.1.0
+black==26.5.1
 
 # For linting Git commit messages
 gitlint-core==0.19.1
