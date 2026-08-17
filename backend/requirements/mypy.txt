@@ -14,13 +14,13 @@ django==5.2.5 \
     # via
     #   django-stubs
     #   django-stubs-ext
-django-stubs==5.2.2 \
-    --hash=sha256:2a04b510c7a812f88223fd7e6d87fb4ea98717f19c8e5c8b59691d83ad40a8a6 \
-    --hash=sha256:79bd0fdbc78958a8f63e0b062bd9d03f1de539664476c0be62ade5f063c9e41e
-    # via -r backend/requirements/mypy.in
-django-stubs-ext==5.2.2 \
-    --hash=sha256:8833bbe32405a2a0ce168d3f75a87168f61bd16939caf0e8bf173bccbd8a44c5 \
-    --hash=sha256:d9d151b919fe2438760f5bd938f03e1cb08c84d0651f9e5917f1313907e42683
+django-stubs==6.1.0 \
+    --hash=sha256:63b23ccca2616d464ed7e37d1ce44960315cb3cecab75b23c928467ef125e560 \
+    --hash=sha256:b6aecc5c738a103135f76ba160a6f75e3b27dcf0200c64d7226018cdbc2340dd
+    # via -r requirements/mypy.in
+django-stubs-ext==6.1.0 \
+    --hash=sha256:57273506823274700a707c8f404dfb52a12c4554daf1468dfb2bff857bb22074 \
+    --hash=sha256:d5635a481f5bdf2e04d533a8b602d3b9a28f073deffc85b83048dd20032e4d20
     # via django-stubs
 mypy==1.17.1 \
     --hash=sha256:03b6d0ed2b188e35ee6d5c36b5580cffd6da23319991c49ab5556c023ccf1341 \
@@ -61,7 +61,7 @@ mypy==1.17.1 \
     --hash=sha256:fa6ffadfbe6994d724c5a1bb6123a7d27dd68fc9c059561cd33b664a79578e14 \
     --hash=sha256:feb8cc32d319edd5859da2cc084493b3e2ce5e49a946377663cc90f6c15fb259 \
     --hash=sha256:ff2933428516ab63f961644bc49bc4cbe42bbffb2cd3b71cc7277c07d16b1a8b
-    # via -r backend/requirements/mypy.in
+    # via -r requirements/mypy.in
 mypy-extensions==1.0.0 \
     --hash=sha256:4392f6c0eb8a5668a69e23d168ffa70f0be9ccfd32b5cc2d26a34ae5b844552d \
     --hash=sha256:75dbf8955dc00442a438fc4d0666508a9a97b6bd41aa2f0ffe9d2f2725af0782
@@ -77,19 +77,19 @@ sqlparse==0.5.3 \
 types-markdown==3.10.0.20251106 \
     --hash=sha256:12836f7fcbd7221db8baeb0d3a2f820b95050d0824bfa9665c67b4d144a1afa1 \
     --hash=sha256:2c39512a573899b59efae07e247ba088a75b70e3415e81277692718f430afd7e
-    # via -r backend/requirements/mypy.in
+    # via -r requirements/mypy.in
 types-pillow==10.2.0.20240822 \
     --hash=sha256:559fb52a2ef991c326e4a0d20accb3bb63a7ba8d40eb493e0ecb0310ba52f0d3 \
     --hash=sha256:d9dab025aba07aeb12fd50a6799d4eac52a9603488eca09d7662543983f16c5d
-    # via -r backend/requirements/mypy.in
+    # via -r requirements/mypy.in
 types-psycopg2==2.9.21.20250809 \
     --hash=sha256:59b7b0ed56dcae9efae62b8373497274fc1a0484bdc5135cdacbe5a8f44e1d7b \
     --hash=sha256:b7c2cbdcf7c0bd16240f59ba694347329b0463e43398de69784ea4dee45f3c6d
-    # via -r backend/requirements/mypy.in
+    # via -r requirements/mypy.in
 types-pytz==2025.2.0.20250809 \
     --hash=sha256:222e32e6a29bb28871f8834e8785e3801f2dc4441c715cd2082b271eecbe21e5 \
     --hash=sha256:4f55ed1b43e925cf851a756fe1707e0f5deeb1976e15bf844bcaa025e8fbd0db
-    # via -r backend/requirements/mypy.in
+    # via -r requirements/mypy.in
 types-pyyaml==6.0.10 \
     --hash=sha256:18985a382c93fb12187daae6f57ce7787e3651cd590291c907d3e757919689ff \
     --hash=sha256:a1676caeb098096833fe2f1472e7ea8debf7663222964fa90545cfaafebf3385
@@ -97,7 +97,7 @@ types-pyyaml==6.0.10 \
 types-requests==2.32.4.20250809 \
     --hash=sha256:d8060de1c8ee599311f56ff58010fb4902f462a1470802cf9f6ed27bc46c4df3 \
     --hash=sha256:f73d1832fb519ece02c85b1f09d5f0dd3108938e7d47e7f94bbfa18a6782b163
-    # via -r backend/requirements/mypy.in
+    # via -r requirements/mypy.in
 typing-extensions==4.14.1 \
     --hash=sha256:38b39f4aeeab64884ce9f74c94263ef78f3c22467c8724005483154c26648d36 \
     --hash=sha256:d1e1e3b58374dc93031d6eda2420a48ea44a36c2b4766a4fdeb3710755731d76
