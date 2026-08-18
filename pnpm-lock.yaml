@@ -15,8 +15,8 @@ importers:
         specifier: ^9.33.0
         version: 9.34.0(jiti@2.7.0)
       prettier:
-        specifier: ^3.6.2
-        version: 3.6.2
+        specifier: ^3.9.6
+        version: 3.9.6
       stylelint:
         specifier: ^16.23.1
         version: 16.23.1(typescript@5.9.2)
@@ -56,7 +56,7 @@ importers:
         version: 8.5.6
       prettier-plugin-tailwindcss:
         specifier: ^0.6.14
-        version: 0.6.14(prettier@3.6.2)
+        version: 0.6.14(prettier@3.9.6)
       stylelint-config-standard:
         specifier: ^37.0.0
         version: 37.0.0(stylelint@16.23.1(typescript@5.9.2))
@@ -228,11 +228,11 @@ importers:
         specifier: ^8.5.3
         version: 8.5.6
       prettier:
-        specifier: ^3.5.3
-        version: 3.6.2
+        specifier: ^3.9.6
+        version: 3.9.6
       prettier-plugin-tailwindcss:
         specifier: ^0.6.11
-        version: 0.6.14(prettier@3.6.2)
+        version: 0.6.14(prettier@3.9.6)
       stylelint:
         specifier: ^16.19.1
         version: 16.23.1(typescript@5.9.2)
@@ -397,11 +397,11 @@ importers:
         specifier: ^8.5.3
         version: 8.5.26
       prettier:
-        specifier: ^3.5.3
-        version: 3.6.2
+        specifier: ^3.9.6
+        version: 3.9.6
       prettier-plugin-tailwindcss:
         specifier: ^0.6.11
-        version: 0.6.14(prettier@3.6.2)
+        version: 0.6.14(prettier@3.9.6)
       stylelint:
         specifier: ^16.19.1
         version: 16.23.1(typescript@5.9.2)
@@ -566,11 +566,11 @@ importers:
         specifier: ^8.5.3
         version: 8.5.6
       prettier:
-        specifier: ^3.5.3
-        version: 3.6.2
+        specifier: ^3.9.6
+        version: 3.9.6
       prettier-plugin-tailwindcss:
         specifier: ^0.6.11
-        version: 0.6.14(prettier@3.6.2)
+        version: 0.6.14(prettier@3.9.6)
       stylelint:
         specifier: ^16.19.1
         version: 16.23.1(typescript@5.9.2)
@@ -672,8 +672,8 @@ importers:
         specifier: ^8.5.6
         version: 8.5.26
       prettier:
-        specifier: ^3.5.3
-        version: 3.6.2
+        specifier: ^3.9.6
+        version: 3.9.6
       stylelint:
         specifier: ^16.21.0
         version: 16.23.1(typescript@5.9.2)
@@ -711,6 +711,10 @@ packages:
 
   '@babel/code-frame@7.27.1':
     resolution: {integrity: sha512-cjQ7ZlQ0Mv3b47hABuTevyTuYN4i+loJKGeV9flcCgIK37cCXRh+L1bd3iBHlynerhQ7BhCkn2BPbQUL+rGqFg==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/code-frame@7.29.7':
+    resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
     engines: {node: '>=6.9.0'}
 
   '@babel/compat-data@7.28.0':
@@ -760,6 +764,10 @@ packages:
 
   '@babel/helper-validator-identifier@7.27.1':
     resolution: {integrity: sha512-D2hP9eA+Sqx1kBZgzxZh0y1trbuU+JoDkiEwqhQ36nodYqJwyEIhPSdMNd7lOm/4io72luTPWH20Yda0xOuUow==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/helper-validator-identifier@7.29.7':
+    resolution: {integrity: sha512-qehxGkRj55h/ff8EMaJ+cYhyaKlHIxqYDn682wQD7RNp9UujOQsHog2uS0r2vzr4pW+sXf90NeeayjcNaX3fFg==}
     engines: {node: '>=6.9.0'}
 
   '@babel/helper-validator-option@7.27.1':
@@ -5107,8 +5115,8 @@ packages:
       prettier-plugin-svelte:
         optional: true
 
-  prettier@3.6.2:
-    resolution: {integrity: sha512-I7AIg5boAr5R0FFtJ6rCfD+LFsWHp81dolrFD8S79U9tb8Az2nGrJncnMSnys+bpQJfRUzqs9hnA81OAA3hCuQ==}
+  prettier@3.9.6:
+    resolution: {integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -6099,6 +6107,12 @@ snapshots:
       js-tokens: 4.0.0
       picocolors: 1.1.1
 
+  '@babel/code-frame@7.29.7':
+    dependencies:
+      '@babel/helper-validator-identifier': 7.29.7
+      js-tokens: 4.0.0
+      picocolors: 1.1.1
+
   '@babel/compat-data@7.28.0': {}
 
   '@babel/core@7.28.3':
@@ -6168,6 +6182,8 @@ snapshots:
   '@babel/helper-string-parser@7.27.1': {}
 
   '@babel/helper-validator-identifier@7.27.1': {}
+
+  '@babel/helper-validator-identifier@7.29.7': {}
 
   '@babel/helper-validator-option@7.27.1': {}
 
@@ -7365,7 +7381,7 @@ snapshots:
 
   '@testing-library/dom@10.4.1':
     dependencies:
-      '@babel/code-frame': 7.27.1
+      '@babel/code-frame': 7.29.7
       '@babel/runtime': 7.29.7
       '@types/aria-query': 5.0.4
       aria-query: 5.3.0
@@ -11104,11 +11120,11 @@ snapshots:
 
   prelude-ls@1.2.1: {}
 
-  prettier-plugin-tailwindcss@0.6.14(prettier@3.6.2):
+  prettier-plugin-tailwindcss@0.6.14(prettier@3.9.6):
     dependencies:
-      prettier: 3.6.2
+      prettier: 3.9.6
 
-  prettier@3.6.2: {}
+  prettier@3.9.6: {}
 
   pretty-format@27.5.1:
     dependencies:
