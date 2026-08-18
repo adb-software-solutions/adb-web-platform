@@ -46,7 +46,7 @@
         "zod": "^3.24.3"
     },
     "devDependencies": {
-        "@eslint/eslintrc": "^3.3.1",
+        "@eslint/eslintrc": "^3.3.6",
         "@eslint/js": "^9.26.0",
         "@next/eslint-plugin-next": "^15.3.2",
         "@tailwindcss/aspect-ratio": "^0.4.2",
