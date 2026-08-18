@@ -101,8 +101,8 @@ importers:
         specifier: ^2.7.0
         version: 2.12.0(react@19.2.8)
       '@rescale/nemo':
-        specifier: ^2.0.1
-        version: 2.2.0(next@15.5.23(@babel/core@7.28.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
+        specifier: ^3.0.1
+        version: 3.0.1(next@15.5.23(@babel/core@7.28.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       '@types/node':
         specifier: ^22.15.3
         version: 22.18.0
@@ -270,8 +270,8 @@ importers:
         specifier: ^2.7.0
         version: 2.12.0(react@19.2.8)
       '@rescale/nemo':
-        specifier: ^2.0.1
-        version: 2.2.0(next@15.5.23(@babel/core@7.28.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
+        specifier: ^3.0.1
+        version: 3.0.1(next@15.5.23(@babel/core@7.28.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       '@types/node':
         specifier: ^22.15.3
         version: 22.18.0
@@ -439,8 +439,8 @@ importers:
         specifier: ^2.7.0
         version: 2.12.0(react@19.2.8)
       '@rescale/nemo':
-        specifier: ^2.0.1
-        version: 2.2.0(next@15.5.23(@babel/core@7.28.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
+        specifier: ^3.0.1
+        version: 3.0.1(next@15.5.23(@babel/core@7.28.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       '@types/node':
         specifier: ^22.15.3
         version: 22.18.0
@@ -713,6 +713,10 @@ packages:
     resolution: {integrity: sha512-cjQ7ZlQ0Mv3b47hABuTevyTuYN4i+loJKGeV9flcCgIK37cCXRh+L1bd3iBHlynerhQ7BhCkn2BPbQUL+rGqFg==}
     engines: {node: '>=6.9.0'}
 
+  '@babel/code-frame@7.29.7':
+    resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
+    engines: {node: '>=6.9.0'}
+
   '@babel/compat-data@7.28.0':
     resolution: {integrity: sha512-60X7qkglvrap8mn1lh2ebxXdZYtUcpd7gsmy9kLaBJ4i/WdY8PqTSdxyA8qraikqKQK5C1KRBKXqznrVapyNaw==}
     engines: {node: '>=6.9.0'}
@@ -760,6 +764,10 @@ packages:
 
   '@babel/helper-validator-identifier@7.27.1':
     resolution: {integrity: sha512-D2hP9eA+Sqx1kBZgzxZh0y1trbuU+JoDkiEwqhQ36nodYqJwyEIhPSdMNd7lOm/4io72luTPWH20Yda0xOuUow==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/helper-validator-identifier@7.29.7':
+    resolution: {integrity: sha512-qehxGkRj55h/ff8EMaJ+cYhyaKlHIxqYDn682wQD7RNp9UujOQsHog2uS0r2vzr4pW+sXf90NeeayjcNaX3fFg==}
     engines: {node: '>=6.9.0'}
 
   '@babel/helper-validator-option@7.27.1':
@@ -1840,8 +1848,9 @@ packages:
       react-redux:
         optional: true
 
-  '@rescale/nemo@2.2.0':
-    resolution: {integrity: sha512-AetzvHmtJ8Q0U1SEpBmWgCZfQZgBfr++Ok0AUMHGJVdaU1w+OB1/x/PMoskulL5xrnFLRdUlmMBhYl+JTgZMjA==}
+  '@rescale/nemo@3.0.1':
+    resolution: {integrity: sha512-zx2mxb/9AefGv0AtsFNnDG8wS+4QrbiZC4kKXXbFd/Ks4sZhfTlPPRe6qvIEdBkogj4gDf0X3UGW66YaIskkeA==}
+    deprecated: '@rescale/nemo has moved to @zanreal/nemo. This alias re-exports @zanreal/nemo and will stop receiving updates — please run `npm install @zanreal/nemo` and update your imports. See https://nemo.zanreal.com/docs/2.0/migration'
     peerDependencies:
       next: '>=13.0.0'
 
@@ -2618,6 +2627,11 @@ packages:
 
   '@vitest/utils@3.2.7':
     resolution: {integrity: sha512-x6BDOd7dyo3PFLY3I9/HJ25X/6OurhGXk2/B9gOZNPF7XDVjeBK4k01lQE5uvDpbuheErh91qYuE1E2OEjK3Rw==}
+
+  '@zanreal/nemo@3.0.1':
+    resolution: {integrity: sha512-sV8bkvPm/bLmK1BokjZ2zsx7fbPyz8JDWScT88srhvNDW6OnopaU9Co/etaquHWWU3Ta6MzxRpLrOIx4zzK/rA==}
+    peerDependencies:
+      next: '>=13.0.0'
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -6099,6 +6113,12 @@ snapshots:
       js-tokens: 4.0.0
       picocolors: 1.1.1
 
+  '@babel/code-frame@7.29.7':
+    dependencies:
+      '@babel/helper-validator-identifier': 7.29.7
+      js-tokens: 4.0.0
+      picocolors: 1.1.1
+
   '@babel/compat-data@7.28.0': {}
 
   '@babel/core@7.28.3':
@@ -6168,6 +6188,8 @@ snapshots:
   '@babel/helper-string-parser@7.27.1': {}
 
   '@babel/helper-validator-identifier@7.27.1': {}
+
+  '@babel/helper-validator-identifier@7.29.7': {}
 
   '@babel/helper-validator-option@7.27.1': {}
 
@@ -7162,10 +7184,10 @@ snapshots:
     optionalDependencies:
       react: 19.2.8
 
-  '@rescale/nemo@2.2.0(next@15.5.23(@babel/core@7.28.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))':
+  '@rescale/nemo@3.0.1(next@15.5.23(@babel/core@7.28.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))':
     dependencies:
+      '@zanreal/nemo': 3.0.1(next@15.5.23(@babel/core@7.28.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       next: 15.5.23(@babel/core@7.28.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      path-to-regexp: 6.3.0
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
     optional: true
@@ -7365,7 +7387,7 @@ snapshots:
 
   '@testing-library/dom@10.4.1':
     dependencies:
-      '@babel/code-frame': 7.27.1
+      '@babel/code-frame': 7.29.7
       '@babel/runtime': 7.29.7
       '@types/aria-query': 5.0.4
       aria-query: 5.3.0
@@ -7972,6 +7994,11 @@ snapshots:
       '@vitest/pretty-format': 3.2.7
       loupe: 3.2.1
       tinyrainbow: 2.0.0
+
+  '@zanreal/nemo@3.0.1(next@15.5.23(@babel/core@7.28.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))':
+    dependencies:
+      next: 15.5.23(@babel/core@7.28.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      path-to-regexp: 6.3.0
 
   acorn-jsx@5.3.2(acorn@8.15.0):
     dependencies:
