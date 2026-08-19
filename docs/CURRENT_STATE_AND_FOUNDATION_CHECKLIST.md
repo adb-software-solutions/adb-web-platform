@@ -149,36 +149,48 @@ These are not prerequisites for starting other operational modules, but remain u
 - [x] permission-aware related Task counts/open-task summary.
 - [x] permission-aware related Time-entry count and tracked/billable-hour summary.
 - [x] ownership changes are blocked when linked Tasks, Task Lists or Time entries would become inconsistent.
+- [x] Project workspaces expose real Task Lists, Sections and Tasks rather than summary counts alone.
+- [x] Project Task workspace supports List, Board and Timeline views.
+- [x] Project Task Board moves are permission-aware and preserve ownership/project boundaries.
+- [x] Project-originated Task creation preserves Project ownership/context.
+- [x] Project-originated Time Tracking preserves Project context.
 
 ### Missing
 
 - [ ] milestones and project ownership/participants where useful.
-- [ ] richer related Task workspace/actions.
-- [ ] richer related Time entry list/reporting.
+- [ ] richer embedded Time entry list/reporting inside the Project workspace.
 - [ ] related Tickets/KB/Infrastructure links.
-- [ ] project-centric timer start/stop actions.
+- [ ] inline project-centric timer controls without leaving the Project workspace.
 
 ## 7. Tasks
 
 ### Implemented
 
 - [x] Task model/domain foundation.
-- [x] standalone tasks are supported conceptually and do not require Projects.
-- [x] Task register/list foundation.
-- [x] assignment/due/priority concepts exist in the operational model where established.
+- [x] standalone Client/Internal Tasks do not require Projects.
+- [x] paginated Task register/list with search, ownership and completion filtering.
+- [x] scoped create/edit/detail workflows.
+- [x] Project, Client and Task List context-aware creation.
+- [x] assignment, status, priority, start date and due date workflows.
+- [x] complete and reopen actions with capability enforcement.
+- [x] daily, weekly and monthly recurrence configuration.
+- [x] completing a recurring occurrence materialises the next Task while preserving occurrence history.
+- [x] Client/Internal/Project Task Lists and ordered Sections.
+- [x] Task List List, Board and Timeline views.
+- [x] permission-aware Task drag/drop and ordering across Sections/Task Lists within valid ownership context.
+- [x] Subtasks with inherited work context.
+- [x] explicit blocking Dependencies.
+- [x] Task detail workspace with recurrence history and related work context.
+- [x] related Time panel and context-prefilled Time Tracking action.
+- [x] Project workspace Task integration.
 
 ### Missing
 
-- [ ] create Task.
-- [ ] edit Task.
 - [ ] delete/archive Task according to lifecycle rules.
-- [ ] mark complete/reopen.
-- [ ] recurrence UX/worker behaviour where recurrence is enabled.
-- [ ] list modes: My Tasks, Today, Upcoming, Overdue, Completed.
-- [ ] filters by Client, Project, assignee, status and priority.
-- [ ] Project-linked, Client-linked and future Ticket-linked quick creation.
-- [ ] task detail/workspace where detail justifies it.
-- [ ] task-centric timer start/stop.
+- [ ] dedicated list modes: My Tasks, Today, Upcoming and Overdue.
+- [ ] richer register filters by Client, Project, assignee, status and priority.
+- [ ] future Ticket-linked Task creation/relationships where useful.
+- [ ] inline task-centric timer controls without leaving the Task workspace.
 - [ ] Calendar integration.
 
 ## 8. Calendar / work planning
@@ -202,27 +214,29 @@ There is no complete operations calendar yet.
 
 ### Implemented
 
-- [x] TimeEntry domain foundation.
-- [x] Time register/list foundation.
-- [x] Project/Client relationships exist where currently modelled.
+- [x] TimeEntry domain for manual and timer-recorded work.
+- [x] Client/Internal ownership with Internal time forced non-billable.
+- [x] direct Client association for valid non-project work.
+- [x] Project, Task and Ticket attribution with context-derived ownership.
+- [x] manual Time entry creation.
+- [x] persistent server-side RunningTimer model/lifecycle.
+- [x] one active RunningTimer per staff user.
+- [x] Start, Stop and Cancel timer actions.
+- [x] backend-calculated stopped-timer duration persisted as a durable TimeEntry.
+- [x] context-prefilled Time Tracking from Project, Task and Ticket workspaces.
+- [x] paginated Time history with tracked/billable/non-billable totals.
+- [x] period reporting with Client filtering and daily tracked/billable series.
+- [x] Project summary totals and Task/Ticket contextual Time panels.
+- [x] permission-aware recording UI separate from Time viewing/reporting capability.
 
 ### Missing
 
-- [ ] manually add time.
-- [ ] edit time.
-- [ ] delete time subject to permissions.
-- [ ] running timer model/lifecycle.
-- [ ] Start timer action.
-- [ ] Stop timer action with backend-calculated duration.
-- [ ] enforce one active timer per user initially.
-- [ ] start/stop from Project.
-- [ ] start/stop from Task.
-- [ ] start/stop from Ticket.
-- [ ] direct Client association for valid non-project work.
-- [ ] daily/weekly/monthly views.
-- [ ] totals by Client, Project, Task, Ticket and staff user.
-- [ ] Client workspace time reporting by week/month/custom range.
-- [ ] Project/Ticket contextual time totals.
+- [ ] edit Time entries.
+- [ ] delete Time entries subject to permissions/audit rules.
+- [ ] inline Start/Stop controls directly inside Project, Task and Ticket workspaces.
+- [ ] richer staff/user breakdowns and operational reporting where useful.
+- [ ] Client workspace Time reporting by week/month/custom range.
+- [ ] richer embedded Project Time history/reporting.
 - [ ] future billable/invoice linkage without making invoicing a current dependency.
 
 ## 10. Knowledge Base
@@ -372,32 +386,27 @@ Public-site fixes, security work and stable integration changes can still happen
 
 This is the current intended sequence, subject to normal small adjustments as implementation reveals dependencies:
 
-1. **Docs/config/dependency health**
-    - canonical roadmap reconciliation;
-    - Microsoft Graph deployment runbook;
-    - Dependabot/security updates;
-    - CI green.
-2. **Clients/Contacts + Users & Access**
-    - full CRUD and scopes;
-    - complete Client hub foundation;
-    - repair Users & Access 404.
-3. **Leads + Projects + Tasks operational workflows**
-    - detail/create/edit/status/complete/list modes;
-    - Ticket/email links for Leads;
-    - contextual relationships.
-4. **Knowledge Base + Credentials + Infrastructure**
+1. **Stabilise the implemented operational core**
+    - keep Clients/Contacts, Leads, Projects, Tasks, Time Tracking and Ticketing contracts coherent;
+    - reconcile current-state documentation as slices land;
+    - keep CI/security/dependency health green.
+2. **Users & Access + Client workspace integration**
+    - repair the Users & Access 404 with usable capability/scope administration;
+    - expose Tasks, Time and other mature operational domains through the Client hub;
+    - add permission-aware Client quick actions and period summaries.
+3. **Knowledge Base + Credentials + Infrastructure**
     - IT Glue-style CRUD/detail/search/relationships;
-    - secure vault reveal/copy/rotation.
-5. **Time Tracking + Calendar**
-    - running timers from Task/Project/Ticket;
-    - reporting by period/context;
-    - calendar/agenda aggregation.
-6. **Integrated Client workspaces + configurable Dashboard**
-    - full cross-domain Client context;
-    - user-configurable widget layouts.
-7. **Public websites**
+    - secure vault reveal/copy/rotation;
+    - connect operational resources through Client context.
+4. **Calendar / work planning**
+    - aggregate Task dates and later Project milestones/events;
+    - add useful day/week/month planning views and filters.
+5. **Integrated operational refinements + configurable Dashboard**
+    - complete remaining cross-domain links and useful CRM/project refinements;
+    - add user-configurable, permission-aware dashboard widgets/layouts.
+6. **Public websites**
     - complete the three brand sites against stable platform contracts.
-8. **Later commercial/client-facing features**
+7. **Later commercial/client-facing features**
     - portal, quotes, contracts, invoicing, Stripe/payments.
 
 ## 18. Definition of internal-platform readiness for public-site focus
