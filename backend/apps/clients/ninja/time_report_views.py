@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import calendar
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any, cast
