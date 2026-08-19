@@ -5,7 +5,7 @@ import { AdminAPI } from "@/lib/api/endpoints";
 import { fetchAPI } from "@/lib/api/fetch";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ProjectActivityPanels } from "./ProjectActivityPanels";
+import { ProjectTaskWorkspaceView } from "./ProjectTaskWorkspaceView";
 
 interface ProjectDetail {
     id: number;
@@ -132,6 +132,10 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                    <ButtonLink href={`/admin/tasks/new?project_id=${project.id}`}>Add task</ButtonLink>
+                    <ButtonLink href={`/admin/time-tracking?project_id=${project.id}`} variant="outline">
+                        Track time
+                    </ButtonLink>
                     {project.client_id ? (
                         <ButtonLink href={`/admin/clients/${project.client_id}`} variant="outline">
                             View client
@@ -144,6 +148,35 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
                     ) : null}
                 </div>
             </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <Card className="p-5">
+                    <div className="text-xs uppercase tracking-wide text-slate-500">Open tasks</div>
+                    <div className="mt-2 text-2xl font-semibold text-white">{project.open_task_count}</div>
+                    <div className="mt-1 text-xs text-slate-500">{project.task_count} total project tasks</div>
+                </Card>
+                <Card className="p-5">
+                    <div className="text-xs uppercase tracking-wide text-slate-500">Tracked time</div>
+                    <div className="mt-2 text-2xl font-semibold text-white">
+                        {formatHours(project.tracked_hours)}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">{project.time_entry_count} time entries</div>
+                </Card>
+                <Card className="p-5">
+                    <div className="text-xs uppercase tracking-wide text-slate-500">Billable time</div>
+                    <div className="mt-2 text-2xl font-semibold text-white">
+                        {formatHours(project.billable_hours)}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">Recorded billable hours</div>
+                </Card>
+                <Card className="p-5">
+                    <div className="text-xs uppercase tracking-wide text-slate-500">Schedule</div>
+                    <div className="mt-2 text-sm font-semibold text-white">{formatDate(project.start_date)}</div>
+                    <div className="mt-1 text-xs text-slate-500">to {formatDate(project.end_date)}</div>
+                </Card>
+            </div>
+
+            <ProjectTaskWorkspaceView projectId={project.id} />
 
             <div className="grid gap-4 lg:grid-cols-3">
                 <Card className="p-5 lg:col-span-2">
@@ -158,14 +191,6 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
                         <div>
                             <dt className="text-xs text-slate-500">Status</dt>
                             <dd className="mt-1 capitalize text-slate-300">{project.status}</dd>
-                        </div>
-                        <div>
-                            <dt className="text-xs text-slate-500">Start date</dt>
-                            <dd className="mt-1 text-slate-300">{formatDate(project.start_date)}</dd>
-                        </div>
-                        <div>
-                            <dt className="text-xs text-slate-500">End date</dt>
-                            <dd className="mt-1 text-slate-300">{formatDate(project.end_date)}</dd>
                         </div>
                         <div>
                             <dt className="text-xs text-slate-500">Budget</dt>
@@ -205,39 +230,6 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
                     {project.description || "No project description has been recorded yet."}
                 </p>
             </Card>
-
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <Card className="p-5">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Tasks</div>
-                    <div className="mt-2 text-2xl font-semibold text-white">{project.task_count}</div>
-                    <div className="mt-1 text-xs text-slate-500">
-                        {project.open_task_count} currently open
-                    </div>
-                </Card>
-                <Card className="p-5">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Time entries</div>
-                    <div className="mt-2 text-2xl font-semibold text-white">
-                        {project.time_entry_count}
-                    </div>
-                    <div className="mt-1 text-xs text-slate-500">Recorded against this project</div>
-                </Card>
-                <Card className="p-5">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Tracked time</div>
-                    <div className="mt-2 text-2xl font-semibold text-white">
-                        {formatHours(project.tracked_hours)}
-                    </div>
-                    <div className="mt-1 text-xs text-slate-500">Total recorded hours</div>
-                </Card>
-                <Card className="p-5">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Billable time</div>
-                    <div className="mt-2 text-2xl font-semibold text-white">
-                        {formatHours(project.billable_hours)}
-                    </div>
-                    <div className="mt-1 text-xs text-slate-500">Billable recorded hours</div>
-                </Card>
-            </div>
-
-            <ProjectActivityPanels projectId={project.id} />
         </div>
     );
 }
