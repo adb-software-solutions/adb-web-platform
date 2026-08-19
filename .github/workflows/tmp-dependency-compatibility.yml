@@ -1,0 +1,66 @@
+name: Temporary Dependency Compatibility
+
+on:
+    push:
+        branches:
+            - tmp/dependency-compatibility
+
+permissions:
+    contents: write
+
+jobs:
+    fix:
+        runs-on: ubuntu-24.04
+        steps:
+            - name: Checkout branch
+              uses: actions/checkout@v4
+              with:
+                  ref: tmp/dependency-compatibility
+
+            - name: Fix WebAuthn binary typing
+              run: |
+                  python - <<'PY'
+                  from pathlib import Path
+
+                  path = Path("backend/authentication/auth_service/views.py")
+                  content = path.read_text()
+                  old = '"id": bytes_to_base64url(pk.credential_id),'
+                  new = '"id": bytes_to_base64url(bytes(pk.credential_id)),'
+                  if content.count(old) != 1:
+                      raise SystemExit("Expected one WebAuthn credential conversion")
+                  path.write_text(content.replace(old, new))
+                  PY
+
+            - name: Set up pnpm
+              uses: pnpm/action-setup@v4.1.0
+              with:
+                  version: 10.15.0
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: pnpm
+                  cache-dependency-path: pnpm-lock.yaml
+
+            - name: Defer incompatible TypeScript 7 update
+              run: |
+                  pnpm --recursive update "typescript@5.8.3"
+                  pnpm install --lockfile-only
+
+            - name: Commit compatibility changes
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git add \
+                    backend/authentication/auth_service/views.py \
+                    pnpm-lock.yaml \
+                    sites/*/package.json \
+                    packages/*/package.json \
+                    package.json
+                  if git diff --cached --quiet; then
+                      echo "No compatibility changes produced."
+                      exit 0
+                  fi
+                  git commit -m "fix: Resolve dependency compatibility issues."
+                  git push origin HEAD:tmp/dependency-compatibility
