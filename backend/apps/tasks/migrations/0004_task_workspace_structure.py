@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             name="sort_order",
             field=models.DecimalField(
                 decimal_places=10,
-                default=decimal.Decimal("1000"),
+                default=decimal.Decimal(1000),
                 max_digits=20,
             ),
         ),
@@ -36,7 +36,7 @@ class Migration(migrations.Migration):
                     "sort_order",
                     models.DecimalField(
                         decimal_places=10,
-                        default=decimal.Decimal("1000"),
+                        default=decimal.Decimal(1000),
                         max_digits=20,
                     ),
                 ),
@@ -63,7 +63,7 @@ class Migration(migrations.Migration):
             name="sort_order",
             field=models.DecimalField(
                 decimal_places=10,
-                default=decimal.Decimal("1000"),
+                default=decimal.Decimal(1000),
                 max_digits=20,
             ),
         ),
