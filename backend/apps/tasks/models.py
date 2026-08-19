@@ -16,7 +16,7 @@ class TaskStatus(models.Model):
         ordering = ["order"]
         verbose_name_plural = "Task Statuses"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -65,7 +65,7 @@ class TaskList(models.Model):
                     {"client": "Task-list client must match the selected project."}
                 )
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -123,6 +123,13 @@ class Task(models.Model):
         help_text="Optional iCalendar RRULE for recurring tasks.",
     )
     next_occurrence_at = models.DateTimeField(blank=True, null=True)
+    previous_occurrence = models.OneToOneField(
+        "self",
+        on_delete=models.SET_NULL,
+        related_name="next_occurrence",
+        null=True,
+        blank=True,
+    )
     completed_at = models.DateTimeField(blank=True, null=True)
 
     assigned_to = models.ForeignKey(
@@ -171,5 +178,10 @@ class Task(models.Model):
                     {"project": "Task project must match the selected project task list."}
                 )
 
-    def __str__(self):
+        if self.recurrence_rule and self.due_date is None:
+            raise ValidationError(
+                {"due_date": "Recurring tasks require a due date for the first occurrence."}
+            )
+
+    def __str__(self) -> str:
         return self.title
