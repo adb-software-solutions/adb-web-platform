@@ -13,7 +13,11 @@ from apps.clients.services.time_tracking import visible_time_entries
 from authentication.models import User
 from authentication.ninja.schemas import ProblemDetail
 
-from .time_report_schemas import TimeReportClientOut, TimeReportDayOut, TimeReportSummaryOut
+from .time_report_schemas import (
+    TimeReportClientOut,
+    TimeReportDayOut,
+    TimeReportSummaryOut,
+)
 
 
 time_report_router = Router(tags=["admin-time-reporting"])
