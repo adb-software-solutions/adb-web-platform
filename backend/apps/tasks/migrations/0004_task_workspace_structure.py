@@ -1,3 +1,5 @@
+import decimal
+
 import django.db.models.deletion
 from django.db import migrations, models
 
@@ -11,7 +13,11 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="tasklist",
             name="sort_order",
-            field=models.DecimalField(decimal_places=10, default=1000, max_digits=20),
+            field=models.DecimalField(
+                decimal_places=10,
+                default=decimal.Decimal("1000"),
+                max_digits=20,
+            ),
         ),
         migrations.CreateModel(
             name="TaskSection",
@@ -28,7 +34,11 @@ class Migration(migrations.Migration):
                 ("name", models.CharField(max_length=200)),
                 (
                     "sort_order",
-                    models.DecimalField(decimal_places=10, default=1000, max_digits=20),
+                    models.DecimalField(
+                        decimal_places=10,
+                        default=decimal.Decimal("1000"),
+                        max_digits=20,
+                    ),
                 ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
@@ -51,7 +61,11 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="task",
             name="sort_order",
-            field=models.DecimalField(decimal_places=10, default=1000, max_digits=20),
+            field=models.DecimalField(
+                decimal_places=10,
+                default=decimal.Decimal("1000"),
+                max_digits=20,
+            ),
         ),
         migrations.AddField(
             model_name="task",
