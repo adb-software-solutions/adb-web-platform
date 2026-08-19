@@ -3,7 +3,7 @@
 import { Button, ButtonLink, DataLoading, Input, Select, Textarea } from "@/components/ui";
 import { AdminAPI } from "@/lib/api/endpoints";
 import { fetchAPI } from "@/lib/api/fetch";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Ownership = "client" | "internal";
@@ -98,8 +98,70 @@ function optionalNumber(value: string) {
     return value ? Number(value) : null;
 }
 
+function validQueryId(value: string | null) {
+    if (!value) return null;
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function initialCreateState(
+    options: TaskOptions,
+    projectId: number | null,
+    clientId: number | null,
+    taskListId: number | null,
+): TaskFormState {
+    const todo = options.statuses.find((status) => status.name.toLowerCase() === "to do");
+    const initial: TaskFormState = {
+        ...EMPTY_FORM,
+        status_id: todo?.id ?? null,
+    };
+
+    const taskList = taskListId
+        ? options.task_lists.find((candidate) => candidate.id === taskListId)
+        : null;
+    if (taskList) {
+        const project = taskList.project_id
+            ? options.projects.find((candidate) => candidate.id === taskList.project_id)
+            : null;
+        return {
+            ...initial,
+            ownership_type: project?.ownership_type ?? taskList.ownership_type,
+            client_id: project?.client_id ?? taskList.client_id,
+            project_id: project?.id ?? null,
+            task_list_id: taskList.id,
+        };
+    }
+
+    const project = projectId
+        ? options.projects.find((candidate) => candidate.id === projectId)
+        : null;
+    if (project) {
+        return {
+            ...initial,
+            ownership_type: project.ownership_type,
+            client_id: project.client_id,
+            project_id: project.id,
+        };
+    }
+
+    const client = clientId ? options.clients.find((candidate) => candidate.id === clientId) : null;
+    if (client) {
+        return {
+            ...initial,
+            ownership_type: "client",
+            client_id: client.id,
+        };
+    }
+
+    return initial;
+}
+
 export function TaskForm({ taskId }: { taskId?: number }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const projectQueryId = validQueryId(searchParams.get("project_id"));
+    const clientQueryId = validQueryId(searchParams.get("client_id"));
+    const taskListQueryId = validQueryId(searchParams.get("task_list_id"));
     const [form, setForm] = useState<TaskFormState>(EMPTY_FORM);
     const [options, setOptions] = useState<TaskOptions | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -133,12 +195,14 @@ export function TaskForm({ taskId }: { taskId?: number }) {
                         recurrence_frequency: task.recurrence_frequency,
                     });
                 } else {
-                    const todo = loadedOptions.statuses.find(
-                        (status) => status.name.toLowerCase() === "to do",
+                    setForm(
+                        initialCreateState(
+                            loadedOptions,
+                            projectQueryId,
+                            clientQueryId,
+                            taskListQueryId,
+                        ),
                     );
-                    if (todo) {
-                        setForm((current) => ({ ...current, status_id: todo.id }));
-                    }
                 }
             } catch (loadError) {
                 setError(loadError instanceof Error ? loadError.message : "Unable to load task details.");
@@ -148,7 +212,7 @@ export function TaskForm({ taskId }: { taskId?: number }) {
         }
 
         void load();
-    }, [taskId]);
+    }, [clientQueryId, projectQueryId, taskId, taskListQueryId]);
 
     const selectedProject = useMemo(
         () => options?.projects.find((project) => project.id === form.project_id) ?? null,
