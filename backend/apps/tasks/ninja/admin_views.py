@@ -139,6 +139,7 @@ def _build_task_summary(task: Task) -> TaskSummaryOut:
         status=task.status.name if task.status else "Unassigned",
         status_id=task.status_id,
         priority=task.priority,
+        start_date=task.start_date,
         due_date=task.due_date,
         completed_at=task.completed_at,
         ownership_type=task.ownership_type,
