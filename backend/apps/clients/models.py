@@ -177,7 +177,7 @@ class TimeEntry(models.Model):
         help_text="Hours worked",
     )
     description = models.TextField()
-    billable = models.BooleanField(default=True)
+    billable = models.BooleanField(default=False)
     entry_type = models.CharField(
         max_length=16,
         choices=EntryType.choices,
