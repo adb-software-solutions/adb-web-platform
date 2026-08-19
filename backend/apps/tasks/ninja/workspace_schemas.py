@@ -53,6 +53,14 @@ class ProjectTaskWorkspaceOut(Schema):
     unlisted_tasks: list[TaskWorkspaceTaskOut]
 
 
+class TaskRelationsOut(Schema):
+    task_id: int
+    subtasks: list[TaskWorkspaceTaskOut]
+    blocked_by: list[TaskWorkspaceTaskOut]
+    blocking: list[TaskWorkspaceTaskOut]
+    can_change: bool
+
+
 class TaskSectionIn(Schema):
     name: str
 
@@ -61,6 +69,10 @@ class QuickTaskIn(Schema):
     title: str
     section_id: int | None = None
     parent_task_id: int | None = None
+
+
+class QuickSubtaskIn(Schema):
+    title: str
 
 
 class TaskMoveIn(Schema):
