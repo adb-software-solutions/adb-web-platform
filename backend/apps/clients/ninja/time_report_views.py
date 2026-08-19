@@ -13,7 +13,11 @@ from apps.clients.services.time_tracking import visible_time_entries
 from authentication.models import User
 from authentication.ninja.schemas import ProblemDetail
 
-from .time_report_schemas import TimeReportClientOut, TimeReportDayOut, TimeReportSummaryOut
+from .time_report_schemas import (
+    TimeReportClientOut,
+    TimeReportDayOut,
+    TimeReportSummaryOut,
+)
 
 
 time_report_router = Router(tags=["admin-time-reporting"])
@@ -134,8 +138,7 @@ def time_report_summary(
             client_name=row["client__company"] or row["client__name"],
             tracked_hours=row["tracked"] or Decimal(0),
             billable_hours=row["billable"] or Decimal(0),
-            non_billable_hours=(row["tracked"] or Decimal(0))
-            - (row["billable"] or Decimal(0)),
+            non_billable_hours=(row["tracked"] or Decimal(0)) - (row["billable"] or Decimal(0)),
             entry_count=row["entry_count"],
             project_count=row["project_count"],
         )

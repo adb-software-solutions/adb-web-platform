@@ -59,9 +59,7 @@ def _visible_task_lists(user: User) -> QuerySet[TaskList]:
     if user.is_superuser:
         return task_lists
     clients = scope_clients_for_user(user)
-    return task_lists.filter(
-        Q(ownership_type=OwnershipType.INTERNAL) | Q(client__in=clients)
-    )
+    return task_lists.filter(Q(ownership_type=OwnershipType.INTERNAL) | Q(client__in=clients))
 
 
 def _visible_tasks(user: User) -> QuerySet[Task]:
@@ -84,9 +82,7 @@ def _visible_projects(user: User) -> QuerySet[Project]:
     if user.is_superuser:
         return projects
     clients = scope_clients_for_user(user)
-    return projects.filter(
-        Q(ownership_type=OwnershipType.INTERNAL) | Q(client__in=clients)
-    )
+    return projects.filter(Q(ownership_type=OwnershipType.INTERNAL) | Q(client__in=clients))
 
 
 def _user_name(user: User | None) -> str | None:
@@ -114,9 +110,7 @@ def _task_out(
         parent_task_id=task.parent_task_id,
         sort_order=task.sort_order,
         subtask_count=(
-            subtask_count
-            if subtask_count is not None
-            else getattr(task, "subtask_count", 0)
+            subtask_count if subtask_count is not None else getattr(task, "subtask_count", 0)
         ),
         blocked_by_count=(
             blocked_by_count
@@ -417,10 +411,7 @@ def move_task(
                 "not_found",
                 404,
             )
-        if (
-            task_list.ownership_type != task.ownership_type
-            or task_list.client_id != task.client_id
-        ):
+        if task_list.ownership_type != task.ownership_type or task_list.client_id != task.client_id:
             return _problem(
                 "Task cannot move across ownership boundaries.",
                 "context_mismatch",

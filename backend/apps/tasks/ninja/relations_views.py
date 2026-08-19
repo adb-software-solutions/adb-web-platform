@@ -95,9 +95,7 @@ def _task_out(
         parent_task_id=task.parent_task_id,
         sort_order=task.sort_order,
         subtask_count=(
-            subtask_count
-            if subtask_count is not None
-            else getattr(task, "subtask_count", 0)
+            subtask_count if subtask_count is not None else getattr(task, "subtask_count", 0)
         ),
         blocked_by_count=(
             blocked_by_count
@@ -137,11 +135,7 @@ def task_relations(
             404,
         )
 
-    subtasks = list(
-        _decorated_tasks(user)
-        .filter(parent_task=task)
-        .order_by("sort_order", "id")
-    )
+    subtasks = list(_decorated_tasks(user).filter(parent_task=task).order_by("sort_order", "id"))
     blocked_by_ids = TaskDependency.objects.filter(blocked_task=task).values_list(
         "blocking_task_id",
         flat=True,
@@ -150,12 +144,8 @@ def task_relations(
         "blocked_task_id",
         flat=True,
     )
-    blocked_by = list(
-        _decorated_tasks(user).filter(id__in=blocked_by_ids).order_by("title")
-    )
-    blocking = list(
-        _decorated_tasks(user).filter(id__in=blocking_ids).order_by("title")
-    )
+    blocked_by = list(_decorated_tasks(user).filter(id__in=blocked_by_ids).order_by("title"))
+    blocking = list(_decorated_tasks(user).filter(id__in=blocking_ids).order_by("title"))
     return TaskRelationsOut(
         task_id=task.id,
         subtasks=[_task_out(item) for item in subtasks],
