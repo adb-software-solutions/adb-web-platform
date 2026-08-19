@@ -54,6 +54,8 @@ interface Workspace {
     total_tasks: number;
     open_tasks: number;
     can_change: boolean;
+    can_add_task: boolean;
+    can_change_task: boolean;
 }
 
 const priorityLabels: Record<number, string> = {
@@ -190,7 +192,7 @@ export function TaskListWorkspaceView({ taskListId }: { taskListId: number }) {
         beforeTaskId: number | null,
         afterTaskId: number | null,
     ) {
-        if (!workspace) return;
+        if (!workspace?.can_change_task) return;
         try {
             await fetchAPI(AdminAPI.tasks.move(taskId), {
                 method: "POST",
@@ -210,6 +212,7 @@ export function TaskListWorkspaceView({ taskListId }: { taskListId: number }) {
     }
 
     function handleDragStart(event: DragEvent, taskId: number) {
+        if (!workspace?.can_change_task) return;
         setDraggedTaskId(taskId);
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData("text/plain", String(taskId));
@@ -221,6 +224,7 @@ export function TaskListWorkspaceView({ taskListId }: { taskListId: number }) {
     }
 
     async function dropAtEnd(event: DragEvent, sectionId: number | null, tasks: WorkspaceTask[]) {
+        if (!workspace?.can_change_task) return;
         const taskId = taskIdFromDrop(event);
         if (!taskId) return;
         const remaining = tasks.filter((task) => task.id !== taskId);
@@ -234,6 +238,7 @@ export function TaskListWorkspaceView({ taskListId }: { taskListId: number }) {
         tasks: WorkspaceTask[],
         targetId: number,
     ) {
+        if (!workspace?.can_change_task) return;
         event.stopPropagation();
         const taskId = taskIdFromDrop(event);
         if (!taskId || taskId === targetId) return;
@@ -298,7 +303,11 @@ export function TaskListWorkspaceView({ taskListId }: { taskListId: number }) {
                     </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <ButtonLink href={`/admin/tasks/new?task_list_id=${workspace.id}`}>Add task</ButtonLink>
+                    {workspace.can_add_task ? (
+                        <ButtonLink href={`/admin/tasks/new?task_list_id=${workspace.id}`}>
+                            Add task
+                        </ButtonLink>
+                    ) : null}
                     {workspace.project_id ? (
                         <ButtonLink href={`/admin/projects/${workspace.project_id}`} variant="outline">
                             Project
@@ -352,8 +361,16 @@ export function TaskListWorkspaceView({ taskListId }: { taskListId: number }) {
                             <Card
                                 key={section.id || "unsectioned"}
                                 className="overflow-hidden"
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={(event) => void dropAtEnd(event, sectionId, section.tasks)}
+                                onDragOver={
+                                    workspace.can_change_task
+                                        ? (event) => event.preventDefault()
+                                        : undefined
+                                }
+                                onDrop={
+                                    workspace.can_change_task
+                                        ? (event) => void dropAtEnd(event, sectionId, section.tasks)
+                                        : undefined
+                                }
                             >
                                 <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
                                     <h2 className="text-sm font-semibold text-white">{section.name}</h2>
@@ -364,17 +381,41 @@ export function TaskListWorkspaceView({ taskListId }: { taskListId: number }) {
                                         {section.tasks.map((task) => (
                                             <div
                                                 key={task.id}
-                                                draggable
-                                                onDragStart={(event) => handleDragStart(event, task.id)}
-                                                onDragOver={(event) => event.preventDefault()}
-                                                onDrop={(event) =>
-                                                    void dropBefore(event, sectionId, section.tasks, task.id)
+                                                draggable={workspace.can_change_task}
+                                                onDragStart={
+                                                    workspace.can_change_task
+                                                        ? (event) => handleDragStart(event, task.id)
+                                                        : undefined
                                                 }
-                                                className="group grid cursor-grab gap-3 px-4 py-3 active:cursor-grabbing md:grid-cols-[minmax(0,1fr)_9rem_7rem] md:items-center"
+                                                onDragOver={
+                                                    workspace.can_change_task
+                                                        ? (event) => event.preventDefault()
+                                                        : undefined
+                                                }
+                                                onDrop={
+                                                    workspace.can_change_task
+                                                        ? (event) =>
+                                                              void dropBefore(
+                                                                  event,
+                                                                  sectionId,
+                                                                  section.tasks,
+                                                                  task.id,
+                                                              )
+                                                        : undefined
+                                                }
+                                                className={`group grid gap-3 px-4 py-3 md:grid-cols-[minmax(0,1fr)_9rem_7rem] md:items-center ${
+                                                    workspace.can_change_task
+                                                        ? "cursor-grab active:cursor-grabbing"
+                                                        : ""
+                                                }`}
                                             >
                                                 <div className="min-w-0">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-slate-600 opacity-0 transition group-hover:opacity-100">⋮⋮</span>
+                                                        {workspace.can_change_task ? (
+                                                            <span className="text-slate-600 opacity-0 transition group-hover:opacity-100">
+                                                                ⋮⋮
+                                                            </span>
+                                                        ) : null}
                                                         <Link
                                                             href={`/admin/tasks/${task.id}`}
                                                             className="truncate text-sm font-medium text-slate-200 hover:text-adb-cyan-300"
@@ -383,7 +424,7 @@ export function TaskListWorkspaceView({ taskListId }: { taskListId: number }) {
                                                         </Link>
                                                         {task.blocked_by_count ? <Badge>Blocked</Badge> : null}
                                                     </div>
-                                                    <div className="mt-1 pl-6">
+                                                    <div className={workspace.can_change_task ? "mt-1 pl-6" : "mt-1"}>
                                                         <TaskMeta task={task} />
                                                     </div>
                                                 </div>
@@ -395,15 +436,21 @@ export function TaskListWorkspaceView({ taskListId }: { taskListId: number }) {
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="px-4 py-5 text-sm text-slate-600">Drop tasks here or add one below.</div>
+                                    <div className="px-4 py-5 text-sm text-slate-600">
+                                        {workspace.can_add_task
+                                            ? "Drop tasks here or add one below."
+                                            : "No tasks in this section."}
+                                    </div>
                                 )}
-                                <div className="border-t border-slate-800 bg-slate-950/40 p-3">
-                                    <QuickAdd
-                                        taskListId={workspace.id}
-                                        sectionId={sectionId}
-                                        onCreated={load}
-                                    />
-                                </div>
+                                {workspace.can_add_task ? (
+                                    <div className="border-t border-slate-800 bg-slate-950/40 p-3">
+                                        <QuickAdd
+                                            taskListId={workspace.id}
+                                            sectionId={sectionId}
+                                            onCreated={load}
+                                        />
+                                    </div>
+                                ) : null}
                             </Card>
                         );
                     })}
@@ -419,8 +466,16 @@ export function TaskListWorkspaceView({ taskListId }: { taskListId: number }) {
                                 <div
                                     key={section.id || "unsectioned"}
                                     className="w-80 shrink-0 rounded-xl border border-slate-800 bg-slate-900/50"
-                                    onDragOver={(event) => event.preventDefault()}
-                                    onDrop={(event) => void dropAtEnd(event, sectionId, section.tasks)}
+                                    onDragOver={
+                                        workspace.can_change_task
+                                            ? (event) => event.preventDefault()
+                                            : undefined
+                                    }
+                                    onDrop={
+                                        workspace.can_change_task
+                                            ? (event) => void dropAtEnd(event, sectionId, section.tasks)
+                                            : undefined
+                                    }
                                 >
                                     <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
                                         <h2 className="text-sm font-semibold text-white">{section.name}</h2>
@@ -432,13 +487,33 @@ export function TaskListWorkspaceView({ taskListId }: { taskListId: number }) {
                                         {section.tasks.map((task) => (
                                             <div
                                                 key={task.id}
-                                                draggable
-                                                onDragStart={(event) => handleDragStart(event, task.id)}
-                                                onDragOver={(event) => event.preventDefault()}
-                                                onDrop={(event) =>
-                                                    void dropBefore(event, sectionId, section.tasks, task.id)
+                                                draggable={workspace.can_change_task}
+                                                onDragStart={
+                                                    workspace.can_change_task
+                                                        ? (event) => handleDragStart(event, task.id)
+                                                        : undefined
                                                 }
-                                                className="cursor-grab rounded-lg border border-slate-800 bg-slate-950 p-4 shadow-sm shadow-black/20 active:cursor-grabbing"
+                                                onDragOver={
+                                                    workspace.can_change_task
+                                                        ? (event) => event.preventDefault()
+                                                        : undefined
+                                                }
+                                                onDrop={
+                                                    workspace.can_change_task
+                                                        ? (event) =>
+                                                              void dropBefore(
+                                                                  event,
+                                                                  sectionId,
+                                                                  section.tasks,
+                                                                  task.id,
+                                                              )
+                                                        : undefined
+                                                }
+                                                className={`rounded-lg border border-slate-800 bg-slate-950 p-4 shadow-sm shadow-black/20 ${
+                                                    workspace.can_change_task
+                                                        ? "cursor-grab active:cursor-grabbing"
+                                                        : ""
+                                                }`}
                                             >
                                                 <Link
                                                     href={`/admin/tasks/${task.id}`}
@@ -457,11 +532,13 @@ export function TaskListWorkspaceView({ taskListId }: { taskListId: number }) {
                                                 </div>
                                             </div>
                                         ))}
-                                        <QuickAdd
-                                            taskListId={workspace.id}
-                                            sectionId={sectionId}
-                                            onCreated={load}
-                                        />
+                                        {workspace.can_add_task ? (
+                                            <QuickAdd
+                                                taskListId={workspace.id}
+                                                sectionId={sectionId}
+                                                onCreated={load}
+                                            />
+                                        ) : null}
                                     </div>
                                 </div>
                             );

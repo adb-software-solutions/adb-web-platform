@@ -23,6 +23,7 @@ interface Relations {
     blocked_by: RelationTask[];
     blocking: RelationTask[];
     can_change: boolean;
+    can_add_subtask: boolean;
 }
 
 interface TaskOption {
@@ -177,7 +178,7 @@ export function TaskRelationsPanel({ taskId }: { taskId: number }) {
                         description="Break larger work down without losing the parent task context."
                     />
                 )}
-                {relations.can_change ? (
+                {relations.can_add_subtask ? (
                     <form onSubmit={(event) => void addSubtask(event)} className="flex gap-2 border-t border-slate-800 bg-slate-950/40 p-4">
                         <Input
                             value={subtaskTitle}

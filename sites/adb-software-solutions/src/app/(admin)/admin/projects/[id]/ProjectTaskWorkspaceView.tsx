@@ -46,6 +46,10 @@ interface ProjectTaskWorkspace {
     client_name: string | null;
     task_lists: TaskListWorkspace[];
     unlisted_tasks: WorkspaceTask[];
+    can_add_task: boolean;
+    can_add_task_list: boolean;
+    can_change_task: boolean;
+    can_view_task_lists: boolean;
 }
 
 interface BoardColumn {
@@ -170,6 +174,7 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
 
     async function moveToColumn(event: DragEvent, column: BoardColumn) {
         event.preventDefault();
+        if (!workspace?.can_change_task) return;
         const taskId = Number(event.dataTransfer.getData("text/plain") || draggedTaskId || 0);
         if (!taskId) return;
         const remaining = column.tasks.filter((task) => task.id !== taskId);
@@ -216,10 +221,16 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <ButtonLink href={`/admin/tasks/new?project_id=${projectId}`}>Add task</ButtonLink>
-                    <ButtonLink href="/admin/task-lists" variant="outline">
-                        Manage task lists
-                    </ButtonLink>
+                    {workspace.can_add_task ? (
+                        <ButtonLink href={`/admin/tasks/new?project_id=${projectId}`}>
+                            Add task
+                        </ButtonLink>
+                    ) : null}
+                    {workspace.can_view_task_lists ? (
+                        <ButtonLink href="/admin/task-lists" variant="outline">
+                            {workspace.can_add_task_list ? "Manage task lists" : "Task lists"}
+                        </ButtonLink>
+                    ) : null}
                 </div>
             </div>
 
@@ -240,7 +251,7 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
                         </button>
                     ))}
                 </div>
-                {workspace.task_lists.length ? (
+                {workspace.can_view_task_lists && workspace.task_lists.length ? (
                     <div className="flex flex-wrap gap-2">
                         {workspace.task_lists.map((taskList) => (
                             <Link
@@ -258,7 +269,11 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
             {totalTasks === 0 ? (
                 <EmptyState
                     title="No project tasks yet"
-                    description="Add a task directly or create task lists and sections to plan this project."
+                    description={
+                        workspace.can_add_task
+                            ? "Add a task directly or create task lists and sections to plan this project."
+                            : "No tasks are currently recorded for this project."
+                    }
                 />
             ) : null}
 
@@ -268,19 +283,25 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
                         <Card key={taskList.id} className="overflow-hidden">
                             <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
                                 <div>
-                                    <Link
-                                        href={`/admin/task-lists/${taskList.id}`}
-                                        className="text-sm font-semibold text-white hover:text-adb-cyan-300"
-                                    >
-                                        {taskList.name}
-                                    </Link>
+                                    {workspace.can_view_task_lists ? (
+                                        <Link
+                                            href={`/admin/task-lists/${taskList.id}`}
+                                            className="text-sm font-semibold text-white hover:text-adb-cyan-300"
+                                        >
+                                            {taskList.name}
+                                        </Link>
+                                    ) : (
+                                        <h3 className="text-sm font-semibold text-white">{taskList.name}</h3>
+                                    )}
                                     <p className="mt-1 text-xs text-slate-500">
                                         {taskList.open_tasks} open · {taskList.total_tasks} total
                                     </p>
                                 </div>
-                                <ButtonLink href={`/admin/task-lists/${taskList.id}`} variant="outline">
-                                    Open list
-                                </ButtonLink>
+                                {workspace.can_view_task_lists ? (
+                                    <ButtonLink href={`/admin/task-lists/${taskList.id}`} variant="outline">
+                                        Open list
+                                    </ButtonLink>
+                                ) : null}
                             </div>
                             <div className="divide-y divide-slate-800">
                                 {[...taskList.sections, { id: 0, name: "Unsectioned", tasks: taskList.unsectioned_tasks }]
@@ -348,8 +369,16 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
                         {boardColumns.map((column) => (
                             <div
                                 key={column.key}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={(event) => void moveToColumn(event, column)}
+                                onDragOver={
+                                    workspace.can_change_task
+                                        ? (event) => event.preventDefault()
+                                        : undefined
+                                }
+                                onDrop={
+                                    workspace.can_change_task
+                                        ? (event) => void moveToColumn(event, column)
+                                        : undefined
+                                }
                                 className="w-80 shrink-0 rounded-xl border border-slate-800 bg-slate-900/50"
                             >
                                 <div className="border-b border-slate-800 px-4 py-3">
@@ -367,13 +396,24 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
                                     {column.tasks.map((task) => (
                                         <div
                                             key={task.id}
-                                            draggable
-                                            onDragStart={(event) => {
-                                                setDraggedTaskId(task.id);
-                                                event.dataTransfer.effectAllowed = "move";
-                                                event.dataTransfer.setData("text/plain", String(task.id));
-                                            }}
-                                            className="cursor-grab rounded-lg border border-slate-800 bg-slate-950 p-4 active:cursor-grabbing"
+                                            draggable={workspace.can_change_task}
+                                            onDragStart={
+                                                workspace.can_change_task
+                                                    ? (event) => {
+                                                          setDraggedTaskId(task.id);
+                                                          event.dataTransfer.effectAllowed = "move";
+                                                          event.dataTransfer.setData(
+                                                              "text/plain",
+                                                              String(task.id),
+                                                          );
+                                                      }
+                                                    : undefined
+                                            }
+                                            className={`rounded-lg border border-slate-800 bg-slate-950 p-4 ${
+                                                workspace.can_change_task
+                                                    ? "cursor-grab active:cursor-grabbing"
+                                                    : ""
+                                            }`}
                                         >
                                             <Link
                                                 href={`/admin/tasks/${task.id}`}
