@@ -40,7 +40,11 @@ export const AdminAPI = {
         reopen: (id: number) => `${API_BASE_URL}/admin/tasks/${id}/reopen`,
         options: () => `${API_BASE_URL}/admin/task-options`,
         move: (id: number) => `${API_BASE_URL}/admin/task-workspaces/tasks/${id}/move`,
-        dependencies: (id: number) => `${API_BASE_URL}/admin/task-workspaces/tasks/${id}/dependencies`,
+        relations: (id: number) => `${API_BASE_URL}/admin/task-relations/tasks/${id}`,
+        subtasks: (id: number) => `${API_BASE_URL}/admin/task-relations/tasks/${id}/subtasks`,
+        dependencies: (id: number) => `${API_BASE_URL}/admin/task-relations/tasks/${id}/dependencies`,
+        removeDependency: (id: number, blockingTaskId: number) =>
+            `${API_BASE_URL}/admin/task-relations/tasks/${id}/dependencies/${blockingTaskId}`,
         lists: {
             list: () => `${API_BASE_URL}/admin/task-lists`,
             get: (id: number) => `${API_BASE_URL}/admin/task-lists/${id}`,
@@ -56,6 +60,8 @@ export const AdminAPI = {
             `${API_BASE_URL}/admin/time-records${query ? `?${query}` : ""}`,
         create: () => `${API_BASE_URL}/admin/time-entries`,
         options: () => `${API_BASE_URL}/admin/time-entry-options`,
+        report: (query = "") =>
+            `${API_BASE_URL}/admin/time-reports/summary${query ? `?${query}` : ""}`,
         timer: {
             current: () => `${API_BASE_URL}/admin/time-timer`,
             start: () => `${API_BASE_URL}/admin/time-timer/start`,
