@@ -6,7 +6,7 @@
 -r mypy.in
 
 # Repository tooling imports this directly.
-typing-extensions==4.14.1
+typing-extensions==4.16.0
 
 # For sorting imports
 isort==8.0.1
