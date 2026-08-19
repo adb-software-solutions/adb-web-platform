@@ -34,9 +34,17 @@ def _permission_problem(request: HttpRequest, permission: str) -> StaffProblem |
     if not request.user.is_authenticated:
         return _problem("User not authenticated", "unauthenticated", 401)
     if not (request.user.is_staff or request.user.is_superuser):
-        return _problem("You do not have permission to access this resource.", "forbidden", 403)
+        return _problem(
+            "You do not have permission to access this resource.",
+            "forbidden",
+            403,
+        )
     if not request.user.has_perm(permission):
-        return _problem("You do not have permission to perform this action.", "forbidden", 403)
+        return _problem(
+            "You do not have permission to perform this action.",
+            "forbidden",
+            403,
+        )
     return None
 
 
@@ -68,7 +76,12 @@ def _user_name(user: User | None) -> str | None:
     return f"{user.first_name} {user.last_name}".strip() or user.email
 
 
-def _task_out(task: Task) -> TaskWorkspaceTaskOut:
+def _task_out(
+    task: Task,
+    *,
+    subtask_count: int | None = None,
+    blocked_by_count: int | None = None,
+) -> TaskWorkspaceTaskOut:
     return TaskWorkspaceTaskOut(
         id=task.id,
         title=task.title,
@@ -81,38 +94,68 @@ def _task_out(task: Task) -> TaskWorkspaceTaskOut:
         section_id=task.section_id,
         parent_task_id=task.parent_task_id,
         sort_order=task.sort_order,
-        subtask_count=getattr(task, "subtask_count", 0),
-        blocked_by_count=getattr(task, "blocked_by_count", 0),
+        subtask_count=(
+            subtask_count
+            if subtask_count is not None
+            else getattr(task, "subtask_count", 0)
+        ),
+        blocked_by_count=(
+            blocked_by_count
+            if blocked_by_count is not None
+            else getattr(task, "blocked_by_count", 0)
+        ),
     )
 
 
 def _next_subtask_order(task: Task) -> Decimal:
     highest = task.subtasks.aggregate(value=Max("sort_order"))["value"]
-    return (highest or Decimal("0")) + Decimal("1000")
+    return (highest or Decimal(0)) + Decimal(1000)
 
 
 @relations_router.get(
     "/task-relations/tasks/{task_id}",
-    response={200: TaskRelationsOut, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: TaskRelationsOut,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
-def task_relations(request: HttpRequest, task_id: int) -> TaskRelationsOut | StaffProblem:
+def task_relations(
+    request: HttpRequest,
+    task_id: int,
+) -> TaskRelationsOut | StaffProblem:
     problem = _permission_problem(request, "tasks.view_task")
     if problem:
         return problem
     user = cast(User, request.user)
     task = _visible_tasks(user).filter(id=task_id).first()
     if task is None:
-        return _problem("Task not found or outside your access scope.", "not_found", 404)
+        return _problem(
+            "Task not found or outside your access scope.",
+            "not_found",
+            404,
+        )
 
-    subtasks = list(_decorated_tasks(user).filter(parent_task=task).order_by("sort_order", "id"))
+    subtasks = list(
+        _decorated_tasks(user)
+        .filter(parent_task=task)
+        .order_by("sort_order", "id")
+    )
     blocked_by_ids = TaskDependency.objects.filter(blocked_task=task).values_list(
-        "blocking_task_id", flat=True
+        "blocking_task_id",
+        flat=True,
     )
     blocking_ids = TaskDependency.objects.filter(blocking_task=task).values_list(
-        "blocked_task_id", flat=True
+        "blocked_task_id",
+        flat=True,
     )
-    blocked_by = list(_decorated_tasks(user).filter(id__in=blocked_by_ids).order_by("title"))
-    blocking = list(_decorated_tasks(user).filter(id__in=blocking_ids).order_by("title"))
+    blocked_by = list(
+        _decorated_tasks(user).filter(id__in=blocked_by_ids).order_by("title")
+    )
+    blocking = list(
+        _decorated_tasks(user).filter(id__in=blocking_ids).order_by("title")
+    )
     return TaskRelationsOut(
         task_id=task.id,
         subtasks=[_task_out(item) for item in subtasks],
@@ -124,7 +167,13 @@ def task_relations(request: HttpRequest, task_id: int) -> TaskRelationsOut | Sta
 
 @relations_router.post(
     "/task-relations/tasks/{task_id}/subtasks",
-    response={201: TaskWorkspaceTaskOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        201: TaskWorkspaceTaskOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def create_subtask(
     request: HttpRequest,
@@ -137,7 +186,11 @@ def create_subtask(
     user = cast(User, request.user)
     parent = _visible_tasks(user).filter(id=task_id).first()
     if parent is None:
-        return _problem("Parent task not found or outside your access scope.", "not_found", 404)
+        return _problem(
+            "Parent task not found or outside your access scope.",
+            "not_found",
+            404,
+        )
     title = payload.title.strip()
     if not title:
         return _problem("Subtask title is required.", "validation_error")
@@ -160,14 +213,18 @@ def create_subtask(
     except ValidationError as error:
         return _problem("; ".join(error.messages), "validation_error")
     task.save()
-    task.subtask_count = 0
-    task.blocked_by_count = 0
-    return 201, _task_out(task)
+    return 201, _task_out(task, subtask_count=0, blocked_by_count=0)
 
 
 @relations_router.post(
     "/task-relations/tasks/{task_id}/dependencies",
-    response={204: None, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        204: None,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def add_dependency(
     request: HttpRequest,
@@ -181,7 +238,11 @@ def add_dependency(
     task = _visible_tasks(user).filter(id=task_id).first()
     blocking = _visible_tasks(user).filter(id=payload.blocking_task_id).first()
     if task is None or blocking is None:
-        return _problem("Task dependency target not found or outside your access scope.", "not_found", 404)
+        return _problem(
+            "Task dependency target not found or outside your access scope.",
+            "not_found",
+            404,
+        )
 
     dependency = TaskDependency(blocked_task=task, blocking_task=blocking)
     try:
@@ -194,7 +255,12 @@ def add_dependency(
 
 @relations_router.delete(
     "/task-relations/tasks/{task_id}/dependencies/{blocking_task_id}",
-    response={204: None, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        204: None,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def remove_dependency(
     request: HttpRequest,
@@ -208,7 +274,11 @@ def remove_dependency(
     task = _visible_tasks(user).filter(id=task_id).first()
     blocking = _visible_tasks(user).filter(id=blocking_task_id).first()
     if task is None or blocking is None:
-        return _problem("Task dependency target not found or outside your access scope.", "not_found", 404)
+        return _problem(
+            "Task dependency target not found or outside your access scope.",
+            "not_found",
+            404,
+        )
     deleted, _ = TaskDependency.objects.filter(
         blocked_task=task,
         blocking_task=blocking,
