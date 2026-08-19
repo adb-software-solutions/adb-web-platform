@@ -28,6 +28,7 @@ export const AdminAPI = {
         get: (id: number) => `${API_BASE_URL}/admin/projects/${id}`,
         create: () => `${API_BASE_URL}/admin/projects`,
         update: (id: number) => `${API_BASE_URL}/admin/projects/${id}`,
+        taskWorkspace: (id: number) => `${API_BASE_URL}/admin/task-workspaces/projects/${id}`,
     },
     tasks: {
         list: (query = "") =>
@@ -38,11 +39,16 @@ export const AdminAPI = {
         complete: (id: number) => `${API_BASE_URL}/admin/tasks/${id}/complete`,
         reopen: (id: number) => `${API_BASE_URL}/admin/tasks/${id}/reopen`,
         options: () => `${API_BASE_URL}/admin/task-options`,
+        move: (id: number) => `${API_BASE_URL}/admin/task-workspaces/tasks/${id}/move`,
+        dependencies: (id: number) => `${API_BASE_URL}/admin/task-workspaces/tasks/${id}/dependencies`,
         lists: {
             list: () => `${API_BASE_URL}/admin/task-lists`,
             get: (id: number) => `${API_BASE_URL}/admin/task-lists/${id}`,
             create: () => `${API_BASE_URL}/admin/task-lists`,
             update: (id: number) => `${API_BASE_URL}/admin/task-lists/${id}`,
+            workspace: (id: number) => `${API_BASE_URL}/admin/task-workspaces/lists/${id}`,
+            sections: (id: number) => `${API_BASE_URL}/admin/task-workspaces/lists/${id}/sections`,
+            quickTask: (id: number) => `${API_BASE_URL}/admin/task-workspaces/lists/${id}/quick-task`,
         },
     },
     timeEntries: {
