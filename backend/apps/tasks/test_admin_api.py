@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Any, cast
 
 from django.contrib.auth.models import Permission
 from django.http import HttpRequest
@@ -16,7 +17,13 @@ from apps.tasks.ninja.admin_views import (
     get_task,
     list_tasks,
 )
-from apps.tasks.ninja.schemas import TaskIn, TaskListIn, TaskPageOut
+from apps.tasks.ninja.schemas import (
+    TaskDetailOut,
+    TaskIn,
+    TaskListDetailOut,
+    TaskListIn,
+    TaskPageOut,
+)
 from authentication.models import User
 
 
@@ -78,7 +85,7 @@ class TaskAdminApiTests(TestCase):
         return user
 
     def test_project_context_is_authoritative_for_client_task(self) -> None:
-        status, detail = create_task(
+        status, payload = create_task(
             self._request(self.superuser, "post"),
             TaskIn(
                 title="Client project task",
@@ -88,13 +95,14 @@ class TaskAdminApiTests(TestCase):
             ),
         )
         self.assertEqual(status, 201)
+        detail = cast(TaskDetailOut, payload)
         task = Task.objects.get(id=detail.id)
         self.assertEqual(task.ownership_type, OwnershipType.CLIENT)
         self.assertEqual(task.client, self.primary_client)
         self.assertEqual(task.project, self.client_project)
 
     def test_internal_project_never_requires_fake_client(self) -> None:
-        status, detail = create_task(
+        status, payload = create_task(
             self._request(self.superuser, "post"),
             TaskIn(
                 title="Internal project task",
@@ -105,13 +113,14 @@ class TaskAdminApiTests(TestCase):
             ),
         )
         self.assertEqual(status, 201)
+        detail = cast(TaskDetailOut, payload)
         task = Task.objects.get(id=detail.id)
         self.assertEqual(task.ownership_type, OwnershipType.INTERNAL)
         self.assertIsNone(task.client)
         self.assertEqual(task.project, self.internal_project)
 
     def test_standalone_internal_recurring_task_is_first_class(self) -> None:
-        status, detail = create_task(
+        status, payload = create_task(
             self._request(self.superuser, "post"),
             TaskIn(
                 title="Send monthly invoices",
@@ -122,6 +131,7 @@ class TaskAdminApiTests(TestCase):
             ),
         )
         self.assertEqual(status, 201)
+        detail = cast(TaskDetailOut, payload)
         task = Task.objects.get(id=detail.id)
         self.assertIsNone(task.client)
         self.assertIsNone(task.project)
@@ -160,16 +170,17 @@ class TaskAdminApiTests(TestCase):
             ),
         )
         self.assertIsInstance(result, tuple)
-        status, problem = result
+        status, payload = result
         self.assertEqual(status, 400)
+        problem = cast(dict[str, Any], payload)
         self.assertEqual(problem["code"], "recurrence_requires_due_date")
 
     def test_task_lists_support_internal_and_project_contexts(self) -> None:
-        internal_status, internal_detail = create_task_list(
+        internal_status, internal_payload = create_task_list(
             self._request(self.superuser, "post"),
             TaskListIn(name="Monthly admin", ownership_type="internal"),
         )
-        project_status, project_detail = create_task_list(
+        project_status, project_payload = create_task_list(
             self._request(self.superuser, "post"),
             TaskListIn(
                 name="Delivery",
@@ -179,6 +190,8 @@ class TaskAdminApiTests(TestCase):
         )
         self.assertEqual(internal_status, 201)
         self.assertEqual(project_status, 201)
+        internal_detail = cast(TaskListDetailOut, internal_payload)
+        project_detail = cast(TaskListDetailOut, project_payload)
         internal_list = TaskList.objects.get(id=internal_detail.id)
         project_list = TaskList.objects.get(id=project_detail.id)
         self.assertIsNone(internal_list.client)
@@ -205,8 +218,8 @@ class TaskAdminApiTests(TestCase):
             status=self.todo,
         )
 
-        page = list_tasks(self._request(user))
-        self.assertIsInstance(page, TaskPageOut)
+        result = list_tasks(self._request(user))
+        page = cast(TaskPageOut, result)
         ids = {task.id for task in page.items}
         self.assertSetEqual(ids, {primary.id, internal.id})
 
@@ -220,6 +233,7 @@ class TaskAdminApiTests(TestCase):
         )
         result = get_task(self._request(user), task.id)
         self.assertIsInstance(result, tuple)
-        status, problem = result
+        status, payload = result
         self.assertEqual(status, 404)
+        problem = cast(dict[str, Any], payload)
         self.assertEqual(problem["code"], "not_found")

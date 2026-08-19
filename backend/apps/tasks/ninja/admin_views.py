@@ -157,7 +157,7 @@ def _build_task_summary(task: Task) -> TaskSummaryOut:
 def _build_task_detail(request: HttpRequest, task: Task) -> TaskDetailOut:
     next_occurrence = getattr(task, "next_occurrence", None)
     return TaskDetailOut(
-        **_build_task_summary(task).dict(),
+        **_build_task_summary(task).model_dump(),
         description=task.description,
         previous_occurrence_id=task.previous_occurrence_id,
         next_occurrence_id=next_occurrence.id if next_occurrence else None,
@@ -165,9 +165,7 @@ def _build_task_detail(request: HttpRequest, task: Task) -> TaskDetailOut:
         created_at=task.created_at,
         updated_at=task.updated_at,
         can_change=request.user.has_perm("tasks.change_task"),
-        can_complete=(
-            task.completed_at is None and request.user.has_perm("tasks.change_task")
-        ),
+        can_complete=(task.completed_at is None and request.user.has_perm("tasks.change_task")),
         can_reopen=(
             task.completed_at is not None
             and next_occurrence is None
@@ -233,7 +231,7 @@ def _resolve_context(
 def _resolve_task_list(
     request: HttpRequest,
     task_list_id: int | None,
-) -> TaskList | None | StaffProblem:
+) -> TaskList | StaffProblem | None:
     if task_list_id is None:
         return None
     task_list = _scoped_task_lists(request).filter(id=task_list_id).first()
@@ -246,7 +244,7 @@ def _resolve_task_list(
     return task_list
 
 
-def _resolve_status(status_id: int | None) -> TaskStatus | None | StaffProblem:
+def _resolve_status(status_id: int | None) -> TaskStatus | StaffProblem | None:
     if status_id is None:
         return default_open_status()
     status = TaskStatus.objects.filter(id=status_id).first()
@@ -255,7 +253,7 @@ def _resolve_status(status_id: int | None) -> TaskStatus | None | StaffProblem:
     return status
 
 
-def _resolve_assignee(assignee_id: UUID | None) -> User | None | StaffProblem:
+def _resolve_assignee(assignee_id: UUID | None) -> User | StaffProblem | None:
     if assignee_id is None:
         return None
     assignee = User.objects.filter(
@@ -287,24 +285,18 @@ def _apply_task_payload(
     )
     if isinstance(context, tuple):
         return context
-    ownership_type = context.ownership_type
-    client = context.client
-    project = context.project
 
     task_list_result = _resolve_task_list(request, payload.task_list_id)
     if isinstance(task_list_result, tuple):
         return task_list_result
-    task_list = task_list_result
 
     status_result = _resolve_status(payload.status_id)
     if isinstance(status_result, tuple):
         return status_result
-    status = status_result
 
     assignee_result = _resolve_assignee(payload.assigned_to_id)
     if isinstance(assignee_result, tuple):
         return assignee_result
-    assignee = assignee_result
 
     recurrence_rule = build_recurrence_rule(payload.recurrence_frequency)
     if recurrence_rule and payload.due_date is None:
@@ -315,14 +307,14 @@ def _apply_task_payload(
 
     task.title = title
     task.description = payload.description.strip()
-    task.ownership_type = ownership_type
-    task.client = client
-    task.project = project
-    task.task_list = task_list
-    task.status = status
+    task.ownership_type = context.ownership_type
+    task.client = context.client
+    task.project = context.project
+    task.task_list = task_list_result
+    task.status = status_result
     task.priority = payload.priority
     task.due_date = payload.due_date
-    task.assigned_to = assignee
+    task.assigned_to = assignee_result
     task.recurrence_rule = recurrence_rule
     task.next_occurrence_at = next_occurrence_datetime(
         payload.due_date,
@@ -348,15 +340,12 @@ def _apply_task_list_payload(
     )
     if isinstance(context, tuple):
         return context
-    ownership_type = context.ownership_type
-    client = context.client
-    project = context.project
 
     task_list.name = name
     task_list.description = payload.description.strip()
-    task_list.ownership_type = ownership_type
-    task_list.client = client
-    task_list.project = project
+    task_list.ownership_type = context.ownership_type
+    task_list.client = context.client
+    task_list.project = context.project
     return None
 
 

@@ -61,9 +61,10 @@ def _status_named(name: str) -> TaskStatus | None:
 
 
 def default_open_status() -> TaskStatus | None:
-    return _status_named("To do") or TaskStatus.objects.exclude(
-        name__iexact="Done"
-    ).order_by("order").first()
+    return (
+        _status_named("To do")
+        or TaskStatus.objects.exclude(name__iexact="Done").order_by("order").first()
+    )
 
 
 def done_status() -> TaskStatus | None:
@@ -102,9 +103,7 @@ def complete_task(task: Task) -> tuple[Task, Task | None]:
                 priority=locked.priority,
                 due_date=next_due_date,
                 recurrence_rule=locked.recurrence_rule,
-                next_occurrence_at=next_occurrence_datetime(
-                    next_due_date, locked.recurrence_rule
-                ),
+                next_occurrence_at=next_occurrence_datetime(next_due_date, locked.recurrence_rule),
                 previous_occurrence=locked,
                 assigned_to=locked.assigned_to,
                 created_by=locked.created_by,
@@ -113,9 +112,7 @@ def complete_task(task: Task) -> tuple[Task, Task | None]:
             next_task.save()
         else:
             next_task = existing_next
-        locked.next_occurrence_at = timezone.make_aware(
-            datetime.combine(next_due_date, time.min)
-        )
+        locked.next_occurrence_at = timezone.make_aware(datetime.combine(next_due_date, time.min))
 
     locked.full_clean()
     locked.save()
