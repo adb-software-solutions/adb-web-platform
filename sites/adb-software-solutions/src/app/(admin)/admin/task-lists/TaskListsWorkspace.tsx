@@ -13,6 +13,7 @@ import {
 } from "@/components/ui";
 import { AdminAPI } from "@/lib/api/endpoints";
 import { fetchAPI } from "@/lib/api/fetch";
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 type Ownership = "client" | "internal";
@@ -159,9 +160,56 @@ export function TaskListsWorkspace() {
                 </div>
             ) : null}
 
+            {rows.length === 0 ? (
+                <EmptyState
+                    title="No task lists in your scope"
+                    description="Create a task list for recurring admin work, client work or a project."
+                />
+            ) : (
+                <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+                    {rows.map((row) => (
+                        <Card key={row.id} className="group p-5 transition hover:border-slate-700 hover:bg-slate-900/80">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <Link
+                                        href={`/admin/task-lists/${row.id}`}
+                                        className="font-medium text-white hover:text-adb-cyan-300"
+                                    >
+                                        {row.name}
+                                    </Link>
+                                    <p className="mt-1 truncate text-xs text-slate-500">
+                                        {row.project_name || row.client_name || "ADB Internal"}
+                                    </p>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-slate-800 px-2 py-1 text-xs text-slate-400">
+                                    {row.open_task_count} open
+                                </span>
+                            </div>
+                            {row.description ? (
+                                <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-400">
+                                    {row.description}
+                                </p>
+                            ) : null}
+                            <div className="mt-4 flex items-center justify-between border-t border-slate-800 pt-4 text-xs">
+                                <span className="text-slate-600">{row.task_count} total tasks</span>
+                                <Link
+                                    href={`/admin/task-lists/${row.id}`}
+                                    className="font-medium text-slate-400 transition group-hover:text-adb-cyan-300"
+                                >
+                                    Open workspace →
+                                </Link>
+                            </div>
+                        </Card>
+                    ))}
+                </div>
+            )}
+
             {options.can_add_task_list ? (
                 <Card className="p-5">
                     <h2 className="text-sm font-semibold text-white">Create task list</h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                        Lists can stand alone, belong to a client, or sit inside a project.
+                    </p>
                     <form onSubmit={(event) => void save(event)} className="mt-4 space-y-4">
                         <div className="grid gap-4 md:grid-cols-2">
                             <label className="space-y-1.5 text-sm font-medium text-slate-300">
@@ -258,36 +306,6 @@ export function TaskListsWorkspace() {
                     </form>
                 </Card>
             ) : null}
-
-            {rows.length === 0 ? (
-                <EmptyState
-                    title="No task lists in your scope"
-                    description="Task lists are optional containers for recurring admin work or related delivery tasks."
-                />
-            ) : (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {rows.map((row) => (
-                        <Card key={row.id} className="p-5">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <h2 className="font-medium text-white">{row.name}</h2>
-                                    <p className="mt-1 text-xs text-slate-500">
-                                        {row.project_name || row.client_name || "ADB Internal"}
-                                    </p>
-                                </div>
-                                <span className="text-xs text-slate-500">
-                                    {row.open_task_count}/{row.task_count} open
-                                </span>
-                            </div>
-                            {row.description ? (
-                                <p className="mt-3 text-sm leading-6 text-slate-400">
-                                    {row.description}
-                                </p>
-                            ) : null}
-                        </Card>
-                    ))}
-                </div>
-            )}
         </div>
     );
 }
