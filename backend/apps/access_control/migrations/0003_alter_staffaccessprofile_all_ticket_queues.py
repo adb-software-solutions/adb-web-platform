@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("access_control", "0002_ticketqueueaccessgrant"),
     ]
@@ -15,7 +14,10 @@ class Migration(migrations.Migration):
             name="all_ticket_queues",
             field=models.BooleanField(
                 default=False,
-                help_text="Allow access to every ticket queue when the user also has the required capability permission.",
+                help_text=(
+                    "Allow access to every ticket queue when the user also has the "
+                    "required capability permission."
+                ),
             ),
         ),
     ]
