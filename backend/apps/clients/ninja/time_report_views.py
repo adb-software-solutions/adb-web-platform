@@ -28,9 +28,17 @@ def _permission_problem(request: HttpRequest) -> StaffProblem | None:
     if not request.user.is_authenticated:
         return _problem("User not authenticated", "unauthenticated", 401)
     if not (request.user.is_staff or request.user.is_superuser):
-        return _problem("You do not have permission to access this resource.", "forbidden", 403)
+        return _problem(
+            "You do not have permission to access this resource.",
+            "forbidden",
+            403,
+        )
     if not request.user.has_perm("clients.view_timeentry"):
-        return _problem("You do not have permission to view time reporting.", "forbidden", 403)
+        return _problem(
+            "You do not have permission to view time reporting.",
+            "forbidden",
+            403,
+        )
     return None
 
 
@@ -51,7 +59,12 @@ def _period_dates(period: str, today: date) -> tuple[date, date]:
 
 @time_report_router.get(
     "/time-reports/summary",
-    response={200: TimeReportSummaryOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail},
+    response={
+        200: TimeReportSummaryOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+    },
 )
 def time_report_summary(
     request: HttpRequest,
@@ -67,7 +80,10 @@ def time_report_summary(
     today = timezone.localdate()
     if date_from is not None or date_to is not None:
         if date_from is None or date_to is None:
-            return _problem("Custom reporting requires both date_from and date_to.", "invalid_period")
+            return _problem(
+                "Custom reporting requires both date_from and date_to.",
+                "invalid_period",
+            )
         if date_from > date_to:
             return _problem("date_from cannot be after date_to.", "invalid_period")
         report_from, report_to = date_from, date_to
@@ -104,7 +120,11 @@ def time_report_summary(
             tracked=Sum("duration_hours"),
             billable=Sum("duration_hours", filter=Q(billable=True)),
             entry_count=Count("id"),
-            project_count=Count("project_id", distinct=True, filter=Q(project__isnull=False)),
+            project_count=Count(
+                "project_id",
+                distinct=True,
+                filter=Q(project__isnull=False),
+            ),
         )
         .order_by("-tracked", "client__company", "client__name")
     )
@@ -114,7 +134,8 @@ def time_report_summary(
             client_name=row["client__company"] or row["client__name"],
             tracked_hours=row["tracked"] or Decimal(0),
             billable_hours=row["billable"] or Decimal(0),
-            non_billable_hours=(row["tracked"] or Decimal(0)) - (row["billable"] or Decimal(0)),
+            non_billable_hours=(row["tracked"] or Decimal(0))
+            - (row["billable"] or Decimal(0)),
             entry_count=row["entry_count"],
             project_count=row["project_count"],
         )
