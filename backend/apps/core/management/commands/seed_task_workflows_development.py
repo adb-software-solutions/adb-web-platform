@@ -51,9 +51,7 @@ class Command(BaseCommand):
             if options["reset"]:
                 self._reset_workflow_data()
 
-            projects = list(
-                Project.objects.filter(name__startswith=DEMO_PREFIX).order_by("id")
-            )
+            projects = list(Project.objects.filter(name__startswith=DEMO_PREFIX).order_by("id"))
             if not projects:
                 raise CommandError(
                     "No demo projects found. Run seed_development before this command."
@@ -63,18 +61,12 @@ class Command(BaseCommand):
             self._seed_internal_workflows(scale)
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Task workflow development data ready (scale={scale})."
-            )
+            self.style.SUCCESS(f"Task workflow development data ready (scale={scale}).")
         )
 
     def _reset_workflow_data(self) -> None:
-        TaskDependency.objects.filter(
-            blocked_task__title__startswith=DEMO_PREFIX
-        ).delete()
-        TaskDependency.objects.filter(
-            blocking_task__title__startswith=DEMO_PREFIX
-        ).delete()
+        TaskDependency.objects.filter(blocked_task__title__startswith=DEMO_PREFIX).delete()
+        TaskDependency.objects.filter(blocking_task__title__startswith=DEMO_PREFIX).delete()
         TimeEntry.objects.filter(description__startswith=INTERNAL_TIME_PREFIX).delete()
         TimeEntry.objects.filter(
             description__startswith=DEMO_PREFIX,
@@ -118,9 +110,7 @@ class Command(BaseCommand):
                 status_name = task.status.name.lower() if task.status else ""
                 if status_name == "done":
                     section = sections["Done"]
-                    completed_at = task.completed_at or (
-                        timezone.now() - timedelta(days=index % 7)
-                    )
+                    completed_at = task.completed_at or (timezone.now() - timedelta(days=index % 7))
                 elif status_name == "in progress":
                     section = sections["In progress"]
                     completed_at = None
@@ -264,8 +254,7 @@ class Command(BaseCommand):
             TimeEntry.objects.filter(
                 project=project,
                 description__startswith=DEMO_PREFIX,
-            )
-            .order_by("date", "id")[: len(tasks) * 2]
+            ).order_by("date", "id")[: len(tasks) * 2]
         )
         for index, entry in enumerate(entries):
             entry.task = tasks[index % len(tasks)]
