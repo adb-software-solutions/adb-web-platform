@@ -178,12 +178,7 @@ def start_timer(
 
 @transaction.atomic
 def stop_timer(user: User, *, description: str | None = None) -> TimeEntry:
-    timer = (
-        RunningTimer.objects.select_for_update()
-        .select_related("client", "project", "task", "ticket")
-        .filter(user=user)
-        .first()
-    )
+    timer = RunningTimer.objects.select_for_update().filter(user=user).first()
     if timer is None:
         raise TimeTrackingError("You do not have a running timer.", "timer_not_running")
 
