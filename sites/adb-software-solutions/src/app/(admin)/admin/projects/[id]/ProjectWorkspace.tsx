@@ -5,6 +5,7 @@ import { AdminAPI } from "@/lib/api/endpoints";
 import { fetchAPI } from "@/lib/api/fetch";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { ProjectActivityPanels } from "./ProjectActivityPanels";
 
 interface ProjectDetail {
     id: number;
@@ -235,6 +236,8 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
                     <div className="mt-1 text-xs text-slate-500">Billable recorded hours</div>
                 </Card>
             </div>
+
+            <ProjectActivityPanels projectId={project.id} />
         </div>
     );
 }
