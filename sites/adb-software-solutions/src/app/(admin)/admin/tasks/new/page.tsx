@@ -1,4 +1,5 @@
-import { Card, Container, PageHeader } from "@/components/ui";
+import { Card, Container, DataLoading, PageHeader } from "@/components/ui";
+import { Suspense } from "react";
 import { TaskForm } from "../TaskForm";
 
 export const metadata = {
@@ -14,7 +15,9 @@ export default function NewTaskPage() {
                 description="Create client delivery work, an internal task or a recurring operational task."
             />
             <Card className="mt-6 p-6">
-                <TaskForm />
+                <Suspense fallback={<DataLoading label="Loading task details..." />}>
+                    <TaskForm />
+                </Suspense>
             </Card>
         </Container>
     );

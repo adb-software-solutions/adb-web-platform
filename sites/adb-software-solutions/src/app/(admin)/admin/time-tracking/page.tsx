@@ -1,4 +1,5 @@
-import { Container, PageHeader } from "@/components/ui";
+import { Container, DataLoading, PageHeader } from "@/components/ui";
+import { Suspense } from "react";
 import { TimeReportOverview } from "./TimeReportOverview";
 import { TimeTrackingWorkspace } from "./TimeTrackingWorkspace";
 
@@ -16,7 +17,9 @@ export default function TimeTrackingPage() {
             <div className="mt-6 space-y-10">
                 <TimeReportOverview />
                 <div className="border-t border-slate-800 pt-8">
-                    <TimeTrackingWorkspace />
+                    <Suspense fallback={<DataLoading label="Loading time tracking..." />}>
+                        <TimeTrackingWorkspace />
+                    </Suspense>
                 </div>
             </div>
         </Container>

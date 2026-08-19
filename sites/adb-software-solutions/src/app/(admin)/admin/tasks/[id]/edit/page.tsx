@@ -1,4 +1,5 @@
-import { Card, Container, PageHeader } from "@/components/ui";
+import { Card, Container, DataLoading, PageHeader } from "@/components/ui";
+import { Suspense } from "react";
 import { TaskForm } from "../../TaskForm";
 
 export const metadata = {
@@ -19,7 +20,9 @@ export default async function EditTaskPage({
                 description="Update task context, assignment, priority, due date and recurrence."
             />
             <Card className="mt-6 p-6">
-                <TaskForm taskId={Number(id)} />
+                <Suspense fallback={<DataLoading label="Loading task details..." />}>
+                    <TaskForm taskId={Number(id)} />
+                </Suspense>
             </Card>
         </Container>
     );
