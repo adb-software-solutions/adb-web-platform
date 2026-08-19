@@ -1,4 +1,4 @@
-import { Container, PageHeader } from "@/components/ui";
+import { ButtonLink, Container, PageHeader } from "@/components/ui";
 import { TaskList } from "./TaskList";
 
 export const metadata = {
@@ -10,7 +10,8 @@ export default function TasksPage() {
         <Container className="py-8">
             <PageHeader
                 title="Tasks"
-                description="Standalone internal work and client or project tasks across the platform."
+                description="Plan client delivery, internal work and recurring operational tasks."
+                actions={<ButtonLink href="/admin/tasks/new">Add task</ButtonLink>}
             />
             <div className="mt-6">
                 <TaskList />
