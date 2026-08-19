@@ -1,23 +1,34 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { usePathname } from "next/navigation";
 import { ReactNode, useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
+import { WorkManagementSidebar } from "./WorkManagementSidebar";
+
+const workManagementPrefixes = [
+    "/admin/projects",
+    "/admin/tasks",
+    "/admin/task-lists",
+    "/admin/time-tracking",
+];
 
 export function AdminLayout({ children }: { children: ReactNode }) {
     const { isAuthenticated, isLoading, login } = useAuth();
+    const pathname = usePathname();
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const showWorkManagement = workManagementPrefixes.some(
+        (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    );
 
     if (isLoading) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-200">
                 <div className="text-center">
                     <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-800 border-t-adb-cyan-400" />
-                    <p className="mt-4 text-sm text-slate-500">
-                        Loading operations console...
-                    </p>
+                    <p className="mt-4 text-sm text-slate-500">Loading operations console...</p>
                 </div>
             </div>
         );
@@ -30,12 +41,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-adb-cyan-500 text-lg font-black text-slate-950">
                         A
                     </div>
-                    <h1 className="mt-5 text-xl font-semibold text-white">
-                        Sign in required
-                    </h1>
+                    <h1 className="mt-5 text-xl font-semibold text-white">Sign in required</h1>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
-                        Sign in with an authorised ADB staff account to access the
-                        business platform.
+                        Sign in with an authorised ADB staff account to access the business platform.
                     </p>
                     <button
                         type="button"
@@ -62,9 +70,12 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                     onToggleSidebar={() => setCollapsed((value) => !value)}
                     onOpenMobileNavigation={() => setMobileOpen(true)}
                 />
-                <main className="min-h-0 flex-1 overflow-y-auto bg-slate-950">
-                    {children}
-                </main>
+                <div className="flex min-h-0 flex-1">
+                    {showWorkManagement ? <WorkManagementSidebar /> : null}
+                    <main className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-slate-950">
+                        {children}
+                    </main>
+                </div>
             </div>
         </div>
     );
