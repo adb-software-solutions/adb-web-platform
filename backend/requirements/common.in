@@ -5,7 +5,7 @@
 # packages here merely because they appear in pip freeze.
 
 # Django / application runtime
-Django==6.0.7
+Django==6.0.8
 psycopg2==2.9.10
 Pillow==12.3.0
 python-dotenv==1.2.3
