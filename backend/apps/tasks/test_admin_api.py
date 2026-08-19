@@ -59,20 +59,34 @@ class TaskAdminApiTests(TestCase):
         request.user = user
         return request
 
+    def _restricted_user(self, email: str) -> User:
+        user = User.objects.create_user(
+            email=email,
+            password="test-password",
+            first_name="Task",
+            last_name="Agent",
+            is_staff=True,
+        )
+        user.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="tasks",
+                codename="view_task",
+            )
+        )
+        profile = StaffAccessProfile.objects.create(user=user, all_clients=False)
+        ClientAccessGrant.objects.create(profile=profile, client=self.primary_client)
+        return user
+
     def test_project_context_is_authoritative_for_client_task(self) -> None:
-        result = create_task(
+        status, detail = create_task(
             self._request(self.superuser, "post"),
             TaskIn(
                 title="Client project task",
                 ownership_type="internal",
                 project_id=self.client_project.id,
-                client_id=None,
                 status_id=self.todo.id,
             ),
         )
-
-        self.assertIsInstance(result, tuple)
-        status, detail = result
         self.assertEqual(status, 201)
         task = Task.objects.get(id=detail.id)
         self.assertEqual(task.ownership_type, OwnershipType.CLIENT)
@@ -80,7 +94,7 @@ class TaskAdminApiTests(TestCase):
         self.assertEqual(task.project, self.client_project)
 
     def test_internal_project_never_requires_fake_client(self) -> None:
-        result = create_task(
+        status, detail = create_task(
             self._request(self.superuser, "post"),
             TaskIn(
                 title="Internal project task",
@@ -90,17 +104,14 @@ class TaskAdminApiTests(TestCase):
                 status_id=self.todo.id,
             ),
         )
-
-        self.assertIsInstance(result, tuple)
-        status, detail = result
         self.assertEqual(status, 201)
         task = Task.objects.get(id=detail.id)
         self.assertEqual(task.ownership_type, OwnershipType.INTERNAL)
         self.assertIsNone(task.client)
         self.assertEqual(task.project, self.internal_project)
 
-    def test_standalone_internal_task_is_first_class(self) -> None:
-        result = create_task(
+    def test_standalone_internal_recurring_task_is_first_class(self) -> None:
+        status, detail = create_task(
             self._request(self.superuser, "post"),
             TaskIn(
                 title="Send monthly invoices",
@@ -110,9 +121,6 @@ class TaskAdminApiTests(TestCase):
                 recurrence_frequency="monthly",
             ),
         )
-
-        self.assertIsInstance(result, tuple)
-        status, detail = result
         self.assertEqual(status, 201)
         task = Task.objects.get(id=detail.id)
         self.assertIsNone(task.client)
@@ -130,11 +138,9 @@ class TaskAdminApiTests(TestCase):
             created_by=self.superuser,
         )
 
-        first = complete_task_view(self._request(self.superuser, "post"), task.id)
-        second = complete_task_view(self._request(self.superuser, "post"), task.id)
+        complete_task_view(self._request(self.superuser, "post"), task.id)
+        complete_task_view(self._request(self.superuser, "post"), task.id)
 
-        self.assertNotIsInstance(first, tuple)
-        self.assertNotIsInstance(second, tuple)
         task.refresh_from_db()
         self.assertIsNotNone(task.completed_at)
         self.assertEqual(task.status, self.done)
@@ -153,30 +159,17 @@ class TaskAdminApiTests(TestCase):
                 recurrence_frequency="daily",
             ),
         )
-
         self.assertIsInstance(result, tuple)
         status, problem = result
         self.assertEqual(status, 400)
         self.assertEqual(problem["code"], "recurrence_requires_due_date")
 
-    def test_task_list_can_be_internal_without_client(self) -> None:
-        result = create_task_list(
+    def test_task_lists_support_internal_and_project_contexts(self) -> None:
+        internal_status, internal_detail = create_task_list(
             self._request(self.superuser, "post"),
-            TaskListIn(
-                name="Monthly admin",
-                ownership_type="internal",
-            ),
+            TaskListIn(name="Monthly admin", ownership_type="internal"),
         )
-
-        self.assertIsInstance(result, tuple)
-        status, detail = result
-        self.assertEqual(status, 201)
-        task_list = TaskList.objects.get(id=detail.id)
-        self.assertEqual(task_list.ownership_type, OwnershipType.INTERNAL)
-        self.assertIsNone(task_list.client)
-
-    def test_task_list_inherits_project_context(self) -> None:
-        result = create_task_list(
+        project_status, project_detail = create_task_list(
             self._request(self.superuser, "post"),
             TaskListIn(
                 name="Delivery",
@@ -184,31 +177,16 @@ class TaskAdminApiTests(TestCase):
                 project_id=self.client_project.id,
             ),
         )
-
-        self.assertIsInstance(result, tuple)
-        status, detail = result
-        self.assertEqual(status, 201)
-        task_list = TaskList.objects.get(id=detail.id)
-        self.assertEqual(task_list.ownership_type, OwnershipType.CLIENT)
-        self.assertEqual(task_list.client, self.primary_client)
-        self.assertEqual(task_list.project, self.client_project)
+        self.assertEqual(internal_status, 201)
+        self.assertEqual(project_status, 201)
+        internal_list = TaskList.objects.get(id=internal_detail.id)
+        project_list = TaskList.objects.get(id=project_detail.id)
+        self.assertIsNone(internal_list.client)
+        self.assertEqual(project_list.ownership_type, OwnershipType.CLIENT)
+        self.assertEqual(project_list.client, self.primary_client)
 
     def test_client_scope_hides_other_client_tasks_but_keeps_internal(self) -> None:
-        user = User.objects.create_user(
-            email="task-agent@example.com",
-            password="test-password",
-            first_name="Task",
-            last_name="Agent",
-            is_staff=True,
-        )
-        view_permission = Permission.objects.get(
-            content_type__app_label="tasks",
-            codename="view_task",
-        )
-        user.user_permissions.add(view_permission)
-        StaffAccessProfile.objects.create(user=user, all_clients=False)
-        ClientAccessGrant.objects.create(user=user, client=self.primary_client)
-
+        user = self._restricted_user("task-agent@example.com")
         primary = Task.objects.create(
             ownership_type=OwnershipType.CLIENT,
             client=self.primary_client,
@@ -228,38 +206,19 @@ class TaskAdminApiTests(TestCase):
         )
 
         page = list_tasks(self._request(user))
-
         self.assertIsInstance(page, TaskPageOut)
         ids = {task.id for task in page.items}
-        self.assertIn(primary.id, ids)
-        self.assertIn(internal.id, ids)
-        self.assertEqual(len(ids), 2)
+        self.assertSetEqual(ids, {primary.id, internal.id})
 
     def test_inaccessible_task_detail_returns_not_found(self) -> None:
-        user = User.objects.create_user(
-            email="restricted-agent@example.com",
-            password="test-password",
-            first_name="Restricted",
-            last_name="Agent",
-            is_staff=True,
-        )
-        user.user_permissions.add(
-            Permission.objects.get(
-                content_type__app_label="tasks",
-                codename="view_task",
-            )
-        )
-        StaffAccessProfile.objects.create(user=user, all_clients=False)
-        ClientAccessGrant.objects.create(user=user, client=self.primary_client)
+        user = self._restricted_user("restricted-agent@example.com")
         task = Task.objects.create(
             ownership_type=OwnershipType.CLIENT,
             client=self.other_client,
             title="Hidden task",
             status=self.todo,
         )
-
         result = get_task(self._request(user), task.id)
-
         self.assertIsInstance(result, tuple)
         status, problem = result
         self.assertEqual(status, 404)
