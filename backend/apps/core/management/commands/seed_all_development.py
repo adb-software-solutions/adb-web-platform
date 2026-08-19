@@ -41,6 +41,7 @@ class Command(BaseCommand):
 
         for command_name in (
             "seed_development",
+            "seed_task_workflows_development",
             "seed_infrastructure_development",
             "seed_ticketing_development",
         ):
