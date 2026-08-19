@@ -1,5 +1,5 @@
 import { Container, PageHeader } from "@/components/ui";
-import { TimeEntryList } from "./TimeEntryList";
+import { TimeTrackingWorkspace } from "./TimeTrackingWorkspace";
 
 export const metadata = {
     title: "Time Tracking",
@@ -10,10 +10,10 @@ export default function TimeTrackingPage() {
         <Container className="py-8">
             <PageHeader
                 title="Time tracking"
-                description="Billable and internal time across the operational work visible to your account."
+                description="Record client and internal work manually or with a persistent timer, including Project, Task and Ticket context."
             />
             <div className="mt-6">
-                <TimeEntryList />
+                <TimeTrackingWorkspace />
             </div>
         </Container>
     );

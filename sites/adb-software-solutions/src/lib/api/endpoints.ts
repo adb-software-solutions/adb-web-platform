@@ -46,8 +46,16 @@ export const AdminAPI = {
         },
     },
     timeEntries: {
-        list: () => `${API_BASE_URL}/admin/time-entries`,
+        list: (query = "") =>
+            `${API_BASE_URL}/admin/time-records${query ? `?${query}` : ""}`,
         create: () => `${API_BASE_URL}/admin/time-entries`,
+        options: () => `${API_BASE_URL}/admin/time-entry-options`,
+        timer: {
+            current: () => `${API_BASE_URL}/admin/time-timer`,
+            start: () => `${API_BASE_URL}/admin/time-timer/start`,
+            stop: () => `${API_BASE_URL}/admin/time-timer/stop`,
+            cancel: () => `${API_BASE_URL}/admin/time-timer/cancel`,
+        },
     },
     leads: {
         list: () => `${API_BASE_URL}/admin/leads`,
