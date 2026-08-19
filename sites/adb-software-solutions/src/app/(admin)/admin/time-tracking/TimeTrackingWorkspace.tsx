@@ -21,10 +21,12 @@ import {
 import { AdminAPI } from "@/lib/api/endpoints";
 import { fetchAPI } from "@/lib/api/fetch";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 type Ownership = "client" | "internal";
 type ContextType = "internal" | "client" | "project" | "task" | "ticket";
+type RecordingMode = "manual" | "timer" | null;
 
 interface ClientOption {
     id: number;
@@ -128,6 +130,10 @@ interface ContextPayload {
 
 const PAGE_SIZE = 25;
 const labelClasses = "space-y-1.5 text-sm font-medium text-slate-300";
+const INTERNAL_CONTEXT: ContextSelection = {
+    type: "internal",
+    targetId: null,
+};
 
 function todayValue() {
     const now = new Date();
@@ -153,6 +159,35 @@ function formatElapsed(seconds: number) {
     const minutes = Math.floor((safeSeconds % 3600) / 60);
     const remainder = safeSeconds % 60;
     return [hours, minutes, remainder].map((part) => String(part).padStart(2, "0")).join(":");
+}
+
+function queryId(value: string | null) {
+    if (!value) return null;
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function contextFromSearchParams(searchParams: URLSearchParams | ReadonlyURLSearchParamsLike) {
+    const candidates: Array<[ContextType, string]> = [
+        ["task", "task_id"],
+        ["ticket", "ticket_id"],
+        ["project", "project_id"],
+        ["client", "client_id"],
+    ];
+    for (const [type, key] of candidates) {
+        const targetId = queryId(searchParams.get(key));
+        if (targetId !== null) return { type, targetId } satisfies ContextSelection;
+    }
+    return INTERNAL_CONTEXT;
+}
+
+interface ReadonlyURLSearchParamsLike {
+    get(name: string): string | null;
+}
+
+function modeFromSearchParams(searchParams: ReadonlyURLSearchParamsLike): RecordingMode {
+    const mode = searchParams.get("mode");
+    return mode === "manual" || mode === "timer" ? mode : null;
 }
 
 function resolveContext(selection: ContextSelection, options: TimeOptions): ContextPayload | null {
@@ -319,6 +354,9 @@ function ContextFields({
 }
 
 export function TimeTrackingWorkspace() {
+    const searchParams = useSearchParams();
+    const initialContext = useMemo(() => contextFromSearchParams(searchParams), [searchParams]);
+    const initialMode = useMemo(() => modeFromSearchParams(searchParams), [searchParams]);
     const [options, setOptions] = useState<TimeOptions | null>(null);
     const [pageData, setPageData] = useState<TimePage | null>(null);
     const [timer, setTimer] = useState<RunningTimer | null>(null);
@@ -328,20 +366,14 @@ export function TimeTrackingWorkspace() {
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const [manualContext, setManualContext] = useState<ContextSelection>({
-        type: "internal",
-        targetId: null,
-    });
+    const [manualContext, setManualContext] = useState<ContextSelection>(initialContext);
     const [manualDate, setManualDate] = useState(todayValue());
     const [manualHours, setManualHours] = useState("0");
     const [manualMinutes, setManualMinutes] = useState("30");
     const [manualDescription, setManualDescription] = useState("");
     const [manualBillable, setManualBillable] = useState(false);
 
-    const [timerContext, setTimerContext] = useState<ContextSelection>({
-        type: "internal",
-        targetId: null,
-    });
+    const [timerContext, setTimerContext] = useState<ContextSelection>(initialContext);
     const [timerDescription, setTimerDescription] = useState("");
     const [timerBillable, setTimerBillable] = useState(false);
 
@@ -379,6 +411,19 @@ export function TimeTrackingWorkspace() {
     useEffect(() => {
         void load();
     }, [load]);
+
+    useEffect(() => {
+        setManualContext(initialContext);
+        setTimerContext(initialContext);
+    }, [initialContext]);
+
+    useEffect(() => {
+        if (!options || initialContext.type === "internal") return;
+        if (resolveContext(initialContext, options)) return;
+        setManualContext(INTERNAL_CONTEXT);
+        setTimerContext(INTERNAL_CONTEXT);
+        setError("The requested work item is not available in your time-tracking scope.");
+    }, [initialContext, options]);
 
     useEffect(() => {
         if (!timer) return;
@@ -542,107 +587,127 @@ export function TimeTrackingWorkspace() {
                 </Card>
             ) : null}
 
-            <div className="grid gap-6 xl:grid-cols-2">
-                <Card className="p-5">
-                    <h2 className="text-sm font-semibold text-white">Start timer</h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                        The timer is stored server-side, so it keeps running if you leave this page.
-                    </p>
-                    <form onSubmit={(event) => void start(event)} className="mt-5 space-y-4">
-                        <ContextFields value={timerContext} onChange={setTimerContext} options={options} />
-                        <label className={`block ${labelClasses}`}>
-                            <span>Description</span>
-                            <Textarea
-                                value={timerDescription}
-                                onChange={(event) => setTimerDescription(event.target.value)}
-                                rows={3}
-                                placeholder="What are you working on?"
+            {options.can_add_time ? (
+                <div id="record-time" className="grid scroll-mt-8 gap-6 xl:grid-cols-2">
+                    <Card
+                        className={`p-5 ${initialMode === "manual" ? "xl:order-2" : ""} ${initialMode === "timer" ? "ring-1 ring-cyan-800/60" : ""}`}
+                    >
+                        <h2 className="text-sm font-semibold text-white">Start timer</h2>
+                        <p className="mt-1 text-sm text-slate-500">
+                            The timer is stored server-side, so it keeps running if you leave this page.
+                        </p>
+                        <form onSubmit={(event) => void start(event)} className="mt-5 space-y-4">
+                            <ContextFields
+                                value={timerContext}
+                                onChange={setTimerContext}
+                                options={options}
                             />
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-slate-300">
-                            <input
-                                type="checkbox"
-                                checked={timerPayload?.internal ? false : timerBillable}
-                                disabled={timerPayload?.internal ?? false}
-                                onChange={(event) => setTimerBillable(event.target.checked)}
-                            />
-                            Billable
-                        </label>
-                        <Button type="submit" disabled={isSaving || timer !== null}>
-                            Start timer
-                        </Button>
-                    </form>
-                </Card>
+                            <label className={`block ${labelClasses}`}>
+                                <span>Description</span>
+                                <Textarea
+                                    value={timerDescription}
+                                    onChange={(event) => setTimerDescription(event.target.value)}
+                                    rows={3}
+                                    placeholder="What are you working on?"
+                                />
+                            </label>
+                            <label className="flex items-center gap-2 text-sm text-slate-300">
+                                <input
+                                    type="checkbox"
+                                    checked={timerPayload?.internal ? false : timerBillable}
+                                    disabled={timerPayload?.internal ?? false}
+                                    onChange={(event) => setTimerBillable(event.target.checked)}
+                                />
+                                Billable
+                            </label>
+                            <Button type="submit" disabled={isSaving || timer !== null}>
+                                Start timer
+                            </Button>
+                        </form>
+                    </Card>
 
-                <Card className="p-5">
-                    <h2 className="text-sm font-semibold text-white">Add time manually</h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                        Record work completed away from the timer or correct historical time.
+                    <Card
+                        className={`p-5 ${initialMode === "manual" ? "xl:order-1 ring-1 ring-cyan-800/60" : ""} ${initialMode === "timer" ? "xl:order-2" : ""}`}
+                    >
+                        <h2 className="text-sm font-semibold text-white">Add time manually</h2>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Record work completed away from the timer or correct historical time.
+                        </p>
+                        <form
+                            onSubmit={(event) => void addManualEntry(event)}
+                            className="mt-5 space-y-4"
+                        >
+                            <ContextFields
+                                value={manualContext}
+                                onChange={setManualContext}
+                                options={options}
+                            />
+                            <div className="grid gap-4 sm:grid-cols-3">
+                                <label className={labelClasses}>
+                                    <span>Date</span>
+                                    <Input
+                                        type="date"
+                                        value={manualDate}
+                                        onChange={(event) => setManualDate(event.target.value)}
+                                        required
+                                    />
+                                </label>
+                                <label className={labelClasses}>
+                                    <span>Hours</span>
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={manualHours}
+                                        onChange={(event) => setManualHours(event.target.value)}
+                                        required
+                                    />
+                                </label>
+                                <label className={labelClasses}>
+                                    <span>Minutes</span>
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        max="59"
+                                        step="1"
+                                        value={manualMinutes}
+                                        onChange={(event) => setManualMinutes(event.target.value)}
+                                        required
+                                    />
+                                </label>
+                            </div>
+                            <label className={`block ${labelClasses}`}>
+                                <span>Description</span>
+                                <Textarea
+                                    value={manualDescription}
+                                    onChange={(event) => setManualDescription(event.target.value)}
+                                    rows={3}
+                                    required
+                                />
+                            </label>
+                            <label className="flex items-center gap-2 text-sm text-slate-300">
+                                <input
+                                    type="checkbox"
+                                    checked={manualPayload?.internal ? false : manualBillable}
+                                    disabled={manualPayload?.internal ?? false}
+                                    onChange={(event) => setManualBillable(event.target.checked)}
+                                />
+                                Billable
+                            </label>
+                            <Button type="submit" disabled={isSaving}>
+                                Add time
+                            </Button>
+                        </form>
+                    </Card>
+                </div>
+            ) : (
+                <Card id="record-time" className="scroll-mt-8 p-5">
+                    <h2 className="text-sm font-semibold text-white">Time recording unavailable</h2>
+                    <p className="mt-2 text-sm text-slate-500">
+                        You can review tracked time, but your account does not have permission to add time entries or start timers.
                     </p>
-                    <form onSubmit={(event) => void addManualEntry(event)} className="mt-5 space-y-4">
-                        <ContextFields
-                            value={manualContext}
-                            onChange={setManualContext}
-                            options={options}
-                        />
-                        <div className="grid gap-4 sm:grid-cols-3">
-                            <label className={labelClasses}>
-                                <span>Date</span>
-                                <Input
-                                    type="date"
-                                    value={manualDate}
-                                    onChange={(event) => setManualDate(event.target.value)}
-                                    required
-                                />
-                            </label>
-                            <label className={labelClasses}>
-                                <span>Hours</span>
-                                <Input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={manualHours}
-                                    onChange={(event) => setManualHours(event.target.value)}
-                                    required
-                                />
-                            </label>
-                            <label className={labelClasses}>
-                                <span>Minutes</span>
-                                <Input
-                                    type="number"
-                                    min="0"
-                                    max="59"
-                                    step="1"
-                                    value={manualMinutes}
-                                    onChange={(event) => setManualMinutes(event.target.value)}
-                                    required
-                                />
-                            </label>
-                        </div>
-                        <label className={`block ${labelClasses}`}>
-                            <span>Description</span>
-                            <Textarea
-                                value={manualDescription}
-                                onChange={(event) => setManualDescription(event.target.value)}
-                                rows={3}
-                                required
-                            />
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-slate-300">
-                            <input
-                                type="checkbox"
-                                checked={manualPayload?.internal ? false : manualBillable}
-                                disabled={manualPayload?.internal ?? false}
-                                onChange={(event) => setManualBillable(event.target.checked)}
-                            />
-                            Billable
-                        </label>
-                        <Button type="submit" disabled={isSaving}>
-                            Add time
-                        </Button>
-                    </form>
                 </Card>
-            </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-3">
                 <Card className="p-5">
