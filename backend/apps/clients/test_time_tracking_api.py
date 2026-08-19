@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 from typing import Any, cast
 
 from django.contrib.auth.models import Permission
@@ -96,7 +97,7 @@ class TimeTrackingApiTests(TestCase):
             self._request(self.superuser, "post"),
             TimeEntryIn(
                 date=timezone.localdate(),
-                duration_hours="1.5",
+                duration_hours=Decimal("1.5"),
                 description="Project work",
                 billable=True,
                 ownership_type="internal",
@@ -116,7 +117,7 @@ class TimeTrackingApiTests(TestCase):
             self._request(self.superuser, "post"),
             TimeEntryIn(
                 date=timezone.localdate(),
-                duration_hours="0.75",
+                duration_hours=Decimal("0.75"),
                 description="Internal development",
                 billable=True,
                 ownership_type="client",
@@ -137,7 +138,7 @@ class TimeTrackingApiTests(TestCase):
             self._request(self.superuser, "post"),
             TimeEntryIn(
                 date=timezone.localdate(),
-                duration_hours="2",
+                duration_hours=Decimal("2"),
                 description="Task implementation",
                 task_id=self.client_task.id,
             ),
@@ -154,7 +155,7 @@ class TimeTrackingApiTests(TestCase):
             self._request(self.superuser, "post"),
             TimeEntryIn(
                 date=timezone.localdate(),
-                duration_hours="0.5",
+                duration_hours=Decimal("0.5"),
                 description="Ticket investigation",
                 ticket_id=self.client_ticket.id,
             ),
@@ -163,7 +164,7 @@ class TimeTrackingApiTests(TestCase):
             self._request(self.superuser, "post"),
             TimeEntryIn(
                 date=timezone.localdate(),
-                duration_hours="0.25",
+                duration_hours=Decimal("0.25"),
                 description="Operational ticket",
                 billable=True,
                 ticket_id=self.internal_ticket.id,
@@ -182,7 +183,7 @@ class TimeTrackingApiTests(TestCase):
         self.assertFalse(internal_entry.billable)
 
     def test_running_timer_is_persistent_and_stops_into_time_entry(self) -> None:
-        status, payload = start_time_timer(
+        status, _payload = start_time_timer(
             self._request(self.superuser, "post"),
             TimerStartIn(
                 description="Timed task",
@@ -259,7 +260,7 @@ class TimeTrackingApiTests(TestCase):
             self._request(restricted, "post"),
             TimeEntryIn(
                 date=timezone.localdate(),
-                duration_hours="1",
+                duration_hours=Decimal("1"),
                 description="Should not be allowed",
                 project_id=hidden_project.id,
             ),

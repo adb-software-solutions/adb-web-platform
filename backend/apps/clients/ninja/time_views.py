@@ -33,11 +33,11 @@ from .time_schemas import (
     TimeEntryOut,
     TimeEntryPageOut,
     TimeProjectOptionOut,
+    TimerStartIn,
+    TimerStopIn,
     TimeTaskOptionOut,
     TimeTicketOptionOut,
     TimeTrackingOptionsOut,
-    TimerStartIn,
-    TimerStopIn,
 )
 
 time_tracking_router = Router(tags=["admin-time-tracking"])
@@ -358,7 +358,7 @@ def current_timer(request: HttpRequest) -> RunningTimerOut | StaffProblem | None
         return problem
     timer = (
         RunningTimer.objects.select_related("client", "project", "task", "ticket")
-        .filter(user=request.user)
+        .filter(user=cast(User, request.user))
         .first()
     )
     return _timer_out(timer) if timer else None

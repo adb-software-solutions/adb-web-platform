@@ -219,7 +219,12 @@ class TimeEntry(models.Model):
             raise ValidationError(
                 {"project": "Ticket time cannot also be assigned directly to a project."}
             )
-        if self.task_id and self.project_id and self.task.project_id != self.project_id:
+        if (
+            self.task_id
+            and self.project_id
+            and self.task is not None
+            and self.task.project_id != self.project_id
+        ):
             raise ValidationError(
                 {"project": "Time-entry project must match the selected task project."}
             )
@@ -317,10 +322,13 @@ class RunningTimer(models.Model):
                 {"task": "A timer cannot target a task and ticket simultaneously."}
             )
         if self.ticket_id and self.project_id:
-            raise ValidationError(
-                {"project": "A ticket timer cannot also target a project."}
-            )
-        if self.task_id and self.project_id and self.task.project_id != self.project_id:
+            raise ValidationError({"project": "A ticket timer cannot also target a project."})
+        if (
+            self.task_id
+            and self.project_id
+            and self.task is not None
+            and self.task.project_id != self.project_id
+        ):
             raise ValidationError(
                 {"project": "Timer project must match the selected task project."}
             )
