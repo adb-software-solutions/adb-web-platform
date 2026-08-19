@@ -1,3 +1,4 @@
+import { RelatedTimePanel } from "@/components/admin/RelatedTimePanel";
 import { Container } from "@/components/ui";
 import { TaskWorkspace } from "../TaskWorkspace";
 
@@ -11,9 +12,14 @@ export default async function TaskPage({
     params: Promise<{ id: string }>;
 }) {
     const { id } = await params;
+    const taskId = Number(id);
+
     return (
         <Container className="py-8">
-            <TaskWorkspace taskId={Number(id)} />
+            <div className="space-y-6">
+                <TaskWorkspace taskId={taskId} />
+                <RelatedTimePanel contextType="task" contextId={taskId} />
+            </div>
         </Container>
     );
 }
