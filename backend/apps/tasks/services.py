@@ -72,11 +72,7 @@ def done_status() -> TaskStatus | None:
 
 @transaction.atomic
 def complete_task(task: Task) -> tuple[Task, Task | None]:
-    locked = (
-        Task.objects.select_for_update()
-        .select_related("client", "project", "task_list", "status", "assigned_to", "created_by")
-        .get(pk=task.pk)
-    )
+    locked = Task.objects.select_for_update().get(pk=task.pk)
     if locked.completed_at is not None:
         next_task = getattr(locked, "next_occurrence", None)
         return locked, next_task

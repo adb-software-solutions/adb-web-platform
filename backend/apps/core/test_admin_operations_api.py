@@ -120,7 +120,7 @@ class AdminOperationsAPITests(TestCase):
         self.grant("tasks", "view_task")
         response = self.client.get("/api/admin/tasks")
         self.assertEqual(response.status_code, 200)
-        titles = {task["title"] for task in response.json()}
+        titles = {task["title"] for task in response.json()["items"]}
         self.assertSetEqual(titles, {"Allowed Task", "Internal Task"})
 
     def test_time_entry_list_includes_internal_and_scoped_client_time(self) -> None:
