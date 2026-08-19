@@ -46,7 +46,7 @@ class TaskList(models.Model):
     )
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    sort_order = models.DecimalField(max_digits=20, decimal_places=10, default=Decimal("1000"))
+    sort_order = models.DecimalField(max_digits=20, decimal_places=10, default=Decimal(1000))
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -81,7 +81,7 @@ class TaskSection(models.Model):
         related_name="sections",
     )
     name = models.CharField(max_length=200)
-    sort_order = models.DecimalField(max_digits=20, decimal_places=10, default=Decimal("1000"))
+    sort_order = models.DecimalField(max_digits=20, decimal_places=10, default=Decimal(1000))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -155,7 +155,7 @@ class Task(models.Model):
     priority = models.IntegerField(choices=PRIORITY_CHOICES, default=2)
     start_date = models.DateField(blank=True, null=True)
     due_date = models.DateField(blank=True, null=True)
-    sort_order = models.DecimalField(max_digits=20, decimal_places=10, default=Decimal("1000"))
+    sort_order = models.DecimalField(max_digits=20, decimal_places=10, default=Decimal(1000))
     recurrence_rule = models.CharField(
         max_length=500,
         blank=True,
