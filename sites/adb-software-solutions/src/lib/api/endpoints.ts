@@ -30,7 +30,20 @@ export const AdminAPI = {
         update: (id: number) => `${API_BASE_URL}/admin/projects/${id}`,
     },
     tasks: {
-        list: () => `${API_BASE_URL}/admin/tasks`,
+        list: (query = "") =>
+            `${API_BASE_URL}/admin/tasks${query ? `?${query}` : ""}`,
+        get: (id: number) => `${API_BASE_URL}/admin/tasks/${id}`,
+        create: () => `${API_BASE_URL}/admin/tasks`,
+        update: (id: number) => `${API_BASE_URL}/admin/tasks/${id}`,
+        complete: (id: number) => `${API_BASE_URL}/admin/tasks/${id}/complete`,
+        reopen: (id: number) => `${API_BASE_URL}/admin/tasks/${id}/reopen`,
+        options: () => `${API_BASE_URL}/admin/task-options`,
+        lists: {
+            list: () => `${API_BASE_URL}/admin/task-lists`,
+            get: (id: number) => `${API_BASE_URL}/admin/task-lists/${id}`,
+            create: () => `${API_BASE_URL}/admin/task-lists`,
+            update: (id: number) => `${API_BASE_URL}/admin/task-lists/${id}`,
+        },
     },
     timeEntries: {
         list: () => `${API_BASE_URL}/admin/time-entries`,
