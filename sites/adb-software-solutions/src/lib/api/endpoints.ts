@@ -28,7 +28,8 @@ export const AdminAPI = {
         get: (id: number) => `${API_BASE_URL}/admin/projects/${id}`,
         create: () => `${API_BASE_URL}/admin/projects`,
         update: (id: number) => `${API_BASE_URL}/admin/projects/${id}`,
-        taskWorkspace: (id: number) => `${API_BASE_URL}/admin/task-workspaces/projects/${id}`,
+        taskWorkspace: (id: number) =>
+            `${API_BASE_URL}/admin/task-workspaces/projects/${id}`,
     },
     tasks: {
         list: (query = "") =>
@@ -39,10 +40,14 @@ export const AdminAPI = {
         complete: (id: number) => `${API_BASE_URL}/admin/tasks/${id}/complete`,
         reopen: (id: number) => `${API_BASE_URL}/admin/tasks/${id}/reopen`,
         options: () => `${API_BASE_URL}/admin/task-options`,
-        move: (id: number) => `${API_BASE_URL}/admin/task-workspaces/tasks/${id}/move`,
-        relations: (id: number) => `${API_BASE_URL}/admin/task-relations/tasks/${id}`,
-        subtasks: (id: number) => `${API_BASE_URL}/admin/task-relations/tasks/${id}/subtasks`,
-        dependencies: (id: number) => `${API_BASE_URL}/admin/task-relations/tasks/${id}/dependencies`,
+        move: (id: number) =>
+            `${API_BASE_URL}/admin/task-workspaces/tasks/${id}/move`,
+        relations: (id: number) =>
+            `${API_BASE_URL}/admin/task-relations/tasks/${id}`,
+        subtasks: (id: number) =>
+            `${API_BASE_URL}/admin/task-relations/tasks/${id}/subtasks`,
+        dependencies: (id: number) =>
+            `${API_BASE_URL}/admin/task-relations/tasks/${id}/dependencies`,
         removeDependency: (id: number, blockingTaskId: number) =>
             `${API_BASE_URL}/admin/task-relations/tasks/${id}/dependencies/${blockingTaskId}`,
         lists: {
@@ -50,9 +55,12 @@ export const AdminAPI = {
             get: (id: number) => `${API_BASE_URL}/admin/task-lists/${id}`,
             create: () => `${API_BASE_URL}/admin/task-lists`,
             update: (id: number) => `${API_BASE_URL}/admin/task-lists/${id}`,
-            workspace: (id: number) => `${API_BASE_URL}/admin/task-workspaces/lists/${id}`,
-            sections: (id: number) => `${API_BASE_URL}/admin/task-workspaces/lists/${id}/sections`,
-            quickTask: (id: number) => `${API_BASE_URL}/admin/task-workspaces/lists/${id}/quick-task`,
+            workspace: (id: number) =>
+                `${API_BASE_URL}/admin/task-workspaces/lists/${id}`,
+            sections: (id: number) =>
+                `${API_BASE_URL}/admin/task-workspaces/lists/${id}/sections`,
+            quickTask: (id: number) =>
+                `${API_BASE_URL}/admin/task-workspaces/lists/${id}/quick-task`,
         },
     },
     timeEntries: {
