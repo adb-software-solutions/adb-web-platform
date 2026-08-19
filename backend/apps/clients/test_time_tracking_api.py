@@ -138,7 +138,7 @@ class TimeTrackingApiTests(TestCase):
             self._request(self.superuser, "post"),
             TimeEntryIn(
                 date=timezone.localdate(),
-                duration_hours=Decimal("2"),
+                duration_hours=Decimal(2),
                 description="Task implementation",
                 task_id=self.client_task.id,
             ),
@@ -260,7 +260,7 @@ class TimeTrackingApiTests(TestCase):
             self._request(restricted, "post"),
             TimeEntryIn(
                 date=timezone.localdate(),
-                duration_hours=Decimal("1"),
+                duration_hours=Decimal(1),
                 description="Should not be allowed",
                 project_id=hidden_project.id,
             ),
