@@ -92,7 +92,7 @@ def _next_subtask_order(task: Task) -> Decimal:
 
 
 @relations_router.get(
-    "/task-workspaces/tasks/{task_id}/relations",
+    "/task-relations/tasks/{task_id}",
     response={200: TaskRelationsOut, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
 )
 def task_relations(request: HttpRequest, task_id: int) -> TaskRelationsOut | StaffProblem:
@@ -123,7 +123,7 @@ def task_relations(request: HttpRequest, task_id: int) -> TaskRelationsOut | Sta
 
 
 @relations_router.post(
-    "/task-workspaces/tasks/{task_id}/subtasks",
+    "/task-relations/tasks/{task_id}/subtasks",
     response={201: TaskWorkspaceTaskOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
 )
 def create_subtask(
@@ -166,7 +166,7 @@ def create_subtask(
 
 
 @relations_router.post(
-    "/task-workspaces/tasks/{task_id}/dependencies",
+    "/task-relations/tasks/{task_id}/dependencies",
     response={204: None, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
 )
 def add_dependency(
@@ -193,7 +193,7 @@ def add_dependency(
 
 
 @relations_router.delete(
-    "/task-workspaces/tasks/{task_id}/dependencies/{blocking_task_id}",
+    "/task-relations/tasks/{task_id}/dependencies/{blocking_task_id}",
     response={204: None, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
 )
 def remove_dependency(
