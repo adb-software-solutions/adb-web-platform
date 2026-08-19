@@ -166,6 +166,8 @@ def _list_out(user: User, task_list: TaskList) -> TaskListWorkspaceOut:
         total_tasks=all_tasks.count(),
         open_tasks=all_tasks.filter(completed_at__isnull=True).count(),
         can_change=user.has_perm("tasks.change_tasklist"),
+        can_add_task=user.has_perm("tasks.add_task"),
+        can_change_task=user.has_perm("tasks.change_task"),
     )
 
 
@@ -256,6 +258,10 @@ def project_task_workspace(
         client_name=str(project.client) if project.client else None,
         task_lists=task_lists,
         unlisted_tasks=unlisted_tasks,
+        can_add_task=user.has_perm("tasks.add_task"),
+        can_add_task_list=user.has_perm("tasks.add_tasklist"),
+        can_change_task=user.has_perm("tasks.change_task"),
+        can_view_task_lists=user.has_perm("tasks.view_tasklist"),
     )
 
 

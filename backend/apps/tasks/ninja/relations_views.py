@@ -152,6 +152,7 @@ def task_relations(
         blocked_by=[_task_out(item) for item in blocked_by],
         blocking=[_task_out(item) for item in blocking],
         can_change=user.has_perm("tasks.change_task"),
+        can_add_subtask=user.has_perm("tasks.add_task"),
     )
 
 

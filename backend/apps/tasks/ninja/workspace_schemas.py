@@ -41,6 +41,8 @@ class TaskListWorkspaceOut(Schema):
     total_tasks: int
     open_tasks: int
     can_change: bool
+    can_add_task: bool
+    can_change_task: bool
 
 
 class ProjectTaskWorkspaceOut(Schema):
@@ -51,6 +53,10 @@ class ProjectTaskWorkspaceOut(Schema):
     client_name: str | None
     task_lists: list[TaskListWorkspaceOut]
     unlisted_tasks: list[TaskWorkspaceTaskOut]
+    can_add_task: bool
+    can_add_task_list: bool
+    can_change_task: bool
+    can_view_task_lists: bool
 
 
 class TaskRelationsOut(Schema):
@@ -59,6 +65,7 @@ class TaskRelationsOut(Schema):
     blocked_by: list[TaskWorkspaceTaskOut]
     blocking: list[TaskWorkspaceTaskOut]
     can_change: bool
+    can_add_subtask: bool
 
 
 class TaskSectionIn(Schema):
