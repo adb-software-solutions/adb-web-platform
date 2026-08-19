@@ -1,0 +1,63 @@
+name: Temporary Docs Formatter
+
+on:
+    push:
+        branches:
+            - tmp/docs-format-128
+
+permissions:
+    contents: write
+
+jobs:
+    format:
+        runs-on: ubuntu-24.04
+        steps:
+            - name: Checkout branch
+              uses: actions/checkout@v4
+              with:
+                  ref: tmp/docs-format-128
+
+            - name: Set up pnpm
+              uses: pnpm/action-setup@v4.1.0
+              with:
+                  version: 10.15.0
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: pnpm
+                  cache-dependency-path: pnpm-lock.yaml
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Format documentation
+              run: |
+                  pnpm exec prettier --write \
+                    ADB_SOFTWARE_SOLUTIONS_BUILD_PLAN.md \
+                    AGENTS.md \
+                    DJANGO_ARCHITECTURE.md \
+                    README.md \
+                    docs/CURRENT_STATE_AND_FOUNDATION_CHECKLIST.md \
+                    docs/MICROSOFT_GRAPH_TICKETING_SETUP.md \
+                    docs/PLATFORM_MASTER_PLAN.md
+
+            - name: Commit formatted documentation
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git add \
+                    ADB_SOFTWARE_SOLUTIONS_BUILD_PLAN.md \
+                    AGENTS.md \
+                    DJANGO_ARCHITECTURE.md \
+                    README.md \
+                    docs/CURRENT_STATE_AND_FOUNDATION_CHECKLIST.md \
+                    docs/MICROSOFT_GRAPH_TICKETING_SETUP.md \
+                    docs/PLATFORM_MASTER_PLAN.md
+                  if git diff --cached --quiet; then
+                      echo "Documentation already formatted."
+                      exit 0
+                  fi
+                  git commit -m "docs: Format platform documentation."
+                  git push origin HEAD:tmp/docs-format-128
