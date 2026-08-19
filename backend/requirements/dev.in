@@ -27,7 +27,7 @@ adamlint==1.1.0
 codespell==2.4.1
 
 # For code coverage
-coverage==7.10.3
+coverage==7.15.4
 django-coverage-plugin==3.2.2
 
 flake8==7.3.0
