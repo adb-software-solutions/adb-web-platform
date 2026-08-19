@@ -23,6 +23,10 @@ interface RelatedTimePage {
     billable_hours: string;
 }
 
+interface TimeOptions {
+    can_add_time: boolean;
+}
+
 function formatDate(value: string) {
     return new Intl.DateTimeFormat("en-GB", {
         day: "2-digit",
@@ -45,6 +49,7 @@ export function RelatedTimePanel({
     title?: string;
 }) {
     const [data, setData] = useState<RelatedTimePage | null>(null);
+    const [canAddTime, setCanAddTime] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -56,9 +61,12 @@ export function RelatedTimePanel({
                 [`${contextType}_id`]: String(contextId),
                 page_size: "5",
             });
-            setData(
-                (await fetchAPI(AdminAPI.timeEntries.list(params.toString()))) as RelatedTimePage,
-            );
+            const [timeData, options] = await Promise.all([
+                fetchAPI(AdminAPI.timeEntries.list(params.toString())) as Promise<RelatedTimePage>,
+                fetchAPI(AdminAPI.timeEntries.options()) as Promise<TimeOptions>,
+            ]);
+            setData(timeData);
+            setCanAddTime(options.can_add_time);
         } catch (loadError) {
             setError(
                 loadError instanceof Error ? loadError.message : "Unable to load related time entries.",
@@ -86,12 +94,14 @@ export function RelatedTimePanel({
                         )} billable
                     </p>
                 </div>
-                <ButtonLink
-                    href={`/admin/time-tracking?${contextType}_id=${contextId}`}
-                    variant="outline"
-                >
-                    Track time
-                </ButtonLink>
+                {canAddTime ? (
+                    <ButtonLink
+                        href={`/admin/time-tracking?${contextType}_id=${contextId}`}
+                        variant="outline"
+                    >
+                        Track time
+                    </ButtonLink>
+                ) : null}
             </div>
 
             {!data || data.items.length === 0 ? (
