@@ -17,6 +17,7 @@ class TaskIn(Schema):
     task_list_id: int | None = None
     status_id: int | None = None
     priority: int = 2
+    start_date: date | None = None
     due_date: date | None = None
     assigned_to_id: UUID | None = None
     recurrence_frequency: TaskRecurrenceFrequency = "none"
@@ -36,6 +37,7 @@ class TaskSummaryOut(Schema):
     status: str
     status_id: int | None
     priority: int
+    start_date: date | None
     due_date: date | None
     completed_at: datetime | None
     ownership_type: str
