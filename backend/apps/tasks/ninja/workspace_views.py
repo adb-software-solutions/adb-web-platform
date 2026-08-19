@@ -455,7 +455,7 @@ def move_task(
     if after is not None and after.id == task.id:
         after = None
 
-    target_list = task_list if payload.task_list_id is not None else task.task_list
+    target_list = task_list
     for neighbour in (before, after):
         if neighbour is None:
             continue
