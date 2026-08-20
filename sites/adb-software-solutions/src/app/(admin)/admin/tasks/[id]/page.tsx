@@ -1,4 +1,4 @@
-import { RelatedTimePanel } from "@/components/admin/RelatedTimePanel";
+import { TaskTimePanel } from "@/components/admin/TaskTimePanel";
 import { Container } from "@/components/ui";
 import { TaskRelationsPanel } from "../TaskRelationsPanel";
 import { TaskWorkspace } from "../TaskWorkspace";
@@ -19,8 +19,8 @@ export default async function TaskPage({
         <Container className="py-8">
             <div className="space-y-6">
                 <TaskWorkspace taskId={taskId} />
+                <TaskTimePanel taskId={taskId} />
                 <TaskRelationsPanel taskId={taskId} />
-                <RelatedTimePanel contextType="task" contextId={taskId} />
             </div>
         </Container>
     );

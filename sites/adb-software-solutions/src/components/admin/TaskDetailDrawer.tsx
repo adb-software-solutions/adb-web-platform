@@ -2,7 +2,7 @@
 
 import { TaskRelationsPanel } from "@/app/(admin)/admin/tasks/TaskRelationsPanel";
 import { TaskWorkspace } from "@/app/(admin)/admin/tasks/TaskWorkspace";
-import { RelatedTimePanel } from "@/components/admin/RelatedTimePanel";
+import { TaskTimePanel } from "@/components/admin/TaskTimePanel";
 import { useEffect } from "react";
 
 export function TaskDetailDrawer({
@@ -48,8 +48,8 @@ export function TaskDetailDrawer({
                         onClose={onClose}
                         onChanged={onChanged}
                     />
+                    <TaskTimePanel taskId={taskId} onChanged={onChanged} />
                     <TaskRelationsPanel taskId={taskId} onChanged={onChanged} />
-                    <RelatedTimePanel contextType="task" contextId={taskId} />
                 </div>
             </aside>
         </div>
