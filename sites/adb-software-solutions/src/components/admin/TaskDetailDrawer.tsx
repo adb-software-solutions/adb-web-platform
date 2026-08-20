@@ -41,7 +41,10 @@ export function TaskDetailDrawer({
                 onClick={onClose}
                 className="absolute inset-0 bg-black/65 backdrop-blur-[1px]"
             />
-            <aside className="relative h-full w-full overflow-y-auto border-l border-slate-800 bg-slate-950 shadow-2xl shadow-black/50 sm:max-w-3xl 2xl:max-w-5xl">
+            <aside
+                data-task-detail-drawer
+                className="relative h-full w-full overflow-y-auto border-l border-slate-800 bg-slate-950 shadow-2xl shadow-black/50 sm:max-w-3xl 2xl:max-w-5xl"
+            >
                 <div className="space-y-6 p-5 sm:p-7">
                     <TaskWorkspace
                         taskId={taskId}
