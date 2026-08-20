@@ -152,18 +152,13 @@ export function ProjectActivityPanels({ projectId }: { projectId: number }) {
             </Card>
 
             <Card className="overflow-hidden">
-                <div className="flex items-center justify-between gap-4 border-b border-slate-800 px-5 py-4">
-                    <div>
-                        <h2 className="text-sm font-semibold text-white">Recent time</h2>
-                        <p className="mt-1 text-xs text-slate-500">
-                            {formatHours(time?.tracked_hours ?? "0")} tracked · {formatHours(
-                                time?.billable_hours ?? "0",
-                            )} billable
-                        </p>
-                    </div>
-                    <ButtonLink href={`/admin/time-tracking?project_id=${projectId}`} variant="outline">
-                        Track time
-                    </ButtonLink>
+                <div className="border-b border-slate-800 px-5 py-4">
+                    <h2 className="text-sm font-semibold text-white">Recent time</h2>
+                    <p className="mt-1 text-xs text-slate-500">
+                        {formatHours(time?.tracked_hours ?? "0")} tracked · {formatHours(
+                            time?.billable_hours ?? "0",
+                        )} billable
+                    </p>
                 </div>
                 {!time || time.items.length === 0 ? (
                     <EmptyState

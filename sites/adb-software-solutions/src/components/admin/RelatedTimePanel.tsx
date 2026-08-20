@@ -49,7 +49,7 @@ export function RelatedTimePanel({
     title?: string;
 }) {
     const [data, setData] = useState<RelatedTimePage | null>(null);
-    const [canAddTime, setCanAddTime] = useState(false);
+    const [canAddTicketTime, setCanAddTicketTime] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -61,12 +61,17 @@ export function RelatedTimePanel({
                 [`${contextType}_id`]: String(contextId),
                 page_size: "5",
             });
-            const [timeData, options] = await Promise.all([
-                fetchAPI(AdminAPI.timeEntries.list(params.toString())) as Promise<RelatedTimePage>,
-                fetchAPI(AdminAPI.timeEntries.options()) as Promise<TimeOptions>,
-            ]);
+            const timeData = (await fetchAPI(
+                AdminAPI.timeEntries.list(params.toString()),
+            )) as RelatedTimePage;
             setData(timeData);
-            setCanAddTime(options.can_add_time);
+
+            if (contextType === "ticket") {
+                const options = (await fetchAPI(AdminAPI.timeEntries.options())) as TimeOptions;
+                setCanAddTicketTime(options.can_add_time);
+            } else {
+                setCanAddTicketTime(false);
+            }
         } catch (loadError) {
             setError(
                 loadError instanceof Error ? loadError.message : "Unable to load related time entries.",
@@ -94,12 +99,12 @@ export function RelatedTimePanel({
                         )} billable
                     </p>
                 </div>
-                {canAddTime ? (
+                {canAddTicketTime ? (
                     <ButtonLink
-                        href={`/admin/time-tracking?${contextType}_id=${contextId}`}
+                        href={`/admin/time-tracking?ticket_id=${contextId}&mode=manual#record-time`}
                         variant="outline"
                     >
-                        Track time
+                        Add time
                     </ButtonLink>
                 ) : null}
             </div>
