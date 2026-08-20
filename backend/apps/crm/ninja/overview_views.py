@@ -8,13 +8,14 @@ from django.http import HttpRequest
 from django.utils import timezone
 from ninja import Router
 
-from apps.crm.models import Lead
+from apps.crm.models import Lead, LeadStatus
 from authentication.ninja.schemas import ProblemDetail
 
 from .overview_schemas import LeadOverviewItemOut, LeadOverviewOut, LeadOverviewStatsOut
 
 lead_overview_router = Router(tags=["admin-lead-overview"])
 StaffProblem = tuple[int, dict[str, Any]]
+LEAD_VIEWS = {"my", "unassigned", "active", "won", "lost", "all"}
 
 
 def _permission_problem(request: HttpRequest) -> StaffProblem | None:
@@ -43,6 +44,12 @@ def _lead_queryset() -> QuerySet[Lead]:
     return Lead.objects.select_related("brand", "status", "source", "assigned_to")
 
 
+def _active_leads() -> QuerySet[Lead]:
+    return _lead_queryset().filter(converted_at__isnull=True).filter(
+        Q(status__isnull=True) | Q(status__outcome=LeadStatus.Outcome.OPEN)
+    )
+
+
 def _user_label(user: Any | None) -> str | None:
     if user is None:
         return None
@@ -55,34 +62,42 @@ def _user_label(user: Any | None) -> str | None:
 )
 def lead_overview(
     request: HttpRequest,
+    view: str = "my",
     page: int = 1,
     page_size: int = 25,
     status_id: int | None = None,
     source_id: int | None = None,
     brand_id: int | None = None,
     assigned_to_id: UUID | None = None,
-    converted: bool | None = None,
     search: str | None = None,
 ) -> LeadOverviewOut | StaffProblem:
     problem = _permission_problem(request)
     if problem:
         return problem
 
-    base = _lead_queryset()
+    selected_view = view if view in LEAD_VIEWS else "my"
+    active = _active_leads()
     cutoff = timezone.now() - timedelta(days=30)
-    aggregate = base.aggregate(
-        total=Count("id"),
-        open=Count("id", filter=Q(converted_at__isnull=True)),
-        converted=Count("id", filter=Q(converted_at__isnull=False)),
-        unassigned=Count(
-            "id",
-            filter=Q(converted_at__isnull=True, assigned_to__isnull=True),
-        ),
-        new_last_30_days=Count("id", filter=Q(created_at__gte=cutoff)),
+    stats = LeadOverviewStatsOut(
+        active=active.count(),
+        mine=active.filter(assigned_to_id=request.user.id).count(),
+        unassigned=active.filter(assigned_to__isnull=True).count(),
+        new_last_30_days=active.filter(created_at__gte=cutoff).count(),
     )
-    stats = LeadOverviewStatsOut(**aggregate)
 
-    leads = base
+    if selected_view == "my":
+        leads = active.filter(assigned_to_id=request.user.id)
+    elif selected_view == "unassigned":
+        leads = active.filter(assigned_to__isnull=True)
+    elif selected_view == "active":
+        leads = active
+    elif selected_view == "won":
+        leads = _lead_queryset().filter(status__outcome=LeadStatus.Outcome.WON)
+    elif selected_view == "lost":
+        leads = _lead_queryset().filter(status__outcome=LeadStatus.Outcome.LOST)
+    else:
+        leads = _lead_queryset()
+
     if status_id is not None:
         leads = leads.filter(status_id=status_id)
     if source_id is not None:
@@ -91,8 +106,6 @@ def lead_overview(
         leads = leads.filter(brand_id=brand_id)
     if assigned_to_id is not None:
         leads = leads.filter(assigned_to_id=assigned_to_id)
-    if converted is not None:
-        leads = leads.filter(converted_at__isnull=not converted)
     if search:
         term = search.strip()
         if term:
@@ -108,7 +121,11 @@ def lead_overview(
     total = leads.count()
     total_pages = math.ceil(total / page_size) if total else 0
     start = (page - 1) * page_size
-    rows = leads.order_by("-created_at")[start : start + page_size]
+    if selected_view in {"my", "unassigned", "active"}:
+        leads = leads.order_by("status__order", "-created_at")
+    else:
+        leads = leads.order_by("-updated_at", "-created_at")
+    rows = leads[start : start + page_size]
 
     return LeadOverviewOut(
         items=[
@@ -118,6 +135,7 @@ def lead_overview(
                 company=lead.company,
                 email=lead.email,
                 status=lead.status.name if lead.status else "Unassigned",
+                outcome=lead.status.outcome if lead.status else LeadStatus.Outcome.OPEN,
                 source=lead.source.name if lead.source else "Unknown",
                 brand=lead.brand.name if lead.brand else "Unassigned",
                 assigned_to_name=_user_label(lead.assigned_to),

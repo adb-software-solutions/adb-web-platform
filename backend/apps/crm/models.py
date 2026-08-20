@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.conf import settings
 from django.db import models
 
@@ -14,12 +16,32 @@ class LeadSource(models.Model):
 class LeadStatus(models.Model):
     """Configurable sales-pipeline status for a lead."""
 
+    class Outcome(models.TextChoices):
+        OPEN = "open", "Open"
+        WON = "won", "Won"
+        LOST = "lost", "Lost"
+
     name = models.CharField(max_length=100, unique=True)
     order = models.IntegerField(default=0)
+    outcome = models.CharField(
+        max_length=12,
+        choices=Outcome.choices,
+        default=Outcome.OPEN,
+        db_index=True,
+    )
 
     class Meta:
         ordering = ["order"]
         verbose_name_plural = "Lead Statuses"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if self._state.adding and self.outcome == self.Outcome.OPEN:
+            normalised_name = self.name.strip().lower()
+            if normalised_name == "won":
+                self.outcome = self.Outcome.WON
+            elif normalised_name == "lost":
+                self.outcome = self.Outcome.LOST
+        super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return self.name

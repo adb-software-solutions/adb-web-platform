@@ -9,10 +9,12 @@ import {
     DataLoading,
     Select,
 } from "@/components/ui";
+import { useAuth } from "@/contexts/AuthContext";
 import { AdminAPI } from "@/lib/api/endpoints";
 import { fetchAPI } from "@/lib/api/fetch";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { LeadForm } from "../LeadForm";
 
 interface LeadAgent {
     id: string;
@@ -75,11 +77,13 @@ export function LeadWorkspace({
     leadId: number;
     presentation?: "page" | "drawer";
 }) {
+    const { hasPermission } = useAuth();
     const [lead, setLead] = useState<LeadDetail | null>(null);
     const [options, setOptions] = useState<LeadOptions>({ assignees: [] });
     const [isLoading, setIsLoading] = useState(true);
     const [isAssigning, setIsAssigning] = useState(false);
     const [isConverting, setIsConverting] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [actionMessage, setActionMessage] = useState<string | null>(null);
 
@@ -202,7 +206,9 @@ export function LeadWorkspace({
                             ← Leads
                         </Link>
                     ) : null}
-                    <div className={`${presentation === "page" ? "mt-2 " : ""}flex flex-wrap items-center gap-3`}>
+                    <div
+                        className={`${presentation === "page" ? "mt-2 " : ""}flex flex-wrap items-center gap-3`}
+                    >
                         <h1 className="text-2xl font-semibold text-white">
                             {lead.company || lead.name}
                         </h1>
@@ -230,11 +236,37 @@ export function LeadWorkspace({
                             View client
                         </ButtonLink>
                     ) : null}
-                    <ButtonLink href={`/admin/leads/${lead.id}/edit`} variant="secondary">
-                        Edit lead
-                    </ButtonLink>
+                    {hasPermission("crm.change_lead") ? (
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => setIsEditing((value) => !value)}
+                        >
+                            {isEditing ? "Close edit" : "Edit lead"}
+                        </Button>
+                    ) : null}
                 </div>
             </div>
+
+            {isEditing ? (
+                <Card className="border-cyan-900/40 p-5">
+                    <div className="mb-5">
+                        <h2 className="text-sm font-semibold text-white">Edit lead</h2>
+                        <p className="mt-1 text-xs text-slate-500">
+                            Update the opportunity without leaving this workspace.
+                        </p>
+                    </div>
+                    <LeadForm
+                        leadId={lead.id}
+                        onSaved={() => {
+                            setIsEditing(false);
+                            setActionMessage("Lead details updated.");
+                            void loadLead();
+                        }}
+                        onCancel={() => setIsEditing(false)}
+                    />
+                </Card>
+            ) : null}
 
             <div className="grid gap-4 lg:grid-cols-3">
                 <Card className="p-5 lg:col-span-2">
