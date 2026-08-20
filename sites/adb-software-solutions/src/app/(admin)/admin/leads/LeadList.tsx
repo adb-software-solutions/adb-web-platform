@@ -22,6 +22,7 @@ import { fetchAPI } from "@/lib/api/fetch";
 import { OverviewAPI } from "@/lib/api/overview";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LeadWorkspace } from "./[id]/LeadWorkspace";
+import { LeadEmailPanel } from "./LeadEmailPanel";
 
 interface Lookup {
     id: number;
@@ -140,7 +141,11 @@ function StatCard({
 
 export function LeadList() {
     const [data, setData] = useState<LeadOverviewResponse | null>(null);
-    const [options, setOptions] = useState<LeadOptions>({ statuses: [], sources: [], assignees: [] });
+    const [options, setOptions] = useState<LeadOptions>({
+        statuses: [],
+        sources: [],
+        assignees: [],
+    });
     const [brands, setBrands] = useState<Brand[]>([]);
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
@@ -251,7 +256,12 @@ export function LeadList() {
                         placeholder="Search name, company, email or enquiry..."
                         aria-label="Search leads"
                     />
-                    <Select value={pipelineState} onChange={(event) => setPipelineState(event.target.value as "" | "open" | "converted")}>
+                    <Select
+                        value={pipelineState}
+                        onChange={(event) =>
+                            setPipelineState(event.target.value as "" | "open" | "converted")
+                        }
+                    >
                         <option value="">All pipeline states</option>
                         <option value="open">Open</option>
                         <option value="converted">Converted</option>
@@ -368,7 +378,10 @@ export function LeadList() {
                         void loadLeads();
                     }}
                 >
-                    <LeadWorkspace leadId={selectedLeadId} />
+                    <div className="space-y-6">
+                        <LeadWorkspace leadId={selectedLeadId} />
+                        <LeadEmailPanel leadId={selectedLeadId} />
+                    </div>
                 </RecordDrawer>
             ) : null}
         </div>
