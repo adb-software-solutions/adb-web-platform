@@ -57,19 +57,27 @@ def client_overview(
     base = scope_clients_for_user(request.user)
     scoped = base if selected_status == "all" else base.filter(status=selected_status)
     aggregate = scoped.aggregate(
-        total=Count("id", distinct=True),
-        active=Count("id", filter=Q(status="active"), distinct=True),
-        inactive=Count("id", filter=Q(status="inactive"), distinct=True),
-        archived=Count("id", filter=Q(status="archived"), distinct=True),
-        contacts=Count("contacts", filter=Q(contacts__is_active=True), distinct=True),
-        projects=Count("projects", distinct=True),
-        active_projects=Count(
+        total_clients=Count("id", distinct=True),
+        active_clients=Count("id", filter=Q(status="active"), distinct=True),
+        inactive_clients=Count("id", filter=Q(status="inactive"), distinct=True),
+        archived_clients=Count("id", filter=Q(status="archived"), distinct=True),
+        active_contacts=Count("contacts", filter=Q(contacts__is_active=True), distinct=True),
+        project_records=Count("projects", distinct=True),
+        current_projects=Count(
             "projects",
             filter=Q(projects__status__in=CURRENT_PROJECT_STATUSES),
             distinct=True,
         ),
     )
-    stats = ClientOverviewStatsOut(**aggregate)
+    stats = ClientOverviewStatsOut(
+        total=aggregate["total_clients"],
+        active=aggregate["active_clients"],
+        inactive=aggregate["inactive_clients"],
+        archived=aggregate["archived_clients"],
+        contacts=aggregate["active_contacts"],
+        projects=aggregate["project_records"],
+        active_projects=aggregate["current_projects"],
+    )
 
     clients = scoped.annotate(
         contact_count=Count("contacts", filter=Q(contacts__is_active=True), distinct=True),
