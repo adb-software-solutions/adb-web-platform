@@ -104,7 +104,7 @@ def prepare_ticket_reply(
 
 
 def mark_ticket_reply_sending(message: TicketMessage) -> None:
-    """Mark an outbound reply as actively being delivered."""
+    """Mark an outbound message as actively being delivered."""
     message.delivery_status = DELIVERY_STATUS_SENDING
     message.delivery_error = ""
     message.save(update_fields=["delivery_status", "delivery_error"])
@@ -117,6 +117,39 @@ def fail_ticket_reply(message: TicketMessage, error: str) -> None:
     message.save(update_fields=["delivery_status", "delivery_error"])
 
 
+def _complete_delivery_fields(
+    message: TicketMessage,
+    *,
+    provider_message_id: str,
+    internet_message_id: str,
+    sent_at: datetime | None,
+) -> tuple[TicketMessage, datetime]:
+    provider_id = provider_message_id.strip()
+    if not provider_id:
+        raise TicketReplyError("A provider message ID is required to complete ticket delivery.")
+
+    delivered_at = sent_at or timezone.now()
+    delivered_message = (
+        TicketMessage.objects.select_for_update().select_related("ticket").get(pk=message.pk)
+    )
+    delivered_message.provider_message_id = provider_id
+    delivered_message.internet_message_id = internet_message_id.strip()
+    delivered_message.delivery_status = DELIVERY_STATUS_SENT
+    delivered_message.delivery_error = ""
+    delivered_message.sent_or_received_at = delivered_at
+    delivered_message.save(
+        update_fields=[
+            "provider_message_id",
+            "internet_message_id",
+            "delivery_status",
+            "delivery_error",
+            "sent_or_received_at",
+        ]
+    )
+    return delivered_message, delivered_at
+
+
+@transaction.atomic
 def complete_ticket_reply(
     message: TicketMessage,
     *,
@@ -124,49 +157,64 @@ def complete_ticket_reply(
     internet_message_id: str = "",
     sent_at: datetime | None = None,
 ) -> TicketMessage:
-    """Persist successful delivery and advance the ticket workflow atomically."""
-    provider_id = provider_message_id.strip()
-    if not provider_id:
-        raise TicketReplyError("A provider message ID is required to complete ticket delivery.")
+    """Persist successful reply delivery and advance the ticket workflow atomically."""
+    delivered_message, delivered_at = _complete_delivery_fields(
+        message,
+        provider_message_id=provider_message_id,
+        internet_message_id=internet_message_id,
+        sent_at=sent_at,
+    )
 
-    delivered_at = sent_at or timezone.now()
-    with transaction.atomic():
-        delivered_message = (
-            TicketMessage.objects.select_for_update().select_related("ticket").get(pk=message.pk)
-        )
-        delivered_message.provider_message_id = provider_id
-        delivered_message.internet_message_id = internet_message_id.strip()
-        delivered_message.delivery_status = DELIVERY_STATUS_SENT
-        delivered_message.delivery_error = ""
-        delivered_message.sent_or_received_at = delivered_at
-        delivered_message.save(
-            update_fields=[
-                "provider_message_id",
-                "internet_message_id",
-                "delivery_status",
-                "delivery_error",
-                "sent_or_received_at",
-            ]
-        )
+    ticket = delivered_message.ticket
+    if ticket.first_response_at is None:
+        ticket.first_response_at = delivered_at
+    ticket.last_message_at = delivered_at
+    ticket.status = Ticket.Status.WAITING_CUSTOMER
+    ticket.resolved_at = None
+    ticket.closed_at = None
+    ticket.save(
+        update_fields=[
+            "first_response_at",
+            "last_message_at",
+            "status",
+            "resolved_at",
+            "closed_at",
+            "updated_at",
+        ]
+    )
+    return delivered_message
 
-        ticket = delivered_message.ticket
-        if ticket.first_response_at is None:
-            ticket.first_response_at = delivered_at
-        ticket.last_message_at = delivered_at
-        ticket.status = Ticket.Status.WAITING_CUSTOMER
-        ticket.resolved_at = None
-        ticket.closed_at = None
-        ticket.save(
-            update_fields=[
-                "first_response_at",
-                "last_message_at",
-                "status",
-                "resolved_at",
-                "closed_at",
-                "updated_at",
-            ]
-        )
 
+@transaction.atomic
+def complete_new_ticket_message(
+    message: TicketMessage,
+    *,
+    provider_message_id: str,
+    internet_message_id: str = "",
+    sent_at: datetime | None = None,
+) -> TicketMessage:
+    """Persist a successful outbound-first conversation without faking first response time."""
+    delivered_message, delivered_at = _complete_delivery_fields(
+        message,
+        provider_message_id=provider_message_id,
+        internet_message_id=internet_message_id,
+        sent_at=sent_at,
+    )
+
+    ticket = delivered_message.ticket
+    ticket.last_message_at = delivered_at
+    ticket.status = Ticket.Status.WAITING_CUSTOMER
+    ticket.resolved_at = None
+    ticket.closed_at = None
+    ticket.save(
+        update_fields=[
+            "last_message_at",
+            "status",
+            "resolved_at",
+            "closed_at",
+            "updated_at",
+        ]
+    )
     return delivered_message
 
 

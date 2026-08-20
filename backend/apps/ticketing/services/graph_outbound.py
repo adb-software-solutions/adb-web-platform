@@ -25,7 +25,7 @@ class GraphReplyReceipt:
 
 
 class MicrosoftGraphOutboundAdapter:
-    """Create, update and send threaded Microsoft Graph reply drafts."""
+    """Create and send outbound Microsoft Graph messages and threaded replies."""
 
     def __init__(
         self,
@@ -37,6 +37,66 @@ class MicrosoftGraphOutboundAdapter:
         self._access_token_provider = access_token_provider
         self._session = session or requests.Session()
         self._timeout_seconds = timeout_seconds
+
+    def send_message(
+        self,
+        mailbox: Mailbox,
+        *,
+        subject: str,
+        to_recipients: Sequence[str],
+        body_html: str = "",
+        body_text: str = "",
+        cc_recipients: Sequence[str] = (),
+        bcc_recipients: Sequence[str] = (),
+    ) -> GraphReplyReceipt:
+        """Create and send a new message from a configured Microsoft 365 mailbox."""
+        clean_subject = subject.strip()
+        if not clean_subject:
+            raise MicrosoftGraphError("A subject is required to send a Graph message.")
+
+        body_content = body_html.strip() or body_text.strip()
+        if not body_content:
+            raise MicrosoftGraphError("A message body is required.")
+        content_type = "HTML" if body_html.strip() else "Text"
+
+        recipients = self._normalise_recipients(to_recipients)
+        if not recipients:
+            raise MicrosoftGraphError("At least one recipient is required.")
+        cc = self._normalise_recipients(cc_recipients)
+        bcc = self._normalise_recipients(bcc_recipients)
+
+        message_root = self._message_root(mailbox)
+        payload: dict[str, Any] = {
+            "subject": clean_subject,
+            "body": {"contentType": content_type, "content": body_content},
+            "toRecipients": self._recipient_payload(recipients),
+        }
+        if cc:
+            payload["ccRecipients"] = self._recipient_payload(cc)
+        if bcc:
+            payload["bccRecipients"] = self._recipient_payload(bcc)
+
+        draft = self._request_json(
+            "post",
+            message_root,
+            json=payload,
+            expected_statuses=(201,),
+        )
+        draft_id = str(draft.get("id") or "").strip()
+        if not draft_id:
+            raise MicrosoftGraphPayloadError("Microsoft Graph draft contained no message ID.")
+
+        encoded_draft_id = quote(draft_id, safe="")
+        self._request_no_content(
+            "post",
+            f"{message_root}/{encoded_draft_id}/send",
+            expected_statuses=(202,),
+        )
+        return GraphReplyReceipt(
+            provider_message_id=draft_id,
+            internet_message_id=str(draft.get("internetMessageId") or "").strip(),
+            provider_conversation_id=str(draft.get("conversationId") or "").strip(),
+        )
 
     def send_reply(
         self,
@@ -60,12 +120,8 @@ class MicrosoftGraphOutboundAdapter:
             raise MicrosoftGraphError("A reply body is required.")
         content_type = "HTML" if body_html.strip() else "Text"
 
-        mailbox_identifier_value = mailbox.graph_user_id.strip()
-        if not mailbox_identifier_value:
-            mailbox_identifier_value = mailbox.email_address.strip().lower()
-        mailbox_identifier = quote(mailbox_identifier_value, safe="")
+        message_root = self._message_root(mailbox)
         encoded_message_id = quote(source_message_id, safe="")
-        message_root = f"{GRAPH_API_ROOT}/users/{mailbox_identifier}/messages"
         draft = self._request_json(
             "post",
             f"{message_root}/{encoded_message_id}/createReply",
@@ -111,6 +167,14 @@ class MicrosoftGraphOutboundAdapter:
             internet_message_id=str(draft.get("internetMessageId") or "").strip(),
             provider_conversation_id=str(draft.get("conversationId") or "").strip(),
         )
+
+    @staticmethod
+    def _message_root(mailbox: Mailbox) -> str:
+        mailbox_identifier_value = mailbox.graph_user_id.strip()
+        if not mailbox_identifier_value:
+            mailbox_identifier_value = mailbox.email_address.strip().lower()
+        mailbox_identifier = quote(mailbox_identifier_value, safe="")
+        return f"{GRAPH_API_ROOT}/users/{mailbox_identifier}/messages"
 
     def _request_json(
         self,

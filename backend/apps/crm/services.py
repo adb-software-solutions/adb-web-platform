@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.access_control.models import ClientAccessGrant, StaffAccessProfile
@@ -47,9 +48,9 @@ def _grant_client_access(user: User, client: Client) -> None:
 
 
 def _matching_unlinked_ticket_ids(lead: Lead) -> list[int]:
-    tickets = Ticket.objects.filter(
-        client__isnull=True,
-        messages__sender_address__iexact=lead.email,
+    tickets = Ticket.objects.filter(client__isnull=True).filter(
+        Q(messages__sender_address__iexact=lead.email)
+        | Q(messages__to_recipients__contains=[lead.email])
     )
     if lead.brand_id is not None:
         tickets = tickets.filter(brand_id=lead.brand_id)
