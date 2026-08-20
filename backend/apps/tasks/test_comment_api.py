@@ -1,4 +1,4 @@
-from typing import cast
+from typing import Any, cast
 
 from django.http import HttpRequest
 from django.test import RequestFactory, TestCase
@@ -66,6 +66,6 @@ class TaskCommentApiTests(TestCase):
         )
 
         self.assertIsInstance(result, tuple)
-        status, payload = result
+        status, payload = cast(tuple[int, dict[str, Any]], result)
         self.assertEqual(status, 400)
         self.assertEqual(payload["code"], "validation_error")
