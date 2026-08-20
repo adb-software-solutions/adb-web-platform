@@ -21,14 +21,14 @@ class TimeReportApiTests(TestCase):
             first_name="Time",
             last_name="Reporter",
         )
-        self.client = Client.objects.create(
+        self.client_account = Client.objects.create(
             name="Report Client",
             company="Report Client Ltd",
             email="report-client@example.com",
         )
         self.client_project = Project.objects.create(
             ownership_type=OwnershipType.CLIENT,
-            client=self.client,
+            client=self.client_account,
             name="Report Project",
             start_date=timezone.localdate(),
         )
@@ -55,7 +55,7 @@ class TimeReportApiTests(TestCase):
         )
         TimeEntry.objects.create(
             ownership_type=OwnershipType.CLIENT,
-            client=self.client,
+            client=self.client_account,
             user=self.user,
             date=today,
             duration_hours=Decimal("1.2500"),
@@ -86,7 +86,7 @@ class TimeReportApiTests(TestCase):
 
         self.assertEqual(len(report.clients), 1)
         client = report.clients[0]
-        self.assertEqual(client.client_id, self.client.id)
+        self.assertEqual(client.client_id, self.client_account.id)
         self.assertEqual(client.client_name, "Report Client Ltd")
         self.assertEqual(client.tracked_hours, Decimal("3.7500"))
         self.assertEqual(client.billable_hours, Decimal("2.5000"))
@@ -105,11 +105,11 @@ class TimeReportApiTests(TestCase):
             time_report_summary(self._request(), period="this_month"),
         )
 
-        self.assertEqual(report.tracked_hours, Decimal("0"))
-        self.assertEqual(report.billable_hours, Decimal("0"))
-        self.assertEqual(report.non_billable_hours, Decimal("0"))
-        self.assertEqual(report.client_hours, Decimal("0"))
-        self.assertEqual(report.internal_hours, Decimal("0"))
+        self.assertEqual(report.tracked_hours, Decimal(0))
+        self.assertEqual(report.billable_hours, Decimal(0))
+        self.assertEqual(report.non_billable_hours, Decimal(0))
+        self.assertEqual(report.client_hours, Decimal(0))
+        self.assertEqual(report.internal_hours, Decimal(0))
         self.assertEqual(report.entry_count, 0)
         self.assertEqual(report.clients, [])
         self.assertEqual(report.daily, [])
