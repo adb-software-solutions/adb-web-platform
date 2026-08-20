@@ -18,13 +18,49 @@ class ClientOverviewApiTests(TestCase):
             email="client-overview@example.com",
             password="test-password",
             first_name="Client",
-            last_name="Reporter",
+            last_name="Overview",
         )
 
     def _request(self) -> HttpRequest:
         request = self.factory.get("/api/admin/client-overview")
         request.user = self.user
         return request
+
+    def test_overview_defaults_to_active_clients_and_active_contact_stats(self) -> None:
+        active = Client.objects.create(
+            name="Active Contact",
+            company="Active Company",
+            email="active@example.com",
+            status="active",
+        )
+        Client.objects.create(
+            name="Inactive Contact",
+            company="Inactive Company",
+            email="inactive@example.com",
+            status="inactive",
+        )
+        ClientContact.objects.create(
+            client=active,
+            name="Current Person",
+            email="current@example.com",
+            is_active=True,
+        )
+        ClientContact.objects.create(
+            client=active,
+            name="Former Person",
+            email="former@example.com",
+            is_active=False,
+        )
+
+        overview = cast(ClientOverviewOut, client_overview(self._request()))
+
+        self.assertEqual(overview.total, 1)
+        self.assertEqual(overview.stats.total, 1)
+        self.assertEqual(overview.stats.active, 1)
+        self.assertEqual(overview.stats.inactive, 0)
+        self.assertEqual(overview.stats.contacts, 1)
+        self.assertEqual(overview.items[0].id, active.id)
+        self.assertEqual(overview.items[0].contact_count, 1)
 
     def test_overview_filters_paginates_and_returns_scope_stats(self) -> None:
         clients = []
@@ -60,11 +96,12 @@ class ClientOverviewApiTests(TestCase):
         )
         overview = cast(ClientOverviewOut, result)
 
-        self.assertEqual(overview.stats.total, 28)
+        self.assertEqual(overview.stats.total, 20)
         self.assertEqual(overview.stats.active, 20)
-        self.assertEqual(overview.stats.inactive, 8)
+        self.assertEqual(overview.stats.inactive, 0)
         self.assertEqual(overview.stats.contacts, 1)
         self.assertEqual(overview.stats.projects, 1)
+        self.assertEqual(overview.stats.active_projects, 1)
         self.assertEqual(overview.total, 20)
         self.assertEqual(overview.total_pages, 2)
         self.assertEqual(overview.page, 2)

@@ -1,7 +1,7 @@
 "use client";
 
 import { RelatedTicketList } from "@/components/ticketing/RelatedTicketList";
-import { Badge, Card, DataError, DataLoading } from "@/components/ui";
+import { Badge, ButtonLink, Card, DataError, DataLoading } from "@/components/ui";
 import { AdminAPI } from "@/lib/api/endpoints";
 import { fetchAPI } from "@/lib/api/fetch";
 import Link from "next/link";
@@ -75,20 +75,30 @@ export function ContactWorkspace({
 
     return (
         <div className="space-y-6">
-            <div>
-                <Link
-                    href={`/admin/clients/${client.id}`}
-                    className="text-xs text-slate-500 hover:text-slate-300"
-                >
-                    ← {client.company || client.name}
-                </Link>
-                <div className="mt-2 flex flex-wrap items-center gap-3">
-                    <h1 className="text-2xl font-semibold text-white">{contact.name}</h1>
-                    {!contact.is_active ? <Badge>Inactive</Badge> : null}
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                    <Link
+                        href={`/admin/clients/${client.id}`}
+                        className="text-xs text-slate-500 hover:text-slate-300"
+                    >
+                        ← {client.company || client.name}
+                    </Link>
+                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                        <h1 className="text-2xl font-semibold text-white">{contact.name}</h1>
+                        {!contact.is_active ? <Badge>Inactive</Badge> : null}
+                    </div>
+                    <p className="mt-1 text-sm text-slate-400">
+                        {contact.role || "Client contact"} at {client.company || client.name}
+                    </p>
                 </div>
-                <p className="mt-1 text-sm text-slate-400">
-                    {contact.role || "Client contact"} at {client.company || client.name}
-                </p>
+                <div className="flex flex-wrap gap-2">
+                    <ButtonLink
+                        href={`/admin/clients/${client.id}/contacts/${contact.id}/edit`}
+                        variant="secondary"
+                    >
+                        Edit contact
+                    </ButtonLink>
+                </div>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">

@@ -19,6 +19,7 @@ class ClientOverviewStatsOut(Schema):
     archived: int
     contacts: int
     projects: int
+    active_projects: int
 
 
 class ClientOverviewOut(Schema):
