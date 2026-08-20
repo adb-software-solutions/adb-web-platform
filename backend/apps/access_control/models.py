@@ -18,6 +18,15 @@ class StaffAccessProfile(models.Model):
         default=False,
         help_text="Allow access to every ticket queue when the user also has the required capability permission.",
     )
+    default_ticket_queues = models.ManyToManyField(
+        "ticketing.TicketQueue",
+        blank=True,
+        related_name="default_for_staff_profiles",
+        help_text=(
+            "Queues shown in the staff user's default ticket work queue. "
+            "No explicit selection means every accessible enabled queue."
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

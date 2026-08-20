@@ -4,7 +4,7 @@ import { Badge, Button, Card, DataError, DataLoading, Input, Textarea } from "@/
 import { AdminAPI } from "@/lib/api/endpoints";
 import { fetchAPI } from "@/lib/api/fetch";
 import Link from "next/link";
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 interface TicketMessage {
     id: number;
@@ -69,6 +69,10 @@ interface TicketDetail {
     attachments: TicketAttachment[];
 }
 
+type TimelineItem =
+    | { kind: "message"; id: number; timestamp: string; message: TicketMessage }
+    | { kind: "note"; id: number; timestamp: string; note: TicketNote };
+
 function label(value: string) {
     return value
         .split("_")
@@ -110,7 +114,13 @@ function attachmentScanLabel(attachment: TicketAttachment) {
     return label(attachment.scan_status);
 }
 
-export function TicketWorkspace({ ticketId }: { ticketId: number }) {
+export function TicketWorkspace({
+    ticketId,
+    presentation = "page",
+}: {
+    ticketId: number;
+    presentation?: "page" | "drawer";
+}) {
     const [ticket, setTicket] = useState<TicketDetail | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -148,6 +158,30 @@ export function TicketWorkspace({ ticketId }: { ticketId: number }) {
         window.addEventListener("adb:ticket-updated", handleTicketUpdated);
         return () => window.removeEventListener("adb:ticket-updated", handleTicketUpdated);
     }, [loadTicket]);
+
+    const timeline = useMemo<TimelineItem[]>(() => {
+        if (!ticket) return [];
+        return [
+            ...ticket.messages.map<TimelineItem>((message) => ({
+                kind: "message",
+                id: message.id,
+                timestamp: message.sent_or_received_at,
+                message,
+            })),
+            ...ticket.notes.map<TimelineItem>((note) => ({
+                kind: "note",
+                id: note.id,
+                timestamp: note.created_at,
+                note,
+            })),
+        ].sort((left, right) => {
+            const timestampDifference =
+                new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime();
+            if (timestampDifference !== 0) return timestampDifference;
+            if (left.kind !== right.kind) return left.kind === "message" ? -1 : 1;
+            return left.id - right.id;
+        });
+    }, [ticket]);
 
     async function handleReply(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -234,10 +268,14 @@ export function TicketWorkspace({ ticketId }: { ticketId: number }) {
     return (
         <div className="space-y-6">
             <div>
-                <Link href="/admin/tickets" className="text-xs text-slate-500 hover:text-slate-300">
-                    ← Tickets
-                </Link>
-                <div className="mt-2 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                {presentation === "page" ? (
+                    <Link href="/admin/tickets" className="text-xs text-slate-500 hover:text-slate-300">
+                        ← Tickets
+                    </Link>
+                ) : null}
+                <div
+                    className={`${presentation === "page" ? "mt-2 " : ""}flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between`}
+                >
                     <div>
                         <div className="flex flex-wrap items-center gap-2">
                             <span className="font-mono text-xs text-cyan-400">{ticket.reference}</span>
@@ -258,41 +296,109 @@ export function TicketWorkspace({ ticketId }: { ticketId: number }) {
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
                 <div className="space-y-4">
-                    {ticket.messages.map((message) => (
-                        <Card
-                            key={message.id}
-                            className={
-                                message.direction === "outbound"
-                                    ? "border-cyan-900/50 bg-cyan-950/10 p-5"
-                                    : "p-5"
+                    <div className="space-y-4">
+                        {timeline.map((item) => {
+                            if (item.kind === "note") {
+                                return (
+                                    <Card
+                                        key={`note-${item.id}`}
+                                        className="border-amber-800/50 bg-amber-950/20 p-5"
+                                    >
+                                        <div className="flex flex-col gap-2 border-b border-amber-900/30 pb-3 sm:flex-row sm:items-start sm:justify-between">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <Badge className="border-amber-800/60 bg-amber-950/60 text-amber-300">
+                                                        Internal note
+                                                    </Badge>
+                                                    <span className="text-sm font-medium text-amber-100">
+                                                        {item.note.author_name || "System"}
+                                                    </span>
+                                                </div>
+                                                <p className="mt-1 text-xs text-amber-700">
+                                                    Visible to staff only · not sent to the customer
+                                                </p>
+                                            </div>
+                                            <div className="text-xs text-amber-700">
+                                                {formatDate(item.note.created_at)}
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 whitespace-pre-wrap break-words text-sm leading-7 text-amber-100/90">
+                                            {item.note.body}
+                                        </div>
+                                    </Card>
+                                );
                             }
-                        >
-                            <div className="flex flex-col gap-2 border-b border-slate-800 pb-3 sm:flex-row sm:items-start sm:justify-between">
+
+                            const message = item.message;
+                            return (
+                                <Card
+                                    key={`message-${item.id}`}
+                                    className={
+                                        message.direction === "outbound"
+                                            ? "border-cyan-900/50 bg-cyan-950/10 p-5"
+                                            : "p-5"
+                                    }
+                                >
+                                    <div className="flex flex-col gap-2 border-b border-slate-800 pb-3 sm:flex-row sm:items-start sm:justify-between">
+                                        <div>
+                                            <div className="font-medium text-slate-200">
+                                                {message.sender_name || message.sender_address}
+                                            </div>
+                                            <div className="mt-1 text-xs text-slate-500">
+                                                {message.sender_address}
+                                                {message.matched_contact_name
+                                                    ? ` · ${message.matched_contact_name}`
+                                                    : ""}
+                                            </div>
+                                        </div>
+                                        <div className="text-xs text-slate-500">
+                                            {formatDate(message.sent_or_received_at)}
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 whitespace-pre-wrap break-words text-sm leading-7 text-slate-300">
+                                        {message.body_text_normalised || message.body_text || "No message body."}
+                                    </div>
+                                    <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-600">
+                                        <span>{message.direction === "inbound" ? "Inbound" : "Outbound"}</span>
+                                        {message.delivery_status ? (
+                                            <span>· {label(message.delivery_status)}</span>
+                                        ) : null}
+                                        {message.created_by_name ? <span>· {message.created_by_name}</span> : null}
+                                    </div>
+                                </Card>
+                            );
+                        })}
+                    </div>
+
+                    {ticket.can_add_note ? (
+                        <Card className="border-amber-900/30 p-5">
+                            <form onSubmit={(event) => void handleNote(event)}>
                                 <div>
-                                    <div className="font-medium text-slate-200">
-                                        {message.sender_name || message.sender_address}
-                                    </div>
-                                    <div className="mt-1 text-xs text-slate-500">
-                                        {message.sender_address}
-                                        {message.matched_contact_name
-                                            ? ` · ${message.matched_contact_name}`
-                                            : ""}
-                                    </div>
+                                    <h2 className="text-sm font-semibold text-white">Add internal note</h2>
+                                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                                        The note will appear in the conversation timeline but is never sent to the customer.
+                                    </p>
                                 </div>
-                                <div className="text-xs text-slate-500">
-                                    {formatDate(message.sent_or_received_at)}
+                                <Textarea
+                                    value={noteBody}
+                                    onChange={(event) => setNoteBody(event.target.value)}
+                                    placeholder="Add context, investigation details, handover notes or next steps..."
+                                    rows={6}
+                                    className="mt-4 min-h-32 resize-y"
+                                />
+                                {noteError ? <p className="mt-3 text-sm text-red-300">{noteError}</p> : null}
+                                <div className="mt-4 flex justify-end">
+                                    <Button
+                                        type="submit"
+                                        variant="secondary"
+                                        disabled={!noteBody.trim() || isSubmittingNote}
+                                    >
+                                        {isSubmittingNote ? "Adding..." : "Add internal note"}
+                                    </Button>
                                 </div>
-                            </div>
-                            <div className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-300">
-                                {message.body_text_normalised || message.body_text || "No message body."}
-                            </div>
-                            <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-600">
-                                <span>{message.direction === "inbound" ? "Inbound" : "Outbound"}</span>
-                                {message.delivery_status ? <span>· {label(message.delivery_status)}</span> : null}
-                                {message.created_by_name ? <span>· {message.created_by_name}</span> : null}
-                            </div>
+                            </form>
                         </Card>
-                    ))}
+                    ) : null}
 
                     {ticket.can_reply ? (
                         <Card className="p-5">
@@ -345,9 +451,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: number }) {
                                     className="mt-4 min-h-40 resize-y"
                                 />
 
-                                {replyError ? (
-                                    <p className="mt-3 text-sm text-red-300">{replyError}</p>
-                                ) : null}
+                                {replyError ? <p className="mt-3 text-sm text-red-300">{replyError}</p> : null}
                                 {replyStatus ? (
                                     <p className="mt-3 text-sm text-emerald-300">{replyStatus}</p>
                                 ) : null}
@@ -393,7 +497,16 @@ export function TicketWorkspace({ ticketId }: { ticketId: number }) {
                             <div>
                                 <dt className="text-xs text-slate-500">Primary contact</dt>
                                 <dd className="mt-1 text-slate-300">
-                                    {ticket.primary_contact_name || "Unmatched"}
+                                    {ticket.primary_contact_id && ticket.client_id ? (
+                                        <Link
+                                            href={`/admin/clients/${ticket.client_id}/contacts/${ticket.primary_contact_id}`}
+                                            className="hover:text-cyan-300"
+                                        >
+                                            {ticket.primary_contact_name}
+                                        </Link>
+                                    ) : (
+                                        ticket.primary_contact_name || "Unmatched"
+                                    )}
                                 </dd>
                             </div>
                             <div>
@@ -410,60 +523,10 @@ export function TicketWorkspace({ ticketId }: { ticketId: number }) {
                     </Card>
 
                     <Card className="p-5">
-                        <h2 className="text-sm font-semibold text-white">Internal notes</h2>
-                        <div className="mt-4 space-y-3">
-                            {ticket.notes.length === 0 ? (
-                                <p className="text-sm text-slate-500">No internal notes.</p>
-                            ) : (
-                                ticket.notes.map((note) => (
-                                    <div key={note.id} className="rounded-lg bg-slate-900 p-3">
-                                        <p className="whitespace-pre-wrap text-sm text-slate-300">
-                                            {note.body}
-                                        </p>
-                                        <div className="mt-2 text-xs text-slate-600">
-                                            {note.author_name || "System"} · {formatDate(note.created_at)}
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-
-                        {ticket.can_add_note ? (
-                            <form
-                                className="mt-4 border-t border-slate-800 pt-4"
-                                onSubmit={(event) => void handleNote(event)}
-                            >
-                                <Textarea
-                                    value={noteBody}
-                                    onChange={(event) => setNoteBody(event.target.value)}
-                                    placeholder="Add an internal note..."
-                                    rows={4}
-                                    className="resize-y"
-                                />
-                                {noteError ? (
-                                    <p className="mt-2 text-xs text-red-300">{noteError}</p>
-                                ) : null}
-                                <div className="mt-3 flex justify-end">
-                                    <Button
-                                        type="submit"
-                                        variant="secondary"
-                                        size="sm"
-                                        disabled={!noteBody.trim() || isSubmittingNote}
-                                    >
-                                        {isSubmittingNote ? "Adding..." : "Add note"}
-                                    </Button>
-                                </div>
-                            </form>
-                        ) : null}
-                    </Card>
-
-                    <Card className="p-5">
                         <h2 className="text-sm font-semibold text-white">Attachments</h2>
                         <div className="mt-4 space-y-3">
                             {ticket.attachments.length === 0 ? (
-                                <p className="text-sm text-slate-500">
-                                    No visible attachment metadata.
-                                </p>
+                                <p className="text-sm text-slate-500">No visible attachment metadata.</p>
                             ) : (
                                 ticket.attachments.map((attachment) => (
                                     <div
@@ -476,9 +539,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: number }) {
                                             </div>
                                             {attachment.downloadable ? (
                                                 <a
-                                                    href={AdminAPI.tickets.attachments.download(
-                                                        attachment.id,
-                                                    )}
+                                                    href={AdminAPI.tickets.attachments.download(attachment.id)}
                                                     className="shrink-0 text-xs font-medium text-cyan-400 hover:text-cyan-300"
                                                 >
                                                     Download
