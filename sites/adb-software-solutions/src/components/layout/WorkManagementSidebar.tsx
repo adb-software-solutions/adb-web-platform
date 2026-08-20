@@ -5,6 +5,7 @@ import { AdminAPI } from "@/lib/api/endpoints";
 import { fetchAPI } from "@/lib/api/fetch";
 import {
     BanknotesIcon,
+    CalendarDaysIcon,
     FolderIcon,
     ListBulletIcon,
     RectangleStackIcon,
@@ -25,6 +26,7 @@ const primaryLinks = [
     { label: "Projects", href: "/admin/projects", icon: FolderIcon },
     { label: "My tasks", href: "/admin/tasks", icon: ListBulletIcon },
     { label: "Task lists", href: "/admin/task-lists", icon: RectangleStackIcon },
+    { label: "Calendar", href: "/admin/calendar", icon: CalendarDaysIcon },
     { label: "Time tracking", href: "/admin/time-tracking", icon: BanknotesIcon },
 ];
 

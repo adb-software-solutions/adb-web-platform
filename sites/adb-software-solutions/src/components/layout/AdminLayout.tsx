@@ -13,6 +13,7 @@ const workManagementPrefixes = [
     "/admin/tasks",
     "/admin/task-lists",
     "/admin/time-tracking",
+    "/admin/calendar",
 ];
 
 export function AdminLayout({ children }: { children: ReactNode }) {
