@@ -1,13 +1,21 @@
+from django.apps.registry import Apps
 from django.db import migrations, models
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 
 
-def classify_terminal_statuses(apps, schema_editor) -> None:
+def classify_terminal_statuses(
+    apps: Apps,
+    _schema_editor: BaseDatabaseSchemaEditor,
+) -> None:
     lead_status = apps.get_model("crm", "LeadStatus")
     lead_status.objects.filter(name__iexact="Won").update(outcome="won")
     lead_status.objects.filter(name__iexact="Lost").update(outcome="lost")
 
 
-def reset_status_outcomes(apps, schema_editor) -> None:
+def reset_status_outcomes(
+    apps: Apps,
+    _schema_editor: BaseDatabaseSchemaEditor,
+) -> None:
     lead_status = apps.get_model("crm", "LeadStatus")
     lead_status.objects.update(outcome="open")
 

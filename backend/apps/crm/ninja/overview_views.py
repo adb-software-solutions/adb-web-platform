@@ -3,7 +3,7 @@ from datetime import timedelta
 from typing import Any
 from uuid import UUID
 
-from django.db.models import Count, Q, QuerySet
+from django.db.models import Q, QuerySet
 from django.http import HttpRequest
 from django.utils import timezone
 from ninja import Router
@@ -45,8 +45,10 @@ def _lead_queryset() -> QuerySet[Lead]:
 
 
 def _active_leads() -> QuerySet[Lead]:
-    return _lead_queryset().filter(converted_at__isnull=True).filter(
-        Q(status__isnull=True) | Q(status__outcome=LeadStatus.Outcome.OPEN)
+    return (
+        _lead_queryset()
+        .filter(converted_at__isnull=True)
+        .filter(Q(status__isnull=True) | Q(status__outcome=LeadStatus.Outcome.OPEN))
     )
 
 
