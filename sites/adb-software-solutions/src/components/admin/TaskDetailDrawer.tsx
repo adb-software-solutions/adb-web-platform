@@ -2,6 +2,7 @@
 
 import { TaskRelationsPanel } from "@/app/(admin)/admin/tasks/TaskRelationsPanel";
 import { TaskWorkspace } from "@/app/(admin)/admin/tasks/TaskWorkspace";
+import { TaskDiscussionPanel } from "@/components/admin/TaskDiscussionPanel";
 import { TaskTimePanel } from "@/components/admin/TaskTimePanel";
 import { useEffect } from "react";
 
@@ -50,6 +51,7 @@ export function TaskDetailDrawer({
                     />
                     <TaskTimePanel taskId={taskId} onChanged={onChanged} />
                     <TaskRelationsPanel taskId={taskId} onChanged={onChanged} />
+                    <TaskDiscussionPanel taskId={taskId} onChanged={onChanged} />
                 </div>
             </aside>
         </div>

@@ -1,3 +1,4 @@
+import { TaskDiscussionPanel } from "@/components/admin/TaskDiscussionPanel";
 import { TaskTimePanel } from "@/components/admin/TaskTimePanel";
 import { Container } from "@/components/ui";
 import { TaskRelationsPanel } from "../TaskRelationsPanel";
@@ -21,6 +22,7 @@ export default async function TaskPage({
                 <TaskWorkspace taskId={taskId} />
                 <TaskTimePanel taskId={taskId} />
                 <TaskRelationsPanel taskId={taskId} />
+                <TaskDiscussionPanel taskId={taskId} />
             </div>
         </Container>
     );
