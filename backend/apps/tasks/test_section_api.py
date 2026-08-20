@@ -6,7 +6,11 @@ from django.test import RequestFactory, TestCase
 
 from apps.core.ownership import OwnershipType
 from apps.tasks.models import TaskList, TaskSection
-from apps.tasks.ninja.section_schemas import TaskSectionMoveIn, TaskSectionMutationOut, TaskSectionUpdateIn
+from apps.tasks.ninja.section_schemas import (
+    TaskSectionMoveIn,
+    TaskSectionMutationOut,
+    TaskSectionUpdateIn,
+)
 from apps.tasks.ninja.section_views import move_task_section, update_task_section
 from authentication.models import User
 
