@@ -173,12 +173,6 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
                         <ButtonLink href={`/admin/tasks/new?project_id=${project.id}`}>
                             Add task
                         </ButtonLink>
-                        <ButtonLink
-                            href={`/admin/time-tracking?project_id=${project.id}&mode=timer#record-time`}
-                            variant="outline"
-                        >
-                            Track time
-                        </ButtonLink>
                         {project.client_id ? (
                             <ButtonLink href={`/admin/clients/${project.client_id}`} variant="ghost">
                                 Client

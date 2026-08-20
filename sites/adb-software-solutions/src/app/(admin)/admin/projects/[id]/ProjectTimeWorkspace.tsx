@@ -115,13 +115,7 @@ export function ProjectTimeWorkspace({ projectId }: { projectId: number }) {
                         href={`/admin/time-tracking?project_id=${projectId}&mode=manual#record-time`}
                         variant="outline"
                     >
-                        Add time
-                    </ButtonLink>
-                    <ButtonLink
-                        href={`/admin/time-tracking?project_id=${projectId}`}
-                        variant="ghost"
-                    >
-                        Open time tracking
+                        Manual entry
                     </ButtonLink>
                 </div>
             </div>
