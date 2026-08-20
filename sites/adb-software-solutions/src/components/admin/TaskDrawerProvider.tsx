@@ -1,0 +1,66 @@
+"use client";
+
+import { ReactNode, useCallback, useEffect, useState } from "react";
+import { TaskDetailDrawer } from "./TaskDetailDrawer";
+
+const taskPathPattern = /^\/admin\/tasks\/(\d+)\/?$/;
+
+export function TaskDrawerProvider({ children }: { children: ReactNode }) {
+    const [taskId, setTaskId] = useState<number | null>(null);
+    const [changed, setChanged] = useState(false);
+    const [workspaceVersion, setWorkspaceVersion] = useState(0);
+
+    const close = useCallback(() => {
+        setTaskId(null);
+        if (changed) {
+            setWorkspaceVersion((version) => version + 1);
+            setChanged(false);
+        }
+    }, [changed]);
+
+    useEffect(() => {
+        function handleClick(event: MouseEvent) {
+            if (
+                event.defaultPrevented ||
+                event.button !== 0 ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey
+            ) {
+                return;
+            }
+
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+            const anchor = target.closest("a");
+            if (!anchor || anchor.target === "_blank") return;
+            if (anchor.textContent?.trim() === "Open full page") return;
+
+            const url = new URL(anchor.href, window.location.origin);
+            if (url.origin !== window.location.origin) return;
+            const match = taskPathPattern.exec(url.pathname);
+            if (!match) return;
+
+            event.preventDefault();
+            setChanged(false);
+            setTaskId(Number(match[1]));
+        }
+
+        document.addEventListener("click", handleClick, true);
+        return () => document.removeEventListener("click", handleClick, true);
+    }, []);
+
+    return (
+        <>
+            <div key={workspaceVersion} className="contents">
+                {children}
+            </div>
+            <TaskDetailDrawer
+                taskId={taskId}
+                onClose={close}
+                onChanged={() => setChanged(true)}
+            />
+        </>
+    );
+}

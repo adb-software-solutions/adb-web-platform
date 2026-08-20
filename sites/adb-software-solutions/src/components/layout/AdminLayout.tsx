@@ -1,5 +1,6 @@
 "use client";
 
+import { TaskDrawerProvider } from "@/components/admin/TaskDrawerProvider";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePathname } from "next/navigation";
 import { ReactNode, useState } from "react";
@@ -73,7 +74,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                 <div className="flex min-h-0 flex-1">
                     {showWorkManagement ? <WorkManagementSidebar /> : null}
                     <main className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-slate-950">
-                        {children}
+                        <TaskDrawerProvider>{children}</TaskDrawerProvider>
                     </main>
                 </div>
             </div>
