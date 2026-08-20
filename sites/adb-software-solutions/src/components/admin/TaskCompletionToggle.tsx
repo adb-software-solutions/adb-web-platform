@@ -9,12 +9,14 @@ export function TaskCompletionToggle({
     completed,
     canChange,
     onChanged,
+    onError,
     size = "md",
 }: {
     taskId: number;
     completed: boolean;
     canChange: boolean;
     onChanged: () => Promise<void> | void;
+    onError?: (message: string) => void;
     size?: "sm" | "md";
 }) {
     const [saving, setSaving] = useState(false);
@@ -32,6 +34,13 @@ export function TaskCompletionToggle({
                 { method: "POST" },
             );
             await onChanged();
+        } catch (toggleError) {
+            const message =
+                toggleError instanceof Error
+                    ? toggleError.message
+                    : "Unable to update task completion.";
+            if (onError) onError(message);
+            else window.alert(message);
         } finally {
             setSaving(false);
         }

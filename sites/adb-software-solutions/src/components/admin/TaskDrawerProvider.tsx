@@ -35,21 +35,28 @@ export function TaskDrawerProvider({ children }: { children: ReactNode }) {
             if (!(target instanceof Element)) return;
             const anchor = target.closest("a");
             if (!anchor || anchor.target === "_blank") return;
-            if (anchor.textContent?.trim() === "Open full page") return;
 
             const url = new URL(anchor.href, window.location.origin);
             if (url.origin !== window.location.origin) return;
             const match = taskPathPattern.exec(url.pathname);
             if (!match) return;
 
+            const linkedTaskId = Number(match[1]);
+            if (
+                linkedTaskId === taskId &&
+                anchor.closest("[data-task-detail-drawer]") !== null
+            ) {
+                return;
+            }
+
             event.preventDefault();
             setChanged(false);
-            setTaskId(Number(match[1]));
+            setTaskId(linkedTaskId);
         }
 
         document.addEventListener("click", handleClick, true);
         return () => document.removeEventListener("click", handleClick, true);
-    }, []);
+    }, [taskId]);
 
     return (
         <>
