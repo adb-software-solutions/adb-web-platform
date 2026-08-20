@@ -7,9 +7,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ProjectActivityPanels } from "./ProjectActivityPanels";
 import { ProjectTaskWorkspaceView } from "./ProjectTaskWorkspaceView";
+import { ProjectTimelineWorkspace } from "./ProjectTimelineWorkspace";
 import { ProjectTimeWorkspace } from "./ProjectTimeWorkspace";
 
-type ProjectTab = "overview" | "work" | "time";
+type ProjectTab = "overview" | "work" | "timeline" | "time";
 
 interface ProjectDetail {
     id: number;
@@ -34,7 +35,8 @@ interface ProjectDetail {
 }
 
 const tabs: Array<{ value: ProjectTab; label: string; description: string }> = [
-    { value: "work", label: "Work", description: "List, board and timeline" },
+    { value: "work", label: "Work", description: "List and board views" },
+    { value: "timeline", label: "Timeline", description: "Schedule and dependencies" },
     { value: "overview", label: "Overview", description: "Project context and activity" },
     { value: "time", label: "Time", description: "Tracked delivery time" },
 ];
@@ -109,7 +111,12 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
 
     useEffect(() => {
         const stored = window.localStorage.getItem(`project-tab:${projectId}`);
-        if (stored === "overview" || stored === "work" || stored === "time") {
+        if (
+            stored === "overview" ||
+            stored === "work" ||
+            stored === "timeline" ||
+            stored === "time"
+        ) {
             setTab(stored);
         }
         void loadProject();
@@ -205,6 +212,8 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
             </header>
 
             {tab === "work" ? <ProjectTaskWorkspaceView projectId={project.id} /> : null}
+
+            {tab === "timeline" ? <ProjectTimelineWorkspace projectId={project.id} /> : null}
 
             {tab === "time" ? <ProjectTimeWorkspace projectId={project.id} /> : null}
 
