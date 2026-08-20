@@ -21,6 +21,7 @@ from apps.tasks.ninja.focus_views import focus_router
 from apps.tasks.ninja.quick_views import quick_router
 from apps.tasks.ninja.relations_views import relations_router
 from apps.tasks.ninja.section_views import section_router
+from apps.tasks.ninja.timeline_views import timeline_router
 from apps.tasks.ninja.workspace_views import workspace_router
 from apps.ticketing.ninja.admin_views import ticketing_admin_router
 from apps.ticketing.ninja.attachment_views import attachment_router
@@ -66,6 +67,7 @@ admin_router.add_router("", workspace_router)
 admin_router.add_router("", relations_router)
 admin_router.add_router("", section_router)
 admin_router.add_router("", comment_router)
+admin_router.add_router("", timeline_router)
 admin_router.add_router("", ticketing_admin_router)
 admin_router.add_router("", attachment_router)
 admin_router.add_router("", operations_router)
