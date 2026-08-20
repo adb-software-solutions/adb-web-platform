@@ -1,5 +1,6 @@
 "use client";
 
+import { TaskCompletionToggle } from "@/components/admin/TaskCompletionToggle";
 import {
     Badge,
     Button,
@@ -416,15 +417,26 @@ export function TaskListWorkspaceView({ taskListId }: { taskListId: number }) {
                                                                 ⋮⋮
                                                             </span>
                                                         ) : null}
+                                                        <TaskCompletionToggle
+                                                            taskId={task.id}
+                                                            completed={task.completed}
+                                                            canChange={workspace.can_change_task}
+                                                            onChanged={load}
+                                                            size="sm"
+                                                        />
                                                         <Link
                                                             href={`/admin/tasks/${task.id}`}
-                                                            className="truncate text-sm font-medium text-slate-200 hover:text-adb-cyan-300"
+                                                            className={`truncate text-sm font-medium hover:text-adb-cyan-300 ${
+                                                                task.completed
+                                                                    ? "text-slate-600 line-through"
+                                                                    : "text-slate-200"
+                                                            }`}
                                                         >
                                                             {task.title}
                                                         </Link>
                                                         {task.blocked_by_count ? <Badge>Blocked</Badge> : null}
                                                     </div>
-                                                    <div className={workspace.can_change_task ? "mt-1 pl-6" : "mt-1"}>
+                                                    <div className={workspace.can_change_task ? "mt-1 pl-14" : "mt-1 pl-8"}>
                                                         <TaskMeta task={task} />
                                                     </div>
                                                 </div>
@@ -515,12 +527,25 @@ export function TaskListWorkspaceView({ taskListId }: { taskListId: number }) {
                                                         : ""
                                                 }`}
                                             >
-                                                <Link
-                                                    href={`/admin/tasks/${task.id}`}
-                                                    className="text-sm font-medium text-slate-100 hover:text-adb-cyan-300"
-                                                >
-                                                    {task.title}
-                                                </Link>
+                                                <div className="flex items-start gap-2">
+                                                    <TaskCompletionToggle
+                                                        taskId={task.id}
+                                                        completed={task.completed}
+                                                        canChange={workspace.can_change_task}
+                                                        onChanged={load}
+                                                        size="sm"
+                                                    />
+                                                    <Link
+                                                        href={`/admin/tasks/${task.id}`}
+                                                        className={`min-w-0 flex-1 text-sm font-medium hover:text-adb-cyan-300 ${
+                                                            task.completed
+                                                                ? "text-slate-600 line-through"
+                                                                : "text-slate-100"
+                                                        }`}
+                                                    >
+                                                        {task.title}
+                                                    </Link>
+                                                </div>
                                                 <div className="mt-3">
                                                     <TaskMeta task={task} />
                                                 </div>
@@ -573,20 +598,37 @@ export function TaskListWorkspaceView({ taskListId }: { taskListId: number }) {
                                 );
                                 return (
                                     <div key={task.id} className="grid grid-cols-[16rem_minmax(44rem,1fr)]">
-                                        <div className="border-r border-slate-800 px-4 py-3">
-                                            <Link
-                                                href={`/admin/tasks/${task.id}`}
-                                                className="block truncate text-sm font-medium text-slate-200 hover:text-adb-cyan-300"
-                                            >
-                                                {task.title}
-                                            </Link>
-                                            <div className="mt-1 text-[11px] text-slate-600">
-                                                {task.assigned_to_name || "Unassigned"}
+                                        <div className="flex items-center gap-2 border-r border-slate-800 px-4 py-3">
+                                            <TaskCompletionToggle
+                                                taskId={task.id}
+                                                completed={task.completed}
+                                                canChange={workspace.can_change_task}
+                                                onChanged={load}
+                                                size="sm"
+                                            />
+                                            <div className="min-w-0">
+                                                <Link
+                                                    href={`/admin/tasks/${task.id}`}
+                                                    className={`block truncate text-sm font-medium hover:text-adb-cyan-300 ${
+                                                        task.completed
+                                                            ? "text-slate-600 line-through"
+                                                            : "text-slate-200"
+                                                    }`}
+                                                >
+                                                    {task.title}
+                                                </Link>
+                                                <div className="mt-1 text-[11px] text-slate-600">
+                                                    {task.assigned_to_name || "Unassigned"}
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="relative min-h-14 bg-[linear-gradient(to_right,rgba(51,65,85,0.22)_1px,transparent_1px)] bg-[size:8.333%_100%] px-4 py-3">
                                             <div
-                                                className="absolute top-4 h-6 rounded-md border border-adb-cyan-500/40 bg-adb-cyan-500/20 px-2 text-[11px] leading-6 text-adb-cyan-200"
+                                                className={`absolute top-4 h-6 rounded-md border px-2 text-[11px] leading-6 ${
+                                                    task.completed
+                                                        ? "border-emerald-900/60 bg-emerald-950/50 text-emerald-400"
+                                                        : "border-adb-cyan-500/40 bg-adb-cyan-500/20 text-adb-cyan-200"
+                                                }`}
                                                 style={{
                                                     left: `calc(${Math.max(0, left)}% + 1rem)`,
                                                     width: `${Math.min(100 - Math.max(0, left), width)}%`,
