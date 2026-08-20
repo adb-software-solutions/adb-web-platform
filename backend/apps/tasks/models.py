@@ -273,6 +273,29 @@ class TaskDependency(models.Model):
             ),
         ]
 
+    def _creates_cycle(self) -> bool:
+        if self.blocked_task_id is None or self.blocking_task_id is None:
+            return False
+
+        target_id = self.blocking_task_id
+        frontier = {self.blocked_task_id}
+        visited: set[int] = set()
+        dependencies = TaskDependency.objects.all()
+        if self.pk:
+            dependencies = dependencies.exclude(pk=self.pk)
+
+        while frontier:
+            if target_id in frontier:
+                return True
+            visited.update(frontier)
+            frontier = set(
+                dependencies.filter(blocking_task_id__in=frontier).values_list(
+                    "blocked_task_id",
+                    flat=True,
+                )
+            ) - visited
+        return False
+
     def clean(self) -> None:
         super().clean()
         if self.blocked_task_id == self.blocking_task_id:
@@ -281,6 +304,8 @@ class TaskDependency(models.Model):
             raise ValidationError("Task dependencies must stay within the same ownership context.")
         if self.blocked_task.client_id != self.blocking_task.client_id:
             raise ValidationError("Task dependencies cannot cross client boundaries.")
+        if self._creates_cycle():
+            raise ValidationError("Task dependencies cannot create a circular dependency.")
 
     def __str__(self) -> str:
         return f"{self.blocking_task} blocks {self.blocked_task}"
