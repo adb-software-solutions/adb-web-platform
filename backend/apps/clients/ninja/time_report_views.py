@@ -17,7 +17,7 @@ from .time_report_schemas import TimeReportClientOut, TimeReportDayOut, TimeRepo
 
 time_report_router = Router(tags=["admin-time-reporting"])
 StaffProblem = tuple[int, dict[str, Any]]
-ZERO_HOURS = Decimal("0")
+ZERO_HOURS = Decimal(0)
 
 
 def _problem(message: str, code: str, status: int = 400) -> StaffProblem:
