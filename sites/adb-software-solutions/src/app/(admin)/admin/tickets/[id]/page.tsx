@@ -1,6 +1,6 @@
-import { RelatedTimePanel } from "@/components/admin/RelatedTimePanel";
 import { Container } from "@/components/ui";
 import { TicketControls } from "./TicketControls";
+import { TicketTimePanel } from "./TicketTimePanel";
 import { TicketWorkspace } from "./TicketWorkspace";
 
 export default async function TicketPage({
@@ -15,8 +15,8 @@ export default async function TicketPage({
         <Container className="py-8">
             <div className="space-y-6">
                 <TicketControls ticketId={ticketId} />
+                <TicketTimePanel ticketId={ticketId} />
                 <TicketWorkspace ticketId={ticketId} />
-                <RelatedTimePanel contextType="ticket" contextId={ticketId} />
             </div>
         </Container>
     );
