@@ -8,11 +8,13 @@ from ninja.errors import HttpError
 from pydantic import ValidationError
 
 from apps.clients.ninja.admin_views import clients_admin_router
+from apps.clients.ninja.overview_views import client_overview_router
 from apps.clients.ninja.time_report_views import time_report_router
 from apps.clients.ninja.time_views import time_tracking_router
 from apps.core.ninja.admin_views import core_admin_router
 from apps.core.ninja.resource_views import resource_admin_router
 from apps.crm.ninja.admin_views import crm_admin_router
+from apps.crm.ninja.overview_views import lead_overview_router
 from apps.infrastructure.ninja.admin_views import infrastructure_admin_router
 from apps.infrastructure.ninja.extended_views import infrastructure_extended_router
 from apps.tasks.ninja.admin_views import tasks_admin_router
@@ -58,9 +60,11 @@ api.add_router("/website", website_router)
 admin_router = Router(tags=["admin"])
 admin_router.add_router("", core_admin_router)
 admin_router.add_router("", clients_admin_router)
+admin_router.add_router("", client_overview_router)
 admin_router.add_router("", time_tracking_router)
 admin_router.add_router("", time_report_router)
 admin_router.add_router("", crm_admin_router)
+admin_router.add_router("", lead_overview_router)
 admin_router.add_router("", tasks_admin_router)
 admin_router.add_router("", calendar_router)
 admin_router.add_router("", focus_router)
