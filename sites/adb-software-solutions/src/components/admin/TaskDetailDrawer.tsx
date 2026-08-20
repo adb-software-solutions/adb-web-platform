@@ -48,7 +48,7 @@ export function TaskDetailDrawer({
                         onClose={onClose}
                         onChanged={onChanged}
                     />
-                    <TaskRelationsPanel taskId={taskId} />
+                    <TaskRelationsPanel taskId={taskId} onChanged={onChanged} />
                     <RelatedTimePanel contextType="task" contextId={taskId} />
                 </div>
             </aside>

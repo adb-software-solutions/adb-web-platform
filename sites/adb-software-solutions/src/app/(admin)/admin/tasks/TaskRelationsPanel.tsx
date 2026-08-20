@@ -46,11 +46,18 @@ function formatDate(value: string | null) {
     }).format(new Date(`${value}T00:00:00`));
 }
 
-export function TaskRelationsPanel({ taskId }: { taskId: number }) {
+export function TaskRelationsPanel({
+    taskId,
+    onChanged,
+}: {
+    taskId: number;
+    onChanged?: () => void;
+}) {
     const [relations, setRelations] = useState<Relations | null>(null);
     const [availableTasks, setAvailableTasks] = useState<TaskOption[]>([]);
     const [subtaskTitle, setSubtaskTitle] = useState("");
     const [blockingTaskId, setBlockingTaskId] = useState<number | null>(null);
+    const [completingId, setCompletingId] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -81,6 +88,20 @@ export function TaskRelationsPanel({ taskId }: { taskId: number }) {
         return availableTasks.filter((task) => task.id !== taskId && !existing.has(task.id));
     }, [availableTasks, relations, taskId]);
 
+    async function completeSubtask(subtaskId: number) {
+        setCompletingId(subtaskId);
+        setError(null);
+        try {
+            await fetchAPI(AdminAPI.tasks.complete(subtaskId), { method: "POST" });
+            await load();
+            onChanged?.();
+        } catch (saveError) {
+            setError(saveError instanceof Error ? saveError.message : "Unable to complete subtask.");
+        } finally {
+            setCompletingId(null);
+        }
+    }
+
     async function addSubtask(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         if (!subtaskTitle.trim()) return;
@@ -92,6 +113,7 @@ export function TaskRelationsPanel({ taskId }: { taskId: number }) {
             });
             setSubtaskTitle("");
             await load();
+            onChanged?.();
         } catch (saveError) {
             setError(saveError instanceof Error ? saveError.message : "Unable to add subtask.");
         } finally {
@@ -110,6 +132,7 @@ export function TaskRelationsPanel({ taskId }: { taskId: number }) {
             });
             setBlockingTaskId(null);
             await load();
+            onChanged?.();
         } catch (saveError) {
             setError(saveError instanceof Error ? saveError.message : "Unable to add dependency.");
         } finally {
@@ -122,6 +145,7 @@ export function TaskRelationsPanel({ taskId }: { taskId: number }) {
         try {
             await fetchAPI(AdminAPI.tasks.removeDependency(taskId, blockerId), { method: "DELETE" });
             await load();
+            onChanged?.();
         } catch (saveError) {
             setError(saveError instanceof Error ? saveError.message : "Unable to remove dependency.");
         } finally {
@@ -136,7 +160,7 @@ export function TaskRelationsPanel({ taskId }: { taskId: number }) {
     return (
         <div className="grid gap-6 xl:grid-cols-2">
             {error ? (
-                <div className="xl:col-span-2 rounded-lg border border-red-900/70 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+                <div className="rounded-lg border border-red-900/70 bg-red-950/40 px-4 py-3 text-sm text-red-200 xl:col-span-2">
                     {error}
                 </div>
             ) : null}
@@ -151,25 +175,49 @@ export function TaskRelationsPanel({ taskId }: { taskId: number }) {
                 {relations.subtasks.length ? (
                     <div className="divide-y divide-slate-800">
                         {relations.subtasks.map((task) => (
-                            <Link
+                            <div
                                 key={task.id}
-                                href={`/admin/tasks/${task.id}`}
-                                className="flex items-start justify-between gap-4 px-5 py-4 transition hover:bg-slate-900/60"
+                                className="flex items-start gap-3 px-5 py-4 transition hover:bg-slate-900/60"
                             >
-                                <div className="min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <span className={`text-sm font-medium ${task.completed ? "text-slate-500 line-through" : "text-slate-200"}`}>
-                                            {task.title}
-                                        </span>
-                                        {task.blocked_by_count ? <Badge>Blocked</Badge> : null}
+                                {relations.can_change && !task.completed ? (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        disabled={completingId === task.id}
+                                        onClick={() => void completeSubtask(task.id)}
+                                        className="mt-0.5 h-7 w-7 shrink-0 rounded-full border border-slate-700 p-0 text-transparent hover:border-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-300"
+                                        aria-label={`Complete ${task.title}`}
+                                    >
+                                        ✓
+                                    </Button>
+                                ) : (
+                                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-emerald-900/60 bg-emerald-950/30 text-xs text-emerald-400">
+                                        ✓
+                                    </span>
+                                )}
+                                <Link
+                                    href={`/admin/tasks/${task.id}`}
+                                    className="flex min-w-0 flex-1 items-start justify-between gap-4"
+                                >
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <span
+                                                className={`text-sm font-medium ${
+                                                    task.completed ? "text-slate-500 line-through" : "text-slate-200"
+                                                }`}
+                                            >
+                                                {task.title}
+                                            </span>
+                                            {task.blocked_by_count ? <Badge>Blocked</Badge> : null}
+                                        </div>
+                                        <div className="mt-1 text-xs text-slate-600">
+                                            {task.assigned_to_name || "Unassigned"}
+                                            {task.due_date ? ` · ${formatDate(task.due_date)}` : ""}
+                                        </div>
                                     </div>
-                                    <div className="mt-1 text-xs text-slate-600">
-                                        {task.assigned_to_name || "Unassigned"}
-                                        {task.due_date ? ` · ${formatDate(task.due_date)}` : ""}
-                                    </div>
-                                </div>
-                                <span className="shrink-0 text-xs text-slate-500">{task.status}</span>
-                            </Link>
+                                    <span className="shrink-0 text-xs text-slate-500">{task.status}</span>
+                                </Link>
+                            </div>
                         ))}
                     </div>
                 ) : (
@@ -179,7 +227,10 @@ export function TaskRelationsPanel({ taskId }: { taskId: number }) {
                     />
                 )}
                 {relations.can_add_subtask ? (
-                    <form onSubmit={(event) => void addSubtask(event)} className="flex gap-2 border-t border-slate-800 bg-slate-950/40 p-4">
+                    <form
+                        onSubmit={(event) => void addSubtask(event)}
+                        className="flex gap-2 border-t border-slate-800 bg-slate-950/40 p-4"
+                    >
                         <Input
                             value={subtaskTitle}
                             onChange={(event) => setSubtaskTitle(event.target.value)}
@@ -205,7 +256,10 @@ export function TaskRelationsPanel({ taskId }: { taskId: number }) {
                         {relations.blocked_by.length ? (
                             <div className="mt-3 space-y-2">
                                 {relations.blocked_by.map((task) => (
-                                    <div key={task.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2">
+                                    <div
+                                        key={task.id}
+                                        className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2"
+                                    >
                                         <Link
                                             href={`/admin/tasks/${task.id}`}
                                             className="min-w-0 truncate text-sm text-slate-300 hover:text-adb-cyan-300"
@@ -249,10 +303,15 @@ export function TaskRelationsPanel({ taskId }: { taskId: number }) {
                     </div>
                 </div>
                 {relations.can_change ? (
-                    <form onSubmit={(event) => void addDependency(event)} className="flex gap-2 border-t border-slate-800 bg-slate-950/40 p-4">
+                    <form
+                        onSubmit={(event) => void addDependency(event)}
+                        className="flex gap-2 border-t border-slate-800 bg-slate-950/40 p-4"
+                    >
                         <Select
                             value={blockingTaskId ?? ""}
-                            onChange={(event) => setBlockingTaskId(event.target.value ? Number(event.target.value) : null)}
+                            onChange={(event) =>
+                                setBlockingTaskId(event.target.value ? Number(event.target.value) : null)
+                            }
                         >
                             <option value="">Select a blocking task...</option>
                             {dependencyOptions.map((task) => (
