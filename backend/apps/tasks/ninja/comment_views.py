@@ -19,10 +19,7 @@ comment_router = Router(tags=["admin-task-comments"])
 def _author_name(comment: TaskComment) -> str:
     if comment.author is None:
         return "Former staff member"
-    return (
-        f"{comment.author.first_name} {comment.author.last_name}".strip()
-        or comment.author.email
-    )
+    return f"{comment.author.first_name} {comment.author.last_name}".strip() or comment.author.email
 
 
 def _comment_out(comment: TaskComment) -> TaskCommentOut:
