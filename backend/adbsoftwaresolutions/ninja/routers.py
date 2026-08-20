@@ -16,6 +16,7 @@ from apps.crm.ninja.admin_views import crm_admin_router
 from apps.infrastructure.ninja.admin_views import infrastructure_admin_router
 from apps.infrastructure.ninja.extended_views import infrastructure_extended_router
 from apps.tasks.ninja.admin_views import tasks_admin_router
+from apps.tasks.ninja.comment_views import comment_router
 from apps.tasks.ninja.focus_views import focus_router
 from apps.tasks.ninja.quick_views import quick_router
 from apps.tasks.ninja.relations_views import relations_router
@@ -64,6 +65,7 @@ admin_router.add_router("", quick_router)
 admin_router.add_router("", workspace_router)
 admin_router.add_router("", relations_router)
 admin_router.add_router("", section_router)
+admin_router.add_router("", comment_router)
 admin_router.add_router("", ticketing_admin_router)
 admin_router.add_router("", attachment_router)
 admin_router.add_router("", operations_router)

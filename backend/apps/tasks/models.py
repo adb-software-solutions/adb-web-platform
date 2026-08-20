@@ -245,6 +245,32 @@ class Task(models.Model):
         return self.title
 
 
+class TaskComment(models.Model):
+    """Human discussion attached to a task."""
+
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name="comments",
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="task_comments",
+        null=True,
+        blank=True,
+    )
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+    def __str__(self) -> str:
+        return f"Comment on {self.task}"
+
+
 class TaskDependency(models.Model):
     """A directed relationship where one task blocks another."""
 
