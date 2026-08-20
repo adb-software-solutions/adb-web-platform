@@ -400,13 +400,7 @@ def move_task(
     if problem:
         return problem
     user = cast(User, request.user)
-    task = (
-        _visible_tasks(user)
-        .select_related(None)
-        .select_for_update()
-        .filter(id=task_id)
-        .first()
-    )
+    task = _visible_tasks(user).select_related(None).select_for_update().filter(id=task_id).first()
     if task is None:
         return _problem(
             "Task not found or outside your access scope.",

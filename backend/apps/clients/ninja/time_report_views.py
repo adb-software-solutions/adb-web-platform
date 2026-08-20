@@ -15,7 +15,6 @@ from authentication.ninja.schemas import ProblemDetail
 
 from .time_report_schemas import TimeReportClientOut, TimeReportDayOut, TimeReportSummaryOut
 
-
 time_report_router = Router(tags=["admin-time-reporting"])
 StaffProblem = tuple[int, dict[str, Any]]
 
