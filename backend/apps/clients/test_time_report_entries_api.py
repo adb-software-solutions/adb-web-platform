@@ -7,10 +7,7 @@ from django.test import RequestFactory, TestCase
 from django.utils import timezone
 
 from apps.clients.models import Client, Project, TimeEntry
-from apps.clients.ninja.time_report_schemas import (
-    TimeReportEntriesOut,
-    TimeReportSummaryOut,
-)
+from apps.clients.ninja.time_report_schemas import TimeReportEntriesOut, TimeReportSummaryOut
 from apps.clients.ninja.time_report_views import (
     _period_dates,
     time_report_entries,

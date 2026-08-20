@@ -3,7 +3,7 @@ from datetime import timedelta
 from typing import Any
 from uuid import UUID
 
-from django.db.models import Count, Q
+from django.db.models import Count, Q, QuerySet
 from django.http import HttpRequest
 from django.utils import timezone
 from ninja import Router
@@ -39,7 +39,7 @@ def _permission_problem(request: HttpRequest) -> StaffProblem | None:
     return None
 
 
-def _lead_queryset():
+def _lead_queryset() -> QuerySet[Lead]:
     return Lead.objects.select_related("brand", "status", "source", "assigned_to")
 
 

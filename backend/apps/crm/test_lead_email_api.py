@@ -10,8 +10,15 @@ from apps.credentials.models import StoredCredential
 from apps.crm.models import Lead
 from apps.crm.ninja.email_schemas import LeadEmailIn, LeadEmailOptionsOut, LeadEmailOut
 from apps.crm.ninja.email_views import email_lead, lead_conversations, lead_email_options
+from apps.crm.ninja.schemas import LeadTicketOut
 from apps.crm.services import convert_lead
-from apps.ticketing.models import Mailbox, MicrosoftGraphConnection, Ticket, TicketMessage, TicketQueue
+from apps.ticketing.models import (
+    Mailbox,
+    MicrosoftGraphConnection,
+    Ticket,
+    TicketMessage,
+    TicketQueue,
+)
 from authentication.models import User
 
 
@@ -21,6 +28,8 @@ class LeadEmailApiTests(TestCase):
         self.user = User.objects.create_superuser(
             email="lead-email@example.com",
             password="test-password",
+            first_name="Lead",
+            last_name="Mailer",
         )
         self.brand = Brand.objects.create(
             name="ADB Software Solutions",
@@ -96,8 +105,10 @@ class LeadEmailApiTests(TestCase):
         self.assertEqual(message.delivery_status, "queued")
         delay.assert_called_once_with(message.id)
 
-        conversations = lead_conversations(self._request(), self.lead.id)
-        self.assertIsInstance(conversations, list)
+        conversations = cast(
+            list[LeadTicketOut],
+            lead_conversations(self._request(), self.lead.id),
+        )
         self.assertEqual(len(conversations), 1)
         self.assertEqual(conversations[0].id, ticket.id)
 
