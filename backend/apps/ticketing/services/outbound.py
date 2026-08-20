@@ -78,8 +78,9 @@ def prepare_outbound_ticket_email(
             source=Ticket.Source.MANUAL,
             assigned_to=author,
         )
-        ticket.full_clean()
+        # Ticket.save() generates the immutable human-readable reference used by validation.
         ticket.save()
+        ticket.full_clean()
 
         message = TicketMessage(
             ticket=ticket,
