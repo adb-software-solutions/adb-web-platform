@@ -1,8 +1,8 @@
 "use client";
 
+import { TaskCompletionToggle } from "@/components/admin/TaskCompletionToggle";
 import {
     Badge,
-    Button,
     ButtonLink,
     DataError,
     DataLoading,
@@ -12,7 +12,6 @@ import {
     Select,
 } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
-import { AdminAPI } from "@/lib/api/endpoints";
 import { fetchAPI } from "@/lib/api/fetch";
 import { API_URL } from "@/lib/config";
 import Link from "next/link";
@@ -122,7 +121,6 @@ export function TaskList() {
     const [search, setSearch] = useState("");
     const [ownership, setOwnership] = useState("");
     const [allCompletion, setAllCompletion] = useState("open");
-    const [completingId, setCompletingId] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -166,22 +164,6 @@ export function TaskList() {
         void loadTasks();
     }, [loadTasks]);
 
-    async function completeTask(taskId: number) {
-        if (!hasPermission("tasks.change_task")) return;
-        setCompletingId(taskId);
-        setError(null);
-        try {
-            await fetchAPI(AdminAPI.tasks.complete(taskId), { method: "POST" });
-            await loadTasks();
-        } catch (completeError) {
-            setError(
-                completeError instanceof Error ? completeError.message : "Unable to complete the task.",
-            );
-        } finally {
-            setCompletingId(null);
-        }
-    }
-
     const activeOption = focusOptions.find((option) => option.value === focus);
     const heading = focus === "all" ? "All tasks" : activeOption?.label || "My tasks";
     const description =
@@ -219,7 +201,13 @@ export function TaskList() {
                             }`}
                         >
                             <div className="flex items-center justify-between gap-3">
-                                <span className={active ? "text-sm font-semibold text-white" : "text-sm font-medium text-slate-300"}>
+                                <span
+                                    className={
+                                        active
+                                            ? "text-sm font-semibold text-white"
+                                            : "text-sm font-medium text-slate-300"
+                                    }
+                                >
                                     {option.label}
                                 </span>
                                 {count !== null ? (
@@ -240,14 +228,22 @@ export function TaskList() {
                             : "border-slate-800 bg-slate-900/50 hover:border-slate-700 hover:bg-slate-900"
                     }`}
                 >
-                    <div className={focus === "all" ? "text-sm font-semibold text-white" : "text-sm font-medium text-slate-300"}>
+                    <div
+                        className={
+                            focus === "all"
+                                ? "text-sm font-semibold text-white"
+                                : "text-sm font-medium text-slate-300"
+                        }
+                    >
                         All tasks
                     </div>
                     <div className="mt-1 text-xs text-slate-600">Everything in your scope</div>
                 </Link>
             </div>
 
-            <div className={`grid gap-3 ${focus === "all" ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
+            <div
+                className={`grid gap-3 ${focus === "all" ? "md:grid-cols-3" : "md:grid-cols-2"}`}
+            >
                 <label className="space-y-1 text-xs font-medium text-slate-400">
                     <span>Search</span>
                     <Input
@@ -317,39 +313,26 @@ export function TaskList() {
                     <div className="divide-y divide-slate-800">
                         {pageData.items.map((task) => {
                             const overdue = isOverdue(task);
-                            const canComplete =
-                                !task.completed_at && hasPermission("tasks.change_task");
                             return (
                                 <div
                                     key={task.id}
                                     className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-center px-4 py-3 transition hover:bg-slate-900/60 lg:grid-cols-[2.5rem_minmax(0,1fr)_9rem_8rem_9rem]"
                                 >
-                                    <div>
-                                        {canComplete ? (
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                disabled={completingId === task.id}
-                                                onClick={() => void completeTask(task.id)}
-                                                className="h-7 w-7 rounded-full border border-slate-700 p-0 text-transparent hover:border-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-300"
-                                                aria-label={`Complete ${task.title}`}
-                                                title="Mark complete"
-                                            >
-                                                ✓
-                                            </Button>
-                                        ) : (
-                                            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-900/60 bg-emerald-950/30 text-xs text-emerald-400">
-                                                ✓
-                                            </span>
-                                        )}
-                                    </div>
+                                    <TaskCompletionToggle
+                                        taskId={task.id}
+                                        completed={Boolean(task.completed_at)}
+                                        canChange={hasPermission("tasks.change_task")}
+                                        onChanged={loadTasks}
+                                    />
 
                                     <div className="min-w-0 pr-4">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <Link
                                                 href={`/admin/tasks/${task.id}`}
                                                 className={`truncate font-medium hover:text-adb-cyan-300 ${
-                                                    task.completed_at ? "text-slate-500 line-through" : "text-slate-100"
+                                                    task.completed_at
+                                                        ? "text-slate-500 line-through"
+                                                        : "text-slate-100"
                                                 }`}
                                             >
                                                 {task.title}
@@ -357,13 +340,25 @@ export function TaskList() {
                                             <Badge>{task.status}</Badge>
                                         </div>
                                         <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs text-slate-600">
-                                            <span>{task.project_name || task.client_name || "ADB Internal"}</span>
-                                            {task.task_list_name ? <span>· {task.task_list_name}</span> : null}
-                                            {task.recurrence_frequency !== "none" ? (
-                                                <span className="capitalize">· {task.recurrence_frequency} recurring</span>
+                                            <span>
+                                                {task.project_name || task.client_name || "ADB Internal"}
+                                            </span>
+                                            {task.task_list_name ? (
+                                                <span>· {task.task_list_name}</span>
                                             ) : null}
-                                            <span className="lg:hidden">· {task.assigned_to_name || "Unassigned"}</span>
-                                            <span className={overdue ? "text-red-400 lg:hidden" : "lg:hidden"}>
+                                            {task.recurrence_frequency !== "none" ? (
+                                                <span className="capitalize">
+                                                    · {task.recurrence_frequency} recurring
+                                                </span>
+                                            ) : null}
+                                            <span className="lg:hidden">
+                                                · {task.assigned_to_name || "Unassigned"}
+                                            </span>
+                                            <span
+                                                className={
+                                                    overdue ? "text-red-400 lg:hidden" : "lg:hidden"
+                                                }
+                                            >
                                                 · {formatDate(task.due_date)}
                                             </span>
                                         </div>
@@ -377,7 +372,11 @@ export function TaskList() {
                                     <div className="hidden truncate pr-3 text-sm text-slate-500 lg:block">
                                         {task.assigned_to_name || "Unassigned"}
                                     </div>
-                                    <div className={`hidden text-sm lg:block ${overdue ? "font-medium text-red-300" : "text-slate-500"}`}>
+                                    <div
+                                        className={`hidden text-sm lg:block ${
+                                            overdue ? "font-medium text-red-300" : "text-slate-500"
+                                        }`}
+                                    >
                                         {formatDate(task.due_date)}
                                     </div>
                                 </div>
