@@ -4,6 +4,7 @@ import { ReactNode, useCallback, useEffect, useState } from "react";
 import { TaskDetailDrawer } from "./TaskDetailDrawer";
 
 const taskPathPattern = /^\/admin\/tasks\/(\d+)\/?$/;
+const taskEditPathPattern = /^\/admin\/tasks\/(\d+)\/edit\/?$/;
 
 export function TaskDrawerProvider({ children }: { children: ReactNode }) {
     const [taskId, setTaskId] = useState<number | null>(null);
@@ -38,6 +39,21 @@ export function TaskDrawerProvider({ children }: { children: ReactNode }) {
 
             const url = new URL(anchor.href, window.location.origin);
             if (url.origin !== window.location.origin) return;
+
+            const editMatch = taskEditPathPattern.exec(url.pathname);
+            if (
+                editMatch &&
+                Number(editMatch[1]) === taskId &&
+                anchor.closest("[data-task-detail-drawer]") !== null
+            ) {
+                const editor = document.querySelector("[data-task-advanced-editor]");
+                if (editor instanceof HTMLElement) {
+                    event.preventDefault();
+                    editor.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+                return;
+            }
+
             const match = taskPathPattern.exec(url.pathname);
             if (!match) return;
 
