@@ -1,10 +1,26 @@
 "use client";
 
-import { Badge, ButtonLink, Card, DataError, DataLoading, EmptyState } from "@/components/ui";
+import {
+    Badge,
+    Button,
+    ButtonLink,
+    Card,
+    DataError,
+    DataLoading,
+    EmptyState,
+    Input,
+} from "@/components/ui";
 import { AdminAPI } from "@/lib/api/endpoints";
 import { fetchAPI } from "@/lib/api/fetch";
 import Link from "next/link";
-import { DragEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+    DragEvent,
+    FormEvent,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
 
 type ViewMode = "list" | "board" | "timeline";
 
@@ -41,7 +57,7 @@ interface TaskListWorkspace {
 interface ProjectTaskWorkspace {
     project_id: number;
     project_name: string;
-    ownership_type: string;
+    ownership_type: "client" | "internal";
     client_id: number | null;
     client_name: string | null;
     task_lists: TaskListWorkspace[];
@@ -86,10 +102,86 @@ function allTasks(workspace: ProjectTaskWorkspace) {
     ];
 }
 
+function BoardQuickAdd({
+    projectId,
+    workspace,
+    column,
+    onCreated,
+}: {
+    projectId: number;
+    workspace: ProjectTaskWorkspace;
+    column: BoardColumn;
+    onCreated: () => Promise<void>;
+}) {
+    const [title, setTitle] = useState("");
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    async function submit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        if (!title.trim()) return;
+        setSaving(true);
+        setError(null);
+        try {
+            if (column.taskListId !== null) {
+                await fetchAPI(AdminAPI.tasks.lists.quickTask(column.taskListId), {
+                    method: "POST",
+                    body: JSON.stringify({
+                        title: title.trim(),
+                        section_id: column.sectionId,
+                    }),
+                });
+            } else {
+                await fetchAPI(AdminAPI.tasks.create(), {
+                    method: "POST",
+                    body: JSON.stringify({
+                        title: title.trim(),
+                        description: "",
+                        ownership_type: workspace.ownership_type,
+                        client_id: workspace.client_id,
+                        project_id: projectId,
+                        priority: 2,
+                        recurrence_frequency: "none",
+                    }),
+                });
+            }
+            setTitle("");
+            await onCreated();
+        } catch (saveError) {
+            setError(saveError instanceof Error ? saveError.message : "Unable to add task.");
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    return (
+        <form onSubmit={(event) => void submit(event)} className="space-y-2">
+            <div className="flex gap-2">
+                <Input
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    placeholder="Add task..."
+                    className="h-9"
+                />
+                <Button
+                    type="submit"
+                    variant="ghost"
+                    size="sm"
+                    disabled={saving || !title.trim()}
+                >
+                    {saving ? "…" : "+"}
+                </Button>
+            </div>
+            {error ? <p className="text-xs text-red-300">{error}</p> : null}
+        </form>
+    );
+}
+
 export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
     const [workspace, setWorkspace] = useState<ProjectTaskWorkspace | null>(null);
     const [view, setView] = useState<ViewMode>("list");
     const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
+    const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -136,7 +228,11 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
                     tasks: section.tasks,
                 });
             }
-            if (taskList.unsectioned_tasks.length || taskList.sections.length === 0) {
+            if (
+                taskList.unsectioned_tasks.length ||
+                taskList.sections.length === 0 ||
+                workspace.can_add_task
+            ) {
                 columns.push({
                     key: `${taskList.id}:none`,
                     taskListId: taskList.id,
@@ -147,13 +243,13 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
                 });
             }
         }
-        if (workspace.unlisted_tasks.length) {
+        if (workspace.unlisted_tasks.length || workspace.can_add_task || workspace.can_change_task) {
             columns.push({
                 key: "unlisted",
                 taskListId: null,
                 sectionId: null,
                 title: "No task list",
-                subtitle: null,
+                subtitle: "Project tasks not organised into a list",
                 tasks: workspace.unlisted_tasks,
             });
         }
@@ -172,21 +268,26 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
         return { tasks, start, end, duration: Math.max(86_400_000, end - start) };
     }, [workspace]);
 
-    async function moveToColumn(event: DragEvent, column: BoardColumn) {
+    function taskIdFromDrop(event: DragEvent) {
         event.preventDefault();
+        return Number(event.dataTransfer.getData("text/plain") || draggedTaskId || 0);
+    }
+
+    async function moveTask(
+        taskId: number,
+        column: BoardColumn,
+        beforeTaskId: number | null,
+        afterTaskId: number | null,
+    ) {
         if (!workspace?.can_change_task) return;
-        const taskId = Number(event.dataTransfer.getData("text/plain") || draggedTaskId || 0);
-        if (!taskId) return;
-        const remaining = column.tasks.filter((task) => task.id !== taskId);
-        const previous = remaining.at(-1)?.id ?? null;
         try {
             await fetchAPI(AdminAPI.tasks.move(taskId), {
                 method: "POST",
                 body: JSON.stringify({
                     task_list_id: column.taskListId,
                     section_id: column.sectionId,
-                    before_task_id: previous,
-                    after_task_id: null,
+                    before_task_id: beforeTaskId,
+                    after_task_id: afterTaskId,
                 }),
             });
             await load();
@@ -194,15 +295,40 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
             setError(moveError instanceof Error ? moveError.message : "Unable to move task.");
         } finally {
             setDraggedTaskId(null);
+            setDragOverColumn(null);
         }
+    }
+
+    async function dropAtEnd(event: DragEvent, column: BoardColumn) {
+        if (!workspace?.can_change_task) return;
+        const taskId = taskIdFromDrop(event);
+        if (!taskId) return;
+        const remaining = column.tasks.filter((task) => task.id !== taskId);
+        await moveTask(taskId, column, remaining.at(-1)?.id ?? null, null);
+    }
+
+    async function dropBefore(
+        event: DragEvent,
+        column: BoardColumn,
+        targetTaskId: number,
+    ) {
+        if (!workspace?.can_change_task) return;
+        event.stopPropagation();
+        const taskId = taskIdFromDrop(event);
+        if (!taskId || taskId === targetTaskId) return;
+        const remaining = column.tasks.filter((task) => task.id !== taskId);
+        const targetIndex = remaining.findIndex((task) => task.id === targetTaskId);
+        const previousTaskId = targetIndex > 0 ? remaining[targetIndex - 1].id : null;
+        await moveTask(taskId, column, previousTaskId, targetTaskId);
     }
 
     if (loading && !workspace) return <DataLoading label="Loading project work..." />;
     if (error && !workspace) return <DataError message={error} onRetry={() => void load()} />;
     if (!workspace) return null;
 
-    const totalTasks = allTasks(workspace).length;
-    const openTasks = allTasks(workspace).filter((task) => !task.completed).length;
+    const projectTasks = allTasks(workspace);
+    const totalTasks = projectTasks.length;
+    const openTasks = projectTasks.filter((task) => !task.completed).length;
 
     return (
         <section className="space-y-5 border-t border-slate-800 pt-8">
@@ -266,12 +392,12 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
                 ) : null}
             </div>
 
-            {totalTasks === 0 ? (
+            {totalTasks === 0 && view !== "board" ? (
                 <EmptyState
                     title="No project tasks yet"
                     description={
                         workspace.can_add_task
-                            ? "Add a task directly or create task lists and sections to plan this project."
+                            ? "Add a task directly or switch to Board to build the project in place."
                             : "No tasks are currently recorded for this project."
                     }
                 />
@@ -304,7 +430,14 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
                                 ) : null}
                             </div>
                             <div className="divide-y divide-slate-800">
-                                {[...taskList.sections, { id: 0, name: "Unsectioned", tasks: taskList.unsectioned_tasks }]
+                                {[
+                                    ...taskList.sections,
+                                    {
+                                        id: 0,
+                                        name: "Unsectioned",
+                                        tasks: taskList.unsectioned_tasks,
+                                    },
+                                ]
                                     .filter((section) => section.tasks.length)
                                     .map((section) => (
                                         <div key={section.id || "none"}>
@@ -327,11 +460,15 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
                                                             </div>
                                                             <div className="mt-1 text-xs text-slate-600">
                                                                 {task.assigned_to_name || "Unassigned"}
-                                                                {task.subtask_count ? ` · ${task.subtask_count} subtasks` : ""}
+                                                                {task.subtask_count
+                                                                    ? ` · ${task.subtask_count} subtasks`
+                                                                    : ""}
                                                             </div>
                                                         </div>
                                                         <span className="text-xs text-slate-400">{task.status}</span>
-                                                        <span className="text-xs text-slate-500">{formatDate(task.due_date)}</span>
+                                                        <span className="text-xs text-slate-500">
+                                                            {formatDate(task.due_date)}
+                                                        </span>
                                                     </Link>
                                                 ))}
                                             </div>
@@ -363,82 +500,146 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
                 </div>
             ) : null}
 
-            {view === "board" && totalTasks > 0 ? (
-                <div className="overflow-x-auto pb-3">
-                    <div className="flex min-w-max gap-4">
-                        {boardColumns.map((column) => (
-                            <div
-                                key={column.key}
-                                onDragOver={
-                                    workspace.can_change_task
-                                        ? (event) => event.preventDefault()
-                                        : undefined
-                                }
-                                onDrop={
-                                    workspace.can_change_task
-                                        ? (event) => void moveToColumn(event, column)
-                                        : undefined
-                                }
-                                className="w-80 shrink-0 rounded-xl border border-slate-800 bg-slate-900/50"
-                            >
-                                <div className="border-b border-slate-800 px-4 py-3">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <h3 className="text-sm font-semibold text-white">{column.title}</h3>
-                                        <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-400">
-                                            {column.tasks.length}
-                                        </span>
-                                    </div>
-                                    {column.subtitle ? (
-                                        <div className="mt-1 text-[11px] text-slate-600">{column.subtitle}</div>
-                                    ) : null}
-                                </div>
-                                <div className="min-h-24 space-y-3 p-3">
-                                    {column.tasks.map((task) => (
-                                        <div
-                                            key={task.id}
-                                            draggable={workspace.can_change_task}
-                                            onDragStart={
-                                                workspace.can_change_task
-                                                    ? (event) => {
-                                                          setDraggedTaskId(task.id);
-                                                          event.dataTransfer.effectAllowed = "move";
-                                                          event.dataTransfer.setData(
-                                                              "text/plain",
-                                                              String(task.id),
-                                                          );
-                                                      }
-                                                    : undefined
-                                            }
-                                            className={`rounded-lg border border-slate-800 bg-slate-950 p-4 ${
-                                                workspace.can_change_task
-                                                    ? "cursor-grab active:cursor-grabbing"
-                                                    : ""
-                                            }`}
-                                        >
-                                            <Link
-                                                href={`/admin/tasks/${task.id}`}
-                                                className="text-sm font-medium text-slate-100 hover:text-adb-cyan-300"
-                                            >
-                                                {task.title}
-                                            </Link>
-                                            <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-500">
-                                                <span>{task.assigned_to_name || "Unassigned"}</span>
-                                                {task.due_date ? <span>{formatDate(task.due_date)}</span> : null}
-                                                {task.blocked_by_count ? <span>Blocked</span> : null}
-                                            </div>
-                                            <div className="mt-3 flex items-center justify-between gap-3">
-                                                <Badge>{task.status}</Badge>
-                                                <span className="text-[11px] text-slate-600">
-                                                    {priorityLabels[task.priority]}
+            {view === "board" ? (
+                boardColumns.length ? (
+                    <div className="overflow-x-auto pb-3">
+                        <div className="flex min-w-max gap-4">
+                            {boardColumns.map((column) => {
+                                const highlighted = dragOverColumn === column.key;
+                                return (
+                                    <div
+                                        key={column.key}
+                                        onDragOver={
+                                            workspace.can_change_task
+                                                ? (event) => {
+                                                      event.preventDefault();
+                                                      setDragOverColumn(column.key);
+                                                  }
+                                                : undefined
+                                        }
+                                        onDrop={
+                                            workspace.can_change_task
+                                                ? (event) => void dropAtEnd(event, column)
+                                                : undefined
+                                        }
+                                        className={`w-80 shrink-0 rounded-xl border bg-slate-900/50 transition ${
+                                            highlighted
+                                                ? "border-adb-cyan-500/60 bg-adb-cyan-500/5"
+                                                : "border-slate-800"
+                                        }`}
+                                    >
+                                        <div className="border-b border-slate-800 px-4 py-3">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <h3 className="text-sm font-semibold text-white">{column.title}</h3>
+                                                <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-400">
+                                                    {column.tasks.length}
                                                 </span>
                                             </div>
+                                            {column.subtitle ? (
+                                                <div className="mt-1 text-[11px] text-slate-600">
+                                                    {column.subtitle}
+                                                </div>
+                                            ) : null}
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
+                                        <div className="min-h-24 space-y-3 p-3">
+                                            {column.tasks.map((task) => (
+                                                <div
+                                                    key={task.id}
+                                                    draggable={workspace.can_change_task}
+                                                    onDragStart={
+                                                        workspace.can_change_task
+                                                            ? (event) => {
+                                                                  setDraggedTaskId(task.id);
+                                                                  event.dataTransfer.effectAllowed = "move";
+                                                                  event.dataTransfer.setData(
+                                                                      "text/plain",
+                                                                      String(task.id),
+                                                                  );
+                                                              }
+                                                            : undefined
+                                                    }
+                                                    onDragEnd={() => {
+                                                        setDraggedTaskId(null);
+                                                        setDragOverColumn(null);
+                                                    }}
+                                                    onDragOver={
+                                                        workspace.can_change_task
+                                                            ? (event) => {
+                                                                  event.preventDefault();
+                                                                  event.stopPropagation();
+                                                                  setDragOverColumn(column.key);
+                                                              }
+                                                            : undefined
+                                                    }
+                                                    onDrop={
+                                                        workspace.can_change_task
+                                                            ? (event) =>
+                                                                  void dropBefore(event, column, task.id)
+                                                            : undefined
+                                                    }
+                                                    className={`rounded-lg border bg-slate-950 p-4 transition ${
+                                                        draggedTaskId === task.id
+                                                            ? "border-adb-cyan-500/40 opacity-40"
+                                                            : "border-slate-800 hover:border-slate-700"
+                                                    } ${
+                                                        workspace.can_change_task
+                                                            ? "cursor-grab active:cursor-grabbing"
+                                                            : ""
+                                                    }`}
+                                                >
+                                                    <Link
+                                                        href={`/admin/tasks/${task.id}`}
+                                                        className="text-sm font-medium text-slate-100 hover:text-adb-cyan-300"
+                                                    >
+                                                        {task.title}
+                                                    </Link>
+                                                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-500">
+                                                        <span>
+                                                            {task.assigned_to_name || "Unassigned"}
+                                                        </span>
+                                                        {task.due_date ? (
+                                                            <span>{formatDate(task.due_date)}</span>
+                                                        ) : null}
+                                                        {task.blocked_by_count ? <span>Blocked</span> : null}
+                                                        {task.subtask_count ? (
+                                                            <span>{task.subtask_count} subtasks</span>
+                                                        ) : null}
+                                                    </div>
+                                                    <div className="mt-3 flex items-center justify-between gap-3">
+                                                        <Badge>{task.status}</Badge>
+                                                        <span className="text-[11px] text-slate-600">
+                                                            {priorityLabels[task.priority]}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {column.tasks.length === 0 && !workspace.can_add_task ? (
+                                                <div className="rounded-lg border border-dashed border-slate-800 px-3 py-6 text-center text-xs text-slate-600">
+                                                    Drop a task here
+                                                </div>
+                                            ) : null}
+                                            {workspace.can_add_task ? (
+                                                <div className="border-t border-slate-800 pt-3">
+                                                    <BoardQuickAdd
+                                                        projectId={projectId}
+                                                        workspace={workspace}
+                                                        column={column}
+                                                        onCreated={load}
+                                                    />
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <EmptyState
+                        title="No board columns yet"
+                        description="Create a task list and sections to build out this project's workflow."
+                    />
+                )
             ) : null}
 
             {view === "timeline" && totalTasks > 0 ? (
@@ -461,7 +662,10 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
                                 const taskStart = new Date(`${startValue}T00:00:00`).getTime();
                                 const taskEnd = new Date(`${endValue}T00:00:00`).getTime() + 86_400_000;
                                 const left = ((taskStart - timeline.start) / timeline.duration) * 100;
-                                const width = Math.max(1.2, ((taskEnd - taskStart) / timeline.duration) * 100);
+                                const width = Math.max(
+                                    1.2,
+                                    ((taskEnd - taskStart) / timeline.duration) * 100,
+                                );
                                 return (
                                     <div key={task.id} className="grid grid-cols-[17rem_minmax(46rem,1fr)]">
                                         <div className="border-r border-slate-800 px-4 py-3">
