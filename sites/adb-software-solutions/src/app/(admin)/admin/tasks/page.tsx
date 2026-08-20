@@ -1,6 +1,6 @@
 import { Container, DataLoading, PageHeader } from "@/components/ui";
 import { Suspense } from "react";
-import { TaskList } from "./TaskList";
+import { TasksWorkspace } from "./TasksWorkspace";
 
 export const metadata = {
     title: "Tasks",
@@ -15,7 +15,7 @@ export default function TasksPage() {
             />
             <div className="mt-6">
                 <Suspense fallback={<DataLoading label="Loading task workspace..." />}>
-                    <TaskList />
+                    <TasksWorkspace />
                 </Suspense>
             </div>
         </Container>
