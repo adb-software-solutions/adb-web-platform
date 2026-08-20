@@ -135,7 +135,7 @@ export function LeadEmailPanel({ leadId }: { leadId: number }) {
     if (error && !options) return <DataError message={error} onRetry={() => void load()} />;
 
     return (
-        <Card className="p-5">
+        <Card id="lead-email" className="scroll-mt-6 p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                     <h2 className="text-sm font-semibold text-white">Email & conversations</h2>
