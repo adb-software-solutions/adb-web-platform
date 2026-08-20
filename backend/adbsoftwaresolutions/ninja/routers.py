@@ -16,6 +16,7 @@ from apps.crm.ninja.admin_views import crm_admin_router
 from apps.infrastructure.ninja.admin_views import infrastructure_admin_router
 from apps.infrastructure.ninja.extended_views import infrastructure_extended_router
 from apps.tasks.ninja.admin_views import tasks_admin_router
+from apps.tasks.ninja.calendar_views import calendar_router
 from apps.tasks.ninja.comment_views import comment_router
 from apps.tasks.ninja.focus_views import focus_router
 from apps.tasks.ninja.quick_views import quick_router
@@ -61,6 +62,7 @@ admin_router.add_router("", time_tracking_router)
 admin_router.add_router("", time_report_router)
 admin_router.add_router("", crm_admin_router)
 admin_router.add_router("", tasks_admin_router)
+admin_router.add_router("", calendar_router)
 admin_router.add_router("", focus_router)
 admin_router.add_router("", quick_router)
 admin_router.add_router("", workspace_router)
