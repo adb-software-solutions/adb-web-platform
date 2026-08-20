@@ -91,9 +91,7 @@ def move_task_section(
         return _problem("Task list not found or outside your access scope.", "not_found", 404)
 
     section = (
-        TaskSection.objects.select_for_update()
-        .filter(task_list=task_list, id=section_id)
-        .first()
+        TaskSection.objects.select_for_update().filter(task_list=task_list, id=section_id).first()
     )
     if section is None:
         return _problem("Task section not found.", "not_found", 404)

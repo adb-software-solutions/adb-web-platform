@@ -314,12 +314,15 @@ class TaskDependency(models.Model):
             if target_id in frontier:
                 return True
             visited.update(frontier)
-            frontier = set(
-                dependencies.filter(blocking_task_id__in=frontier).values_list(
-                    "blocked_task_id",
-                    flat=True,
+            frontier = (
+                set(
+                    dependencies.filter(blocking_task_id__in=frontier).values_list(
+                        "blocked_task_id",
+                        flat=True,
+                    )
                 )
-            ) - visited
+                - visited
+            )
         return False
 
     def clean(self) -> None:
