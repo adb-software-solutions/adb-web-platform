@@ -31,8 +31,7 @@ def _permission_problem(request: HttpRequest) -> StaffProblem | None:
             403,
         )
     if not (
-        request.user.has_perm("tasks.view_task")
-        or request.user.has_perm("clients.view_project")
+        request.user.has_perm("tasks.view_task") or request.user.has_perm("clients.view_project")
     ):
         return _problem(
             "You do not have permission to view work calendar items.",

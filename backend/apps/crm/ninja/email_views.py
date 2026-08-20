@@ -67,12 +67,12 @@ def _available_mailboxes(request: HttpRequest, lead: Lead) -> QuerySet[Mailbox]:
 
 
 def _mailbox_rows(request: HttpRequest, lead: Lead) -> list[LeadMailboxOut]:
-    purpose_order = {
-        Mailbox.Purpose.SALES: 0,
-        Mailbox.Purpose.GENERAL: 1,
-        Mailbox.Purpose.SUPPORT: 2,
-        Mailbox.Purpose.ACCOUNTS: 3,
-        Mailbox.Purpose.OPERATIONS: 4,
+    purpose_order: dict[str, int] = {
+        Mailbox.Purpose.SALES.value: 0,
+        Mailbox.Purpose.GENERAL.value: 1,
+        Mailbox.Purpose.SUPPORT.value: 2,
+        Mailbox.Purpose.ACCOUNTS.value: 3,
+        Mailbox.Purpose.OPERATIONS.value: 4,
     }
     rows = sorted(
         _available_mailboxes(request, lead),
@@ -142,9 +142,7 @@ def lead_email_options(request: HttpRequest, lead_id: int) -> LeadEmailOptionsOu
     if lead is None:
         return _problem("Lead not found.", "not_found", 404)
 
-    can_email = bool(
-        lead.converted_at is None and request.user.has_perm("ticketing.reply_ticket")
-    )
+    can_email = bool(lead.converted_at is None and request.user.has_perm("ticketing.reply_ticket"))
     return LeadEmailOptionsOut(
         can_email=can_email,
         mailboxes=_mailbox_rows(request, lead) if can_email else [],

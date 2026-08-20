@@ -17,6 +17,8 @@ class ClientOverviewApiTests(TestCase):
         self.user = User.objects.create_superuser(
             email="client-overview@example.com",
             password="test-password",
+            first_name="Client",
+            last_name="Reporter",
         )
 
     def _request(self) -> HttpRequest:

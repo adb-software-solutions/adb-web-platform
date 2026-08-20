@@ -16,6 +16,8 @@ class LeadOverviewApiTests(TestCase):
         self.user = User.objects.create_superuser(
             email="lead-overview@example.com",
             password="test-password",
+            first_name="Lead",
+            last_name="Reporter",
         )
         self.status_new = LeadStatus.objects.create(name="New", order=10)
         self.status_qualified = LeadStatus.objects.create(name="Qualified", order=20)

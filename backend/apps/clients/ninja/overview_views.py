@@ -8,11 +8,7 @@ from ninja import Router
 from apps.access_control.policies import scope_clients_for_user
 from authentication.ninja.schemas import ProblemDetail
 
-from .overview_schemas import (
-    ClientOverviewItemOut,
-    ClientOverviewOut,
-    ClientOverviewStatsOut,
-)
+from .overview_schemas import ClientOverviewItemOut, ClientOverviewOut, ClientOverviewStatsOut
 
 client_overview_router = Router(tags=["admin-client-overview"])
 StaffProblem = tuple[int, dict[str, Any]]
@@ -20,7 +16,11 @@ StaffProblem = tuple[int, dict[str, Any]]
 
 def _permission_problem(request: HttpRequest) -> StaffProblem | None:
     if not request.user.is_authenticated:
-        return 401, {"message": "User not authenticated", "success": False, "code": "unauthenticated"}
+        return 401, {
+            "message": "User not authenticated",
+            "success": False,
+            "code": "unauthenticated",
+        }
     if not (request.user.is_staff or request.user.is_superuser):
         return 403, {
             "message": "You do not have permission to access this resource.",
