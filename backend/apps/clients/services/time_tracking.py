@@ -149,6 +149,21 @@ def apply_time_context(entry: TimeEntry | RunningTimer, context: TimeContext) ->
         entry.billable = False
 
 
+def _timer_entry_description(timer: RunningTimer, override: str | None) -> str:
+    for candidate in (override, timer.description):
+        if candidate and candidate.strip():
+            return candidate.strip()
+    if timer.task_id and timer.task:
+        return timer.task.title
+    if timer.ticket_id and timer.ticket:
+        return f"{timer.ticket.reference}: {timer.ticket.subject}"
+    if timer.project_id and timer.project:
+        return timer.project.name
+    if timer.client_id and timer.client:
+        return str(timer.client)
+    return "ADB internal work"
+
+
 @transaction.atomic
 def start_timer(
     user: User,
@@ -194,7 +209,7 @@ def stop_timer(user: User, *, description: str | None = None) -> TimeEntry:
         user=user,
         date=timezone.localdate(timer.started_at),
         duration_hours=duration_hours,
-        description=(description if description is not None else timer.description).strip(),
+        description=_timer_entry_description(timer, description),
         billable=timer.billable,
         entry_type=TimeEntry.EntryType.TIMER,
     )
