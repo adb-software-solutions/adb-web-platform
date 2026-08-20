@@ -1,5 +1,5 @@
 import { Card, Container, PageHeader } from "@/components/ui";
-import { ClientContactForm } from "../../../ClientContactForm";
+import { ClientContactForm } from "../../../../ClientContactForm";
 
 export const metadata = {
     title: "Edit Client Contact",
