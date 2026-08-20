@@ -4,16 +4,24 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any, cast
 
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Q, QuerySet, Sum
 from django.http import HttpRequest
 from django.utils import timezone
 from ninja import Router
 
+from apps.clients.models import TimeEntry
 from apps.clients.services.time_tracking import visible_time_entries
+from apps.core.ownership import OwnershipType
 from authentication.models import User
 from authentication.ninja.schemas import ProblemDetail
 
-from .time_report_schemas import TimeReportClientOut, TimeReportDayOut, TimeReportSummaryOut
+from .time_report_schemas import (
+    TimeReportClientOut,
+    TimeReportDayOut,
+    TimeReportEntriesOut,
+    TimeReportEntryOut,
+    TimeReportSummaryOut,
+)
 
 time_report_router = Router(tags=["admin-time-reporting"])
 StaffProblem = tuple[int, dict[str, Any]]
@@ -57,6 +65,94 @@ def _period_dates(period: str, today: date) -> tuple[date, date]:
     raise ValueError("Unsupported reporting period.")
 
 
+def _resolve_period(
+    period: str,
+    *,
+    date_from: date | None,
+    date_to: date | None,
+) -> tuple[str, date, date]:
+    if date_from is not None or date_to is not None:
+        if date_from is None or date_to is None:
+            raise ValueError("Custom reporting requires both date_from and date_to.")
+        if date_from > date_to:
+            raise ValueError("date_from cannot be after date_to.")
+        return "custom", date_from, date_to
+
+    report_from, report_to = _period_dates(period, timezone.localdate())
+    return period, report_from, report_to
+
+
+def _scoped_entries(
+    user: User,
+    *,
+    report_from: date,
+    report_to: date,
+    client_id: int | None,
+    project_id: int | None,
+    ownership_type: str | None,
+) -> QuerySet[TimeEntry]:
+    entries = visible_time_entries(user).filter(
+        date__gte=report_from,
+        date__lte=report_to,
+    )
+    if client_id is not None:
+        entries = entries.filter(client_id=client_id)
+    if project_id is not None:
+        entries = entries.filter(project_id=project_id)
+    if ownership_type in {OwnershipType.INTERNAL, OwnershipType.CLIENT}:
+        entries = entries.filter(ownership_type=ownership_type)
+    return entries
+
+
+def _tracked_billable(entries: QuerySet[TimeEntry]) -> tuple[Decimal, Decimal]:
+    totals = entries.aggregate(
+        tracked_hours=Sum("duration_hours", default=ZERO_HOURS),
+        billable_hours=Sum(
+            "duration_hours",
+            filter=Q(billable=True),
+            default=ZERO_HOURS,
+        ),
+    )
+    return totals["tracked_hours"], totals["billable_hours"]
+
+
+def _user_name(user: User | None) -> str | None:
+    if user is None:
+        return None
+    return f"{user.first_name} {user.last_name}".strip() or user.email
+
+
+def _entry_out(entry: TimeEntry) -> TimeReportEntryOut:
+    return TimeReportEntryOut(
+        id=entry.id,
+        date=entry.date,
+        duration_hours=entry.duration_hours,
+        description=entry.description,
+        billable=entry.billable,
+        entry_type=entry.entry_type,
+        ownership_type=entry.ownership_type,
+        client_id=entry.client_id,
+        client_name=str(entry.client) if entry.client else None,
+        project_id=entry.project_id,
+        project_name=entry.project.name if entry.project else None,
+        task_id=entry.task_id,
+        task_title=entry.task.title if entry.task else None,
+        ticket_id=entry.ticket_id,
+        ticket_reference=entry.ticket.reference if entry.ticket else None,
+        ticket_subject=entry.ticket.subject if entry.ticket else None,
+        user_name=_user_name(entry.user),
+    )
+
+
+def _validate_ownership_filter(ownership_type: str | None) -> StaffProblem | None:
+    if ownership_type is None or ownership_type in {
+        OwnershipType.INTERNAL,
+        OwnershipType.CLIENT,
+    }:
+        return None
+    return _problem("Unsupported ownership filter.", "invalid_scope")
+
+
 @time_report_router.get(
     "/time-reports/summary",
     response={
@@ -70,37 +166,35 @@ def time_report_summary(
     request: HttpRequest,
     period: str = "30d",
     client_id: int | None = None,
+    project_id: int | None = None,
+    ownership_type: str | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
 ) -> TimeReportSummaryOut | StaffProblem:
     problem = _permission_problem(request)
     if problem:
         return problem
+    ownership_problem = _validate_ownership_filter(ownership_type)
+    if ownership_problem:
+        return ownership_problem
 
-    today = timezone.localdate()
-    if date_from is not None or date_to is not None:
-        if date_from is None or date_to is None:
-            return _problem(
-                "Custom reporting requires both date_from and date_to.",
-                "invalid_period",
-            )
-        if date_from > date_to:
-            return _problem("date_from cannot be after date_to.", "invalid_period")
-        report_from, report_to = date_from, date_to
-        period_name = "custom"
-    else:
-        try:
-            report_from, report_to = _period_dates(period, today)
-        except ValueError:
-            return _problem("Unsupported reporting period.", "invalid_period")
-        period_name = period
+    try:
+        period_name, report_from, report_to = _resolve_period(
+            period,
+            date_from=date_from,
+            date_to=date_to,
+        )
+    except ValueError as error:
+        return _problem(str(error), "invalid_period")
 
-    entries = visible_time_entries(cast(User, request.user)).filter(
-        date__gte=report_from,
-        date__lte=report_to,
+    entries = _scoped_entries(
+        cast(User, request.user),
+        report_from=report_from,
+        report_to=report_to,
+        client_id=client_id,
+        project_id=project_id,
+        ownership_type=ownership_type,
     )
-    if client_id is not None:
-        entries = entries.filter(client_id=client_id)
 
     totals = entries.aggregate(
         tracked_hours=Sum("duration_hours", default=ZERO_HOURS),
@@ -190,4 +284,69 @@ def time_report_summary(
         entry_count=entries.count(),
         clients=clients,
         daily=daily,
+    )
+
+
+@time_report_router.get(
+    "/time-reports/entries",
+    response={
+        200: TimeReportEntriesOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+    },
+)
+def time_report_entries(
+    request: HttpRequest,
+    period: str = "this_month",
+    client_id: int | None = None,
+    project_id: int | None = None,
+    ownership_type: str | None = None,
+    page: int = 1,
+    page_size: int = 50,
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> TimeReportEntriesOut | StaffProblem:
+    problem = _permission_problem(request)
+    if problem:
+        return problem
+    ownership_problem = _validate_ownership_filter(ownership_type)
+    if ownership_problem:
+        return ownership_problem
+
+    try:
+        period_name, report_from, report_to = _resolve_period(
+            period,
+            date_from=date_from,
+            date_to=date_to,
+        )
+    except ValueError as error:
+        return _problem(str(error), "invalid_period")
+
+    entries = _scoped_entries(
+        cast(User, request.user),
+        report_from=report_from,
+        report_to=report_to,
+        client_id=client_id,
+        project_id=project_id,
+        ownership_type=ownership_type,
+    )
+    tracked, billable = _tracked_billable(entries)
+    page = max(1, page)
+    page_size = max(1, min(page_size, 100))
+    total = entries.count()
+    start = (page - 1) * page_size
+    rows = entries.order_by("-date", "-created_at")[start : start + page_size]
+
+    return TimeReportEntriesOut(
+        period=period_name,
+        date_from=report_from,
+        date_to=report_to,
+        tracked_hours=tracked,
+        billable_hours=billable,
+        non_billable_hours=tracked - billable,
+        total=total,
+        page=page,
+        page_size=page_size,
+        items=[_entry_out(entry) for entry in rows],
     )
