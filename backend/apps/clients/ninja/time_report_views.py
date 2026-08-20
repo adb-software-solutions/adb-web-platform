@@ -53,6 +53,12 @@ def _permission_problem(request: HttpRequest) -> StaffProblem | None:
 def _period_dates(period: str, today: date) -> tuple[date, date]:
     if period == "7d":
         return today - timedelta(days=6), today
+    if period == "this_week":
+        return today - timedelta(days=today.weekday()), today
+    if period == "last_week":
+        this_week_start = today - timedelta(days=today.weekday())
+        last_week_end = this_week_start - timedelta(days=1)
+        return last_week_end - timedelta(days=6), last_week_end
     if period == "30d":
         return today - timedelta(days=29), today
     if period == "this_month":

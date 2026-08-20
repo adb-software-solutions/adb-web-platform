@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from apps.clients.models import Client, Project, TimeEntry
 from apps.clients.ninja.time_report_schemas import TimeReportEntriesOut, TimeReportSummaryOut
-from apps.clients.ninja.time_report_views import time_report_entries, time_report_summary
+from apps.clients.ninja.time_report_views import _period_dates, time_report_entries, time_report_summary
 from apps.core.ownership import OwnershipType
 from authentication.models import User
 
@@ -43,6 +43,17 @@ class TimeReportEntriesApiTests(TestCase):
         request = self.factory.get("/api/admin/time-reports/entries")
         request.user = self.user
         return request
+
+    def test_week_periods_use_monday_to_sunday_boundaries(self) -> None:
+        thursday = timezone.datetime(2026, 8, 20).date()
+
+        this_week_from, this_week_to = _period_dates("this_week", thursday)
+        last_week_from, last_week_to = _period_dates("last_week", thursday)
+
+        self.assertEqual(this_week_from, timezone.datetime(2026, 8, 17).date())
+        self.assertEqual(this_week_to, thursday)
+        self.assertEqual(last_week_from, timezone.datetime(2026, 8, 10).date())
+        self.assertEqual(last_week_to, timezone.datetime(2026, 8, 16).date())
 
     def test_client_drilldown_filters_entries_to_selected_period(self) -> None:
         today = timezone.localdate()
