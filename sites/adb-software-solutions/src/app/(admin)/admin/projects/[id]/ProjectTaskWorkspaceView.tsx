@@ -1,5 +1,6 @@
 "use client";
 
+import { TaskCompletionToggle } from "@/components/admin/TaskCompletionToggle";
 import {
     Badge,
     Button,
@@ -22,7 +23,7 @@ import {
     useState,
 } from "react";
 
-type ViewMode = "list" | "board" | "timeline";
+type ViewMode = "list" | "board";
 
 interface WorkspaceTask {
     id: number;
@@ -204,8 +205,8 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
     }, [projectId]);
 
     useEffect(() => {
-        const stored = window.localStorage.getItem(`project-task-view:${projectId}`) as ViewMode | null;
-        if (stored === "list" || stored === "board" || stored === "timeline") setView(stored);
+        const stored = window.localStorage.getItem(`project-task-view:${projectId}`);
+        if (stored === "list" || stored === "board") setView(stored);
         void load();
     }, [load, projectId]);
 
@@ -256,18 +257,6 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
         return columns;
     }, [workspace]);
 
-    const timeline = useMemo(() => {
-        if (!workspace) return null;
-        const tasks = allTasks(workspace).filter((task) => task.start_date || task.due_date);
-        if (!tasks.length) return null;
-        const dates = tasks.flatMap((task) => [task.start_date, task.due_date]).filter(Boolean) as string[];
-        const stamps = dates.map((value) => new Date(`${value}T00:00:00`).getTime());
-        let start = Math.min(...stamps) - 2 * 86_400_000;
-        let end = Math.max(...stamps) + 2 * 86_400_000;
-        if (start === end) end += 7 * 86_400_000;
-        return { tasks, start, end, duration: Math.max(86_400_000, end - start) };
-    }, [workspace]);
-
     function taskIdFromDrop(event: DragEvent) {
         event.preventDefault();
         return Number(event.dataTransfer.getData("text/plain") || draggedTaskId || 0);
@@ -307,11 +296,7 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
         await moveTask(taskId, column, remaining.at(-1)?.id ?? null, null);
     }
 
-    async function dropBefore(
-        event: DragEvent,
-        column: BoardColumn,
-        targetTaskId: number,
-    ) {
+    async function dropBefore(event: DragEvent, column: BoardColumn, targetTaskId: number) {
         if (!workspace?.can_change_task) return;
         event.stopPropagation();
         const taskId = taskIdFromDrop(event);
@@ -331,7 +316,7 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
     const openTasks = projectTasks.filter((task) => !task.completed).length;
 
     return (
-        <section className="space-y-5 border-t border-slate-800 pt-8">
+        <section className="space-y-5 border-t border-slate-800 pt-6">
             {error ? (
                 <div className="rounded-lg border border-red-900/70 bg-red-950/40 px-4 py-3 text-sm text-red-200">
                     {error}
@@ -362,7 +347,7 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
 
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="inline-flex w-fit rounded-lg border border-slate-800 bg-slate-900 p-1">
-                    {(["list", "board", "timeline"] as ViewMode[]).map((mode) => (
+                    {(["list", "board"] as ViewMode[]).map((mode) => (
                         <button
                             key={mode}
                             type="button"
@@ -446,30 +431,45 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
                                             </div>
                                             <div className="divide-y divide-slate-800">
                                                 {section.tasks.map((task) => (
-                                                    <Link
+                                                    <div
                                                         key={task.id}
-                                                        href={`/admin/tasks/${task.id}`}
                                                         className="grid gap-2 px-5 py-3 transition hover:bg-slate-900/60 md:grid-cols-[minmax(0,1fr)_9rem_6rem] md:items-center"
                                                     >
-                                                        <div className="min-w-0">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="truncate text-sm font-medium text-slate-200">
-                                                                    {task.title}
-                                                                </span>
-                                                                {task.blocked_by_count ? <Badge>Blocked</Badge> : null}
-                                                            </div>
-                                                            <div className="mt-1 text-xs text-slate-600">
-                                                                {task.assigned_to_name || "Unassigned"}
-                                                                {task.subtask_count
-                                                                    ? ` · ${task.subtask_count} subtasks`
-                                                                    : ""}
+                                                        <div className="flex min-w-0 items-start gap-2">
+                                                            <TaskCompletionToggle
+                                                                taskId={task.id}
+                                                                completed={task.completed}
+                                                                canChange={workspace.can_change_task}
+                                                                onChanged={load}
+                                                                size="sm"
+                                                            />
+                                                            <div className="min-w-0">
+                                                                <div className="flex items-center gap-2">
+                                                                    <Link
+                                                                        href={`/admin/tasks/${task.id}`}
+                                                                        className={`truncate text-sm font-medium hover:text-adb-cyan-300 ${
+                                                                            task.completed
+                                                                                ? "text-slate-600 line-through"
+                                                                                : "text-slate-200"
+                                                                        }`}
+                                                                    >
+                                                                        {task.title}
+                                                                    </Link>
+                                                                    {task.blocked_by_count ? <Badge>Blocked</Badge> : null}
+                                                                </div>
+                                                                <div className="mt-1 text-xs text-slate-600">
+                                                                    {task.assigned_to_name || "Unassigned"}
+                                                                    {task.subtask_count
+                                                                        ? ` · ${task.subtask_count} subtasks`
+                                                                        : ""}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                         <span className="text-xs text-slate-400">{task.status}</span>
                                                         <span className="text-xs text-slate-500">
                                                             {formatDate(task.due_date)}
                                                         </span>
-                                                    </Link>
+                                                    </div>
                                                 ))}
                                             </div>
                                         </div>
@@ -485,14 +485,31 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
                             </div>
                             <div className="divide-y divide-slate-800">
                                 {workspace.unlisted_tasks.map((task) => (
-                                    <Link
+                                    <div
                                         key={task.id}
-                                        href={`/admin/tasks/${task.id}`}
                                         className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-slate-900/60"
                                     >
-                                        <span className="text-sm font-medium text-slate-200">{task.title}</span>
+                                        <div className="flex min-w-0 items-center gap-2">
+                                            <TaskCompletionToggle
+                                                taskId={task.id}
+                                                completed={task.completed}
+                                                canChange={workspace.can_change_task}
+                                                onChanged={load}
+                                                size="sm"
+                                            />
+                                            <Link
+                                                href={`/admin/tasks/${task.id}`}
+                                                className={`truncate text-sm font-medium hover:text-adb-cyan-300 ${
+                                                    task.completed
+                                                        ? "text-slate-600 line-through"
+                                                        : "text-slate-200"
+                                                }`}
+                                            >
+                                                {task.title}
+                                            </Link>
+                                        </div>
                                         <span className="text-xs text-slate-500">{formatDate(task.due_date)}</span>
-                                    </Link>
+                                    </div>
                                 ))}
                             </div>
                         </Card>
@@ -587,23 +604,30 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
                                                             : ""
                                                     }`}
                                                 >
-                                                    <Link
-                                                        href={`/admin/tasks/${task.id}`}
-                                                        className="text-sm font-medium text-slate-100 hover:text-adb-cyan-300"
-                                                    >
-                                                        {task.title}
-                                                    </Link>
+                                                    <div className="flex items-start gap-2">
+                                                        <TaskCompletionToggle
+                                                            taskId={task.id}
+                                                            completed={task.completed}
+                                                            canChange={workspace.can_change_task}
+                                                            onChanged={load}
+                                                            size="sm"
+                                                        />
+                                                        <Link
+                                                            href={`/admin/tasks/${task.id}`}
+                                                            className={`min-w-0 flex-1 text-sm font-medium hover:text-adb-cyan-300 ${
+                                                                task.completed
+                                                                    ? "text-slate-600 line-through"
+                                                                    : "text-slate-100"
+                                                            }`}
+                                                        >
+                                                            {task.title}
+                                                        </Link>
+                                                    </div>
                                                     <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-500">
-                                                        <span>
-                                                            {task.assigned_to_name || "Unassigned"}
-                                                        </span>
-                                                        {task.due_date ? (
-                                                            <span>{formatDate(task.due_date)}</span>
-                                                        ) : null}
+                                                        <span>{task.assigned_to_name || "Unassigned"}</span>
+                                                        {task.due_date ? <span>{formatDate(task.due_date)}</span> : null}
                                                         {task.blocked_by_count ? <span>Blocked</span> : null}
-                                                        {task.subtask_count ? (
-                                                            <span>{task.subtask_count} subtasks</span>
-                                                        ) : null}
+                                                        {task.subtask_count ? <span>{task.subtask_count} subtasks</span> : null}
                                                     </div>
                                                     <div className="mt-3 flex items-center justify-between gap-3">
                                                         <Badge>{task.status}</Badge>
@@ -638,67 +662,6 @@ export function ProjectTaskWorkspaceView({ projectId }: { projectId: number }) {
                     <EmptyState
                         title="No board columns yet"
                         description="Create a task list and sections to build out this project's workflow."
-                    />
-                )
-            ) : null}
-
-            {view === "timeline" && totalTasks > 0 ? (
-                timeline ? (
-                    <Card className="overflow-hidden">
-                        <div className="grid grid-cols-[17rem_minmax(46rem,1fr)] border-b border-slate-800 bg-slate-900/60">
-                            <div className="border-r border-slate-800 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                Task
-                            </div>
-                            <div className="flex items-center justify-between px-4 py-3 text-xs text-slate-500">
-                                <span>{formatDate(new Date(timeline.start).toISOString().slice(0, 10))}</span>
-                                <span>{formatDate(new Date(timeline.end).toISOString().slice(0, 10))}</span>
-                            </div>
-                        </div>
-                        <div className="divide-y divide-slate-800">
-                            {timeline.tasks.map((task) => {
-                                const startValue = task.start_date || task.due_date;
-                                const endValue = task.due_date || task.start_date;
-                                if (!startValue || !endValue) return null;
-                                const taskStart = new Date(`${startValue}T00:00:00`).getTime();
-                                const taskEnd = new Date(`${endValue}T00:00:00`).getTime() + 86_400_000;
-                                const left = ((taskStart - timeline.start) / timeline.duration) * 100;
-                                const width = Math.max(
-                                    1.2,
-                                    ((taskEnd - taskStart) / timeline.duration) * 100,
-                                );
-                                return (
-                                    <div key={task.id} className="grid grid-cols-[17rem_minmax(46rem,1fr)]">
-                                        <div className="border-r border-slate-800 px-4 py-3">
-                                            <Link
-                                                href={`/admin/tasks/${task.id}`}
-                                                className="block truncate text-sm font-medium text-slate-200 hover:text-adb-cyan-300"
-                                            >
-                                                {task.title}
-                                            </Link>
-                                            <div className="mt-1 text-[11px] text-slate-600">
-                                                {task.assigned_to_name || "Unassigned"}
-                                            </div>
-                                        </div>
-                                        <div className="relative min-h-14 bg-[linear-gradient(to_right,rgba(51,65,85,0.22)_1px,transparent_1px)] bg-[size:8.333%_100%]">
-                                            <div
-                                                className="absolute top-4 h-6 rounded-md border border-adb-cyan-500/40 bg-adb-cyan-500/20 px-2 text-[11px] leading-6 text-adb-cyan-200"
-                                                style={{
-                                                    left: `calc(${Math.max(0, left)}% + 1rem)`,
-                                                    width: `${Math.min(100 - Math.max(0, left), width)}%`,
-                                                }}
-                                            >
-                                                <span className="block truncate">{task.title}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </Card>
-                ) : (
-                    <EmptyState
-                        title="No dated project tasks"
-                        description="Add start and due dates to tasks to build a project timeline."
                     />
                 )
             ) : null}
