@@ -17,8 +17,8 @@ import {
     TableHeaderCell,
     TableRow,
 } from "@/components/ui";
-import { OverviewAPI } from "@/lib/api/overview";
 import { fetchAPI } from "@/lib/api/fetch";
+import { OverviewAPI } from "@/lib/api/overview";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClientWorkspace } from "./[id]/ClientWorkspace";
 
@@ -40,6 +40,7 @@ interface ClientStats {
     archived: number;
     contacts: number;
     projects: number;
+    active_projects: number;
 }
 
 interface ClientOverviewResponse {
@@ -61,43 +62,20 @@ function statusClasses(status: string) {
     return "border-amber-900/70 bg-amber-950/40 text-amber-300";
 }
 
-function StatCard({
-    label,
-    value,
-    detail,
-    active = false,
-    onClick,
-}: {
-    label: string;
-    value: number;
-    detail: string;
-    active?: boolean;
-    onClick?: () => void;
-}) {
-    const content = (
-        <>
+function statusLabel(status: string) {
+    if (status === "all") return "All clients";
+    return `${status.charAt(0).toUpperCase()}${status.slice(1)} clients`;
+}
+
+function StatCard({ label, value, detail }: { label: string; value: number; detail: string }) {
+    return (
+        <Card className="p-4">
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                 {label}
             </div>
             <div className="mt-2 text-2xl font-semibold tabular-nums text-white">{value}</div>
             <div className="mt-1 text-xs text-slate-500">{detail}</div>
-        </>
-    );
-
-    if (!onClick) return <Card className="p-4">{content}</Card>;
-
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={`rounded-xl border p-4 text-left transition ${
-                active
-                    ? "border-adb-cyan-500/60 bg-adb-cyan-950/20"
-                    : "border-slate-800 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-900/60"
-            }`}
-        >
-            {content}
-        </button>
+        </Card>
     );
 }
 
@@ -105,15 +83,18 @@ export function ClientList() {
     const [data, setData] = useState<ClientOverviewResponse | null>(null);
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
-    const [status, setStatus] = useState("");
+    const [status, setStatus] = useState("active");
     const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const query = useMemo(() => {
-        const params = new URLSearchParams({ page: String(page), page_size: "25" });
+        const params = new URLSearchParams({
+            page: String(page),
+            page_size: "25",
+            status,
+        });
         if (search.trim()) params.set("search", search.trim());
-        if (status) params.set("status", status);
         return params.toString();
     }, [page, search, status]);
 
@@ -153,28 +134,24 @@ export function ClientList() {
             {stats ? (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <StatCard
-                        label="Clients"
+                        label={statusLabel(status)}
                         value={stats.total}
-                        detail={`${stats.inactive} inactive · ${stats.archived} archived`}
-                        active={!status}
-                        onClick={() => setStatus("")}
+                        detail="Accounts in the current view"
                     />
                     <StatCard
-                        label="Active"
-                        value={stats.active}
-                        detail="Current client accounts"
-                        active={status === "active"}
-                        onClick={() => setStatus(status === "active" ? "" : "active")}
-                    />
-                    <StatCard
-                        label="Contacts"
+                        label="Active contacts"
                         value={stats.contacts}
-                        detail="People across visible accounts"
+                        detail="Current people across these accounts"
                     />
                     <StatCard
-                        label="Projects"
+                        label="Current projects"
+                        value={stats.active_projects}
+                        detail="Planning, active or paused work"
+                    />
+                    <StatCard
+                        label="All projects"
                         value={stats.projects}
-                        detail="Current and historical delivery"
+                        detail="Delivery history for these accounts"
                     />
                 </div>
             ) : null}
@@ -188,12 +165,18 @@ export function ClientList() {
                         aria-label="Search clients"
                     />
                     <Select value={status} onChange={(event) => setStatus(event.target.value)}>
-                        <option value="">All statuses</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="archived">Archived</option>
+                        <option value="active">Active clients</option>
+                        <option value="inactive">Inactive clients</option>
+                        <option value="archived">Archived clients</option>
+                        <option value="all">All clients</option>
                     </Select>
                 </div>
+
+                {status !== "active" ? (
+                    <div className="border-b border-slate-800 bg-amber-950/10 px-4 py-2 text-xs text-amber-300">
+                        You are viewing {status === "all" ? "all client history" : `${status} clients`}.
+                    </div>
+                ) : null}
 
                 {error ? (
                     <div className="border-b border-slate-800 p-4">
@@ -204,7 +187,7 @@ export function ClientList() {
                 {clients.length === 0 ? (
                     <EmptyState
                         title="No clients match this view"
-                        description="Try changing the search or status filter."
+                        description="Try changing the search or client status."
                     />
                 ) : (
                     <Table>
@@ -213,7 +196,7 @@ export function ClientList() {
                                 <TableHeaderCell>Client</TableHeaderCell>
                                 <TableHeaderCell>Status</TableHeaderCell>
                                 <TableHeaderCell>Active work</TableHeaderCell>
-                                <TableHeaderCell>Contacts</TableHeaderCell>
+                                <TableHeaderCell>Active contacts</TableHeaderCell>
                                 <TableHeaderCell>Projects</TableHeaderCell>
                                 <TableHeaderCell>Primary email</TableHeaderCell>
                             </tr>
@@ -244,7 +227,7 @@ export function ClientList() {
                                         <div className="font-medium tabular-nums text-slate-200">
                                             {client.active_project_count}
                                         </div>
-                                        <div className="mt-1 text-xs text-slate-600">active projects</div>
+                                        <div className="mt-1 text-xs text-slate-600">current projects</div>
                                     </TableCell>
                                     <TableCell className="tabular-nums text-slate-400">
                                         {client.contact_count}
@@ -276,7 +259,7 @@ export function ClientList() {
                         void loadClients();
                     }}
                 >
-                    <ClientWorkspace clientId={selectedClientId} />
+                    <ClientWorkspace clientId={selectedClientId} presentation="drawer" />
                 </RecordDrawer>
             ) : null}
         </div>

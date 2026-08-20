@@ -12,6 +12,8 @@ from .overview_schemas import ClientOverviewItemOut, ClientOverviewOut, ClientOv
 
 client_overview_router = Router(tags=["admin-client-overview"])
 StaffProblem = tuple[int, dict[str, Any]]
+CLIENT_STATUSES = {"active", "inactive", "archived"}
+CURRENT_PROJECT_STATUSES = ("planning", "active", "paused")
 
 
 def _permission_problem(request: HttpRequest) -> StaffProblem | None:
@@ -51,28 +53,33 @@ def client_overview(
     if problem:
         return problem
 
+    selected_status = status if status in CLIENT_STATUSES or status == "all" else "active"
     base = scope_clients_for_user(request.user)
-    aggregate = base.aggregate(
+    scoped = base if selected_status == "all" else base.filter(status=selected_status)
+    aggregate = scoped.aggregate(
         total=Count("id", distinct=True),
         active=Count("id", filter=Q(status="active"), distinct=True),
         inactive=Count("id", filter=Q(status="inactive"), distinct=True),
         archived=Count("id", filter=Q(status="archived"), distinct=True),
-        contacts=Count("contacts", distinct=True),
+        contacts=Count("contacts", filter=Q(contacts__is_active=True), distinct=True),
         projects=Count("projects", distinct=True),
-    )
-    stats = ClientOverviewStatsOut(**aggregate)
-
-    clients = base.annotate(
-        contact_count=Count("contacts", distinct=True),
-        project_count=Count("projects", distinct=True),
-        active_project_count=Count(
+        active_projects=Count(
             "projects",
-            filter=Q(projects__status__in=("planning", "active", "paused")),
+            filter=Q(projects__status__in=CURRENT_PROJECT_STATUSES),
             distinct=True,
         ),
     )
-    if status in {"active", "inactive", "archived"}:
-        clients = clients.filter(status=status)
+    stats = ClientOverviewStatsOut(**aggregate)
+
+    clients = scoped.annotate(
+        contact_count=Count("contacts", filter=Q(contacts__is_active=True), distinct=True),
+        project_count=Count("projects", distinct=True),
+        active_project_count=Count(
+            "projects",
+            filter=Q(projects__status__in=CURRENT_PROJECT_STATUSES),
+            distinct=True,
+        ),
+    )
     if search:
         term = search.strip()
         if term:
@@ -80,8 +87,8 @@ def client_overview(
                 Q(name__icontains=term)
                 | Q(company__icontains=term)
                 | Q(email__icontains=term)
-                | Q(contacts__name__icontains=term)
-                | Q(contacts__email__icontains=term)
+                | Q(contacts__name__icontains=term, contacts__is_active=True)
+                | Q(contacts__email__icontains=term, contacts__is_active=True)
             ).distinct()
 
     page = max(page, 1)

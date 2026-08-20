@@ -3,6 +3,7 @@
 import { RelatedTicketList } from "@/components/ticketing/RelatedTicketList";
 import {
     Badge,
+    Button,
     Card,
     DataError,
     DataLoading,
@@ -17,7 +18,7 @@ import {
 import { AdminAPI } from "@/lib/api/endpoints";
 import { fetchAPI } from "@/lib/api/fetch";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 interface Contact {
     id: number;
@@ -57,8 +58,16 @@ interface ClientDetail {
     projects: Project[];
 }
 
-export function ClientWorkspace({ clientId }: { clientId: number }) {
+export function ClientWorkspace({
+    clientId,
+    presentation = "page",
+}: {
+    clientId: number;
+    presentation?: "page" | "drawer";
+}) {
     const [client, setClient] = useState<ClientDetail | null>(null);
+    const [showInactiveContacts, setShowInactiveContacts] = useState(false);
+    const [showArchivedProjects, setShowArchivedProjects] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -80,6 +89,17 @@ export function ClientWorkspace({ clientId }: { clientId: number }) {
         void loadClient();
     }, [loadClient]);
 
+    const visibleContacts = useMemo(
+        () => client?.contacts.filter((contact) => showInactiveContacts || contact.is_active) ?? [],
+        [client, showInactiveContacts],
+    );
+    const inactiveContactCount = client?.contacts.filter((contact) => !contact.is_active).length ?? 0;
+    const visibleProjects = useMemo(
+        () => client?.projects.filter((project) => showArchivedProjects || project.status !== "archived") ?? [],
+        [client, showArchivedProjects],
+    );
+    const archivedProjectCount = client?.projects.filter((project) => project.status === "archived").length ?? 0;
+
     if (isLoading) return <DataLoading label="Loading client workspace..." />;
     if (error || !client) {
         return (
@@ -98,13 +118,17 @@ export function ClientWorkspace({ clientId }: { clientId: number }) {
         <div className="space-y-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                    <Link
-                        href="/admin/clients"
-                        className="text-xs text-slate-500 hover:text-slate-300"
+                    {presentation === "page" ? (
+                        <Link
+                            href="/admin/clients"
+                            className="text-xs text-slate-500 hover:text-slate-300"
+                        >
+                            ← Clients
+                        </Link>
+                    ) : null}
+                    <div
+                        className={`${presentation === "page" ? "mt-2 " : ""}flex items-center gap-3`}
                     >
-                        ← Clients
-                    </Link>
-                    <div className="mt-2 flex items-center gap-3">
                         <h1 className="text-2xl font-semibold text-white">
                             {client.company || client.name}
                         </h1>
@@ -179,16 +203,30 @@ export function ClientWorkspace({ clientId }: { clientId: number }) {
             </Card>
 
             <Card className="p-5">
-                <div className="mb-4">
-                    <h2 className="text-sm font-semibold text-white">Contacts</h2>
-                    <p className="mt-1 text-xs text-slate-500">
-                        People associated with this client account.
-                    </p>
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h2 className="text-sm font-semibold text-white">Contacts</h2>
+                        <p className="mt-1 text-xs text-slate-500">
+                            Active people associated with this client account.
+                        </p>
+                    </div>
+                    {inactiveContactCount > 0 ? (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowInactiveContacts((value) => !value)}
+                        >
+                            {showInactiveContacts
+                                ? "Hide inactive"
+                                : `Show inactive (${inactiveContactCount})`}
+                        </Button>
+                    ) : null}
                 </div>
-                {client.contacts.length === 0 ? (
+                {visibleContacts.length === 0 ? (
                     <EmptyState
-                        title="No visible contacts"
-                        description="No contacts are available in your current permission scope."
+                        title="No active contacts"
+                        description="Inactive contacts stay hidden unless you explicitly show them."
                     />
                 ) : (
                     <Table>
@@ -201,7 +239,7 @@ export function ClientWorkspace({ clientId }: { clientId: number }) {
                             </tr>
                         </TableHead>
                         <TableBody>
-                            {client.contacts.map((contact) => (
+                            {visibleContacts.map((contact) => (
                                 <TableRow key={contact.id}>
                                     <TableCell>
                                         <Link
@@ -245,16 +283,30 @@ export function ClientWorkspace({ clientId }: { clientId: number }) {
             </Card>
 
             <Card className="p-5">
-                <div className="mb-4">
-                    <h2 className="text-sm font-semibold text-white">Projects</h2>
-                    <p className="mt-1 text-xs text-slate-500">
-                        Current and historical work for this account.
-                    </p>
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h2 className="text-sm font-semibold text-white">Projects</h2>
+                        <p className="mt-1 text-xs text-slate-500">
+                            Current and completed work for this account.
+                        </p>
+                    </div>
+                    {archivedProjectCount > 0 ? (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowArchivedProjects((value) => !value)}
+                        >
+                            {showArchivedProjects
+                                ? "Hide archived"
+                                : `Show archived (${archivedProjectCount})`}
+                        </Button>
+                    ) : null}
                 </div>
-                {client.projects.length === 0 ? (
+                {visibleProjects.length === 0 ? (
                     <EmptyState
                         title="No visible projects"
-                        description="No projects are available in your current permission scope."
+                        description="Archived projects stay out of the way unless you explicitly show them."
                     />
                 ) : (
                     <Table>
@@ -267,7 +319,7 @@ export function ClientWorkspace({ clientId }: { clientId: number }) {
                             </tr>
                         </TableHead>
                         <TableBody>
-                            {client.projects.map((project) => (
+                            {visibleProjects.map((project) => (
                                 <TableRow key={project.id}>
                                     <TableCell>
                                         <Link
