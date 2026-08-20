@@ -23,13 +23,22 @@ interface TaskListShortcut {
 
 const primaryLinks = [
     { label: "Projects", href: "/admin/projects", icon: FolderIcon },
-    { label: "Tasks", href: "/admin/tasks", icon: ListBulletIcon },
+    { label: "My tasks", href: "/admin/tasks", icon: ListBulletIcon },
     { label: "Task lists", href: "/admin/task-lists", icon: RectangleStackIcon },
     { label: "Time tracking", href: "/admin/time-tracking", icon: BanknotesIcon },
 ];
 
+const taskViews = [
+    { label: "Today", href: "/admin/tasks?view=today" },
+    { label: "Upcoming", href: "/admin/tasks?view=upcoming" },
+    { label: "Overdue", href: "/admin/tasks?view=overdue" },
+    { label: "Completed", href: "/admin/tasks?view=completed" },
+    { label: "All tasks", href: "/admin/tasks?view=all" },
+];
+
 function active(pathname: string, href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
+    const hrefPath = href.split("?")[0];
+    return pathname === hrefPath || pathname.startsWith(`${hrefPath}/`);
 }
 
 export function WorkManagementSidebar() {
@@ -87,6 +96,25 @@ export function WorkManagementSidebar() {
                         );
                     })}
                 </div>
+
+                {hasPermission("tasks.view_task") ? (
+                    <div className="mt-6 border-t border-slate-900 pt-5">
+                        <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600">
+                            Task views
+                        </div>
+                        <div className="space-y-0.5">
+                            {taskViews.map((view) => (
+                                <Link
+                                    key={view.href}
+                                    href={view.href}
+                                    className="block rounded-lg px-3 py-1.5 text-sm text-slate-500 transition hover:bg-slate-900 hover:text-slate-200"
+                                >
+                                    {view.label}
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
 
                 {taskLists.length > 0 ? (
                     <div className="mt-7">
