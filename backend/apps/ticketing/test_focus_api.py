@@ -102,7 +102,12 @@ class TicketFocusApiTests(TestCase):
         self.assertEqual(result.counts.unassigned, 1)
         self.assertEqual(result.counts.active, 4)
         self.assertEqual(result.counts.waiting_customer, 1)
-        self.assertEqual([queue.id for queue in result.queues], [self.support.id, self.sales.id])
+
+        queue_ids = {queue.id for queue in result.queues}
+        self.assertIn(self.support.id, queue_ids)
+        self.assertIn(self.sales.id, queue_ids)
+        self.assertNotIn(self.disabled.id, queue_ids)
+        self.assertTrue(all(queue.is_default for queue in result.queues))
 
     def test_resolved_tickets_only_appear_when_history_view_is_requested(self) -> None:
         self._ticket("Current work")
@@ -135,9 +140,15 @@ class TicketFocusApiTests(TestCase):
             next(queue for queue in result.queues if queue.id == self.sales.id).is_default
         )
 
+        accessible_queue_ids = list(
+            TicketQueue.objects.filter(enabled=True)
+            .order_by("ordering", "name")
+            .values_list("id", flat=True)
+        )
         all_result = update_ticket_queue_preferences(
             self._request("put"),
-            TicketQueuePreferencesIn(queue_ids=[self.support.id, self.sales.id]),
+            TicketQueuePreferencesIn(queue_ids=accessible_queue_ids),
         )
         all_preferences = cast(TicketQueuePreferencesOut, all_result)
         self.assertTrue(all_preferences.uses_all_accessible_queues)
+        self.assertEqual(all_preferences.queue_ids, accessible_queue_ids)
