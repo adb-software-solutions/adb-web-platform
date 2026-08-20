@@ -1,6 +1,5 @@
 import { Container, DataLoading, PageHeader } from "@/components/ui";
 import { Suspense } from "react";
-import { TimeReportOverview } from "./TimeReportOverview";
 import { TimeTrackingWorkspace } from "./TimeTrackingWorkspace";
 
 export const metadata = {
@@ -12,15 +11,12 @@ export default function TimeTrackingPage() {
         <Container className="py-8">
             <PageHeader
                 title="Time tracking"
-                description="Understand where time goes across the business, then record client or internal work manually or with a persistent timer."
+                description="Record time quickly, then review delivery by Client, Project or ADB internal work for the period that matters."
             />
-            <div className="mt-6 space-y-10">
-                <TimeReportOverview />
-                <div className="border-t border-slate-800 pt-8">
-                    <Suspense fallback={<DataLoading label="Loading time tracking..." />}>
-                        <TimeTrackingWorkspace />
-                    </Suspense>
-                </div>
+            <div className="mt-6">
+                <Suspense fallback={<DataLoading label="Loading time tracking..." />}>
+                    <TimeTrackingWorkspace />
+                </Suspense>
             </div>
         </Container>
     );

@@ -20,13 +20,16 @@ import {
 } from "@/components/ui";
 import { AdminAPI } from "@/lib/api/endpoints";
 import { fetchAPI } from "@/lib/api/fetch";
+import { API_URL } from "@/lib/config";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 type Ownership = "client" | "internal";
 type ContextType = "internal" | "client" | "project" | "task" | "ticket";
-type RecordingMode = "manual" | "timer" | null;
+type RecordingPanel = "manual" | "timer" | null;
+type BrowseMode = "clients" | "projects" | "internal";
+type Period = "this_week" | "last_week" | "30d" | "this_month" | "last_month" | "this_year";
 
 interface ClientOption {
     id: number;
@@ -67,6 +70,46 @@ interface TimeOptions {
     can_add_time: boolean;
 }
 
+interface RunningTimer {
+    id: number;
+    started_at: string;
+    elapsed_seconds: number;
+    description: string;
+    billable: boolean;
+    ownership_type: Ownership;
+    client_id: number | null;
+    client_name: string | null;
+    project_id: number | null;
+    project_name: string | null;
+    task_id: number | null;
+    task_title: string | null;
+    ticket_id: number | null;
+    ticket_reference: string | null;
+    ticket_subject: string | null;
+}
+
+interface ClientSummary {
+    client_id: number;
+    client_name: string;
+    tracked_hours: string;
+    billable_hours: string;
+    non_billable_hours: string;
+    entry_count: number;
+    project_count: number;
+}
+
+interface TimeSummary {
+    date_from: string;
+    date_to: string;
+    tracked_hours: string;
+    billable_hours: string;
+    non_billable_hours: string;
+    client_hours: string;
+    internal_hours: string;
+    entry_count: number;
+    clients: ClientSummary[];
+}
+
 interface TimeEntry {
     id: number;
     date: string;
@@ -87,31 +130,16 @@ interface TimeEntry {
     user_name: string | null;
 }
 
-interface TimePage {
-    items: TimeEntry[];
+interface TimeEntriesReport {
+    date_from: string;
+    date_to: string;
+    tracked_hours: string;
+    billable_hours: string;
+    non_billable_hours: string;
     total: number;
     page: number;
     page_size: number;
-    tracked_hours: string;
-    billable_hours: string;
-}
-
-interface RunningTimer {
-    id: number;
-    started_at: string;
-    elapsed_seconds: number;
-    description: string;
-    billable: boolean;
-    ownership_type: Ownership;
-    client_id: number | null;
-    client_name: string | null;
-    project_id: number | null;
-    project_name: string | null;
-    task_id: number | null;
-    task_title: string | null;
-    ticket_id: number | null;
-    ticket_reference: string | null;
-    ticket_subject: string | null;
+    items: TimeEntry[];
 }
 
 interface ContextSelection {
@@ -128,12 +156,23 @@ interface ContextPayload {
     internal: boolean;
 }
 
-const PAGE_SIZE = 25;
+interface DrilldownScope {
+    type: "client" | "project" | "internal";
+    id: number | null;
+    label: string;
+}
+
+const PAGE_SIZE = 50;
 const labelClasses = "space-y-1.5 text-sm font-medium text-slate-300";
-const INTERNAL_CONTEXT: ContextSelection = {
-    type: "internal",
-    targetId: null,
-};
+const INTERNAL_CONTEXT: ContextSelection = { type: "internal", targetId: null };
+const periods: Array<{ value: Period; label: string }> = [
+    { value: "this_week", label: "This week" },
+    { value: "last_week", label: "Last week" },
+    { value: "30d", label: "30 days" },
+    { value: "this_month", label: "This month" },
+    { value: "last_month", label: "Last month" },
+    { value: "this_year", label: "This year" },
+];
 
 function todayValue() {
     const now = new Date();
@@ -167,7 +206,7 @@ function queryId(value: string | null) {
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-function contextFromSearchParams(searchParams: URLSearchParams | ReadonlyURLSearchParamsLike) {
+function initialContextFromParams(searchParams: { get(name: string): string | null }) {
     const candidates: Array<[ContextType, string]> = [
         ["task", "task_id"],
         ["ticket", "ticket_id"],
@@ -181,15 +220,6 @@ function contextFromSearchParams(searchParams: URLSearchParams | ReadonlyURLSear
     return INTERNAL_CONTEXT;
 }
 
-interface ReadonlyURLSearchParamsLike {
-    get(name: string): string | null;
-}
-
-function modeFromSearchParams(searchParams: ReadonlyURLSearchParamsLike): RecordingMode {
-    const mode = searchParams.get("mode");
-    return mode === "manual" || mode === "timer" ? mode : null;
-}
-
 function resolveContext(selection: ContextSelection, options: TimeOptions): ContextPayload | null {
     if (selection.type === "internal") {
         return {
@@ -201,63 +231,66 @@ function resolveContext(selection: ContextSelection, options: TimeOptions): Cont
             internal: true,
         };
     }
-
     if (selection.targetId === null) return null;
 
     if (selection.type === "client") {
         const client = options.clients.find((item) => item.id === selection.targetId);
-        if (!client) return null;
-        return {
-            ownership_type: "client",
-            client_id: client.id,
-            project_id: null,
-            task_id: null,
-            ticket_id: null,
-            internal: false,
-        };
+        return client
+            ? {
+                  ownership_type: "client",
+                  client_id: client.id,
+                  project_id: null,
+                  task_id: null,
+                  ticket_id: null,
+                  internal: false,
+              }
+            : null;
     }
-
     if (selection.type === "project") {
         const project = options.projects.find((item) => item.id === selection.targetId);
-        if (!project) return null;
-        return {
-            ownership_type: project.ownership_type,
-            client_id: project.client_id,
-            project_id: project.id,
-            task_id: null,
-            ticket_id: null,
-            internal: project.ownership_type === "internal",
-        };
+        return project
+            ? {
+                  ownership_type: project.ownership_type,
+                  client_id: project.client_id,
+                  project_id: project.id,
+                  task_id: null,
+                  ticket_id: null,
+                  internal: project.ownership_type === "internal",
+              }
+            : null;
     }
-
     if (selection.type === "task") {
         const task = options.tasks.find((item) => item.id === selection.targetId);
-        if (!task) return null;
-        return {
-            ownership_type: task.ownership_type,
-            client_id: task.client_id,
-            project_id: task.project_id,
-            task_id: task.id,
-            ticket_id: null,
-            internal: task.ownership_type === "internal",
-        };
+        return task
+            ? {
+                  ownership_type: task.ownership_type,
+                  client_id: task.client_id,
+                  project_id: task.project_id,
+                  task_id: task.id,
+                  ticket_id: null,
+                  internal: task.ownership_type === "internal",
+              }
+            : null;
     }
 
     const ticket = options.tickets.find((item) => item.id === selection.targetId);
-    if (!ticket) return null;
-    return {
-        ownership_type: ticket.client_id ? "client" : "internal",
-        client_id: ticket.client_id,
-        project_id: null,
-        task_id: null,
-        ticket_id: ticket.id,
-        internal: ticket.client_id === null,
-    };
+    return ticket
+        ? {
+              ownership_type: ticket.client_id ? "client" : "internal",
+              client_id: ticket.client_id,
+              project_id: null,
+              task_id: null,
+              ticket_id: ticket.id,
+              internal: ticket.client_id === null,
+          }
+        : null;
 }
 
 function contextLabel(entry: TimeEntry | RunningTimer) {
     if (entry.task_title) return entry.task_title;
-    if (entry.ticket_reference) return `${entry.ticket_reference}: ${entry.ticket_subject || "Ticket"}`;
+    if (entry.ticket_reference) {
+        return `${entry.ticket_reference}: ${entry.ticket_subject || "Ticket"}`;
+    }
     if (entry.project_name) return entry.project_name;
     if (entry.client_name) return entry.client_name;
     return "ADB Internal";
@@ -280,8 +313,6 @@ function ContextFields({
     onChange: (value: ContextSelection) => void;
     options: TimeOptions;
 }) {
-    const hasTargets = value.type !== "internal";
-
     return (
         <div className="grid gap-4 sm:grid-cols-2">
             <label className={labelClasses}>
@@ -299,10 +330,13 @@ function ContextFields({
                     <option value="ticket">Ticket</option>
                 </Select>
             </label>
-
-            {hasTargets ? (
+            {value.type === "internal" ? (
+                <div className="rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3 text-sm text-slate-500">
+                    Internal work stays separate from Clients and is always non-billable.
+                </div>
+            ) : (
                 <label className={labelClasses}>
-                    <span>{value.type.charAt(0).toUpperCase() + value.type.slice(1)}</span>
+                    <span className="capitalize">{value.type}</span>
                     <Select
                         value={value.targetId ?? ""}
                         onChange={(event) =>
@@ -344,10 +378,6 @@ function ContextFields({
                             : null}
                     </Select>
                 </label>
-            ) : (
-                <div className="rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3 text-sm text-slate-400">
-                    Internal work is kept separate from Clients and is always non-billable.
-                </div>
             )}
         </div>
     );
@@ -355,16 +385,27 @@ function ContextFields({
 
 export function TimeTrackingWorkspace() {
     const searchParams = useSearchParams();
-    const initialContext = useMemo(() => contextFromSearchParams(searchParams), [searchParams]);
-    const initialMode = useMemo(() => modeFromSearchParams(searchParams), [searchParams]);
+    const initialContext = useMemo(() => initialContextFromParams(searchParams), [searchParams]);
+    const requestedMode = searchParams.get("mode");
     const [options, setOptions] = useState<TimeOptions | null>(null);
-    const [pageData, setPageData] = useState<TimePage | null>(null);
     const [timer, setTimer] = useState<RunningTimer | null>(null);
+    const [summary, setSummary] = useState<TimeSummary | null>(null);
+    const [entries, setEntries] = useState<TimeEntriesReport | null>(null);
+    const [period, setPeriod] = useState<Period>("this_month");
+    const [browseMode, setBrowseMode] = useState<BrowseMode>(
+        initialContext.type === "project" ? "projects" : "clients",
+    );
+    const [scope, setScope] = useState<DrilldownScope | null>(null);
     const [page, setPage] = useState(1);
+    const [recordingPanel, setRecordingPanel] = useState<RecordingPanel>(
+        requestedMode === "manual" || requestedMode === "timer" ? requestedMode : null,
+    );
     const [now, setNow] = useState(Date.now());
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [reportLoading, setReportLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [refreshVersion, setRefreshVersion] = useState(0);
 
     const [manualContext, setManualContext] = useState<ContextSelection>(initialContext);
     const [manualDate, setManualDate] = useState(todayValue());
@@ -372,58 +413,45 @@ export function TimeTrackingWorkspace() {
     const [manualMinutes, setManualMinutes] = useState("30");
     const [manualDescription, setManualDescription] = useState("");
     const [manualBillable, setManualBillable] = useState(false);
-
     const [timerContext, setTimerContext] = useState<ContextSelection>(initialContext);
     const [timerDescription, setTimerDescription] = useState("");
     const [timerBillable, setTimerBillable] = useState(false);
 
-    const query = useMemo(() => {
-        const params = new URLSearchParams({
-            page: String(page),
-            page_size: String(PAGE_SIZE),
-        });
-        return params.toString();
-    }, [page]);
-
-    const load = useCallback(async () => {
+    const loadBootstrap = useCallback(async () => {
         try {
-            setIsLoading(true);
+            setLoading(true);
             setError(null);
-            const [loadedOptions, loadedPage, loadedTimer] = await Promise.all([
+            const [loadedOptions, loadedTimer] = await Promise.all([
                 fetchAPI(AdminAPI.timeEntries.options()) as Promise<TimeOptions>,
-                fetchAPI(AdminAPI.timeEntries.list(query)) as Promise<TimePage>,
                 fetchAPI(AdminAPI.timeEntries.timer.current()) as Promise<RunningTimer | null>,
             ]);
             setOptions(loadedOptions);
-            setPageData(loadedPage);
             setTimer(loadedTimer);
+
+            if (initialContext.type === "client" && initialContext.targetId) {
+                const client = loadedOptions.clients.find((item) => item.id === initialContext.targetId);
+                if (client) {
+                    setBrowseMode("clients");
+                    setScope({ type: "client", id: client.id, label: client.name });
+                }
+            }
+            if (initialContext.type === "project" && initialContext.targetId) {
+                const project = loadedOptions.projects.find((item) => item.id === initialContext.targetId);
+                if (project) {
+                    setBrowseMode("projects");
+                    setScope({ type: "project", id: project.id, label: project.name });
+                }
+            }
         } catch (loadError) {
-            setError(
-                loadError instanceof Error
-                    ? loadError.message
-                    : "Unable to load time tracking data.",
-            );
+            setError(loadError instanceof Error ? loadError.message : "Unable to load time tracking.");
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
-    }, [query]);
-
-    useEffect(() => {
-        void load();
-    }, [load]);
-
-    useEffect(() => {
-        setManualContext(initialContext);
-        setTimerContext(initialContext);
     }, [initialContext]);
 
     useEffect(() => {
-        if (!options || initialContext.type === "internal") return;
-        if (resolveContext(initialContext, options)) return;
-        setManualContext(INTERNAL_CONTEXT);
-        setTimerContext(INTERNAL_CONTEXT);
-        setError("The requested work item is not available in your time-tracking scope.");
-    }, [initialContext, options]);
+        void loadBootstrap();
+    }, [loadBootstrap]);
 
     useEffect(() => {
         if (!timer) return;
@@ -431,8 +459,70 @@ export function TimeTrackingWorkspace() {
         return () => window.clearInterval(interval);
     }, [timer]);
 
+    useEffect(() => {
+        async function loadSummary() {
+            try {
+                setReportLoading(true);
+                const query = new URLSearchParams({ period });
+                setSummary(
+                    (await fetchAPI(AdminAPI.timeEntries.report(query.toString()))) as TimeSummary,
+                );
+            } catch (loadError) {
+                setError(loadError instanceof Error ? loadError.message : "Unable to load time summary.");
+            } finally {
+                setReportLoading(false);
+            }
+        }
+        void loadSummary();
+    }, [period, refreshVersion]);
+
+    useEffect(() => {
+        if (!scope) {
+            setEntries(null);
+            return;
+        }
+
+        async function loadEntries() {
+            try {
+                setReportLoading(true);
+                const query = new URLSearchParams({
+                    period,
+                    page: String(page),
+                    page_size: String(PAGE_SIZE),
+                });
+                if (scope?.type === "client" && scope.id) query.set("client_id", String(scope.id));
+                if (scope?.type === "project" && scope.id) query.set("project_id", String(scope.id));
+                if (scope?.type === "internal") query.set("ownership_type", "internal");
+                setEntries(
+                    (await fetchAPI(
+                        `${API_URL}/api/admin/time-reports/entries?${query.toString()}`,
+                    )) as TimeEntriesReport,
+                );
+            } catch (loadError) {
+                setError(loadError instanceof Error ? loadError.message : "Unable to load time entries.");
+            } finally {
+                setReportLoading(false);
+            }
+        }
+        void loadEntries();
+    }, [page, period, refreshVersion, scope]);
+
     const manualPayload = options ? resolveContext(manualContext, options) : null;
     const timerPayload = options ? resolveContext(timerContext, options) : null;
+    const clientSummaryById = useMemo(
+        () => new Map((summary?.clients ?? []).map((client) => [client.client_id, client])),
+        [summary],
+    );
+
+    function selectBrowseMode(mode: BrowseMode) {
+        setBrowseMode(mode);
+        setPage(1);
+        if (mode === "internal") {
+            setScope({ type: "internal", id: null, label: "ADB Internal" });
+        } else {
+            setScope(null);
+        }
+    }
 
     async function addManualEntry(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -440,15 +530,12 @@ export function TimeTrackingWorkspace() {
             setError("Select a valid context before recording time.");
             return;
         }
-        const hours = Number(manualHours || 0);
-        const minutes = Number(manualMinutes || 0);
-        const duration = hours + minutes / 60;
+        const duration = Number(manualHours || 0) + Number(manualMinutes || 0) / 60;
         if (duration <= 0) {
             setError("Tracked time must be greater than zero.");
             return;
         }
-
-        setIsSaving(true);
+        setSaving(true);
         setError(null);
         try {
             await fetchAPI(AdminAPI.timeEntries.create(), {
@@ -464,22 +551,22 @@ export function TimeTrackingWorkspace() {
             setManualHours("0");
             setManualMinutes("30");
             setManualDescription("");
-            setPage(1);
-            await load();
+            setRecordingPanel(null);
+            setRefreshVersion((value) => value + 1);
         } catch (saveError) {
             setError(saveError instanceof Error ? saveError.message : "Unable to record time.");
         } finally {
-            setIsSaving(false);
+            setSaving(false);
         }
     }
 
-    async function start(event: FormEvent<HTMLFormElement>) {
+    async function startTimer(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         if (!timerPayload) {
             setError("Select a valid context before starting the timer.");
             return;
         }
-        setIsSaving(true);
+        setSaving(true);
         setError(null);
         try {
             const started = (await fetchAPI(AdminAPI.timeEntries.timer.start(), {
@@ -492,34 +579,34 @@ export function TimeTrackingWorkspace() {
             })) as RunningTimer;
             setTimer(started);
             setNow(Date.now());
+            setRecordingPanel(null);
         } catch (startError) {
             setError(startError instanceof Error ? startError.message : "Unable to start timer.");
         } finally {
-            setIsSaving(false);
+            setSaving(false);
         }
     }
 
-    async function stop() {
-        setIsSaving(true);
+    async function stopTimer() {
+        setSaving(true);
         setError(null);
         try {
             await fetchAPI(AdminAPI.timeEntries.timer.stop(), {
                 method: "POST",
-                body: JSON.stringify({ description: timer?.description ?? null }),
+                body: JSON.stringify({}),
             });
             setTimer(null);
             setTimerDescription("");
-            setPage(1);
-            await load();
+            setRefreshVersion((value) => value + 1);
         } catch (stopError) {
             setError(stopError instanceof Error ? stopError.message : "Unable to stop timer.");
         } finally {
-            setIsSaving(false);
+            setSaving(false);
         }
     }
 
-    async function cancel() {
-        setIsSaving(true);
+    async function cancelTimer() {
+        setSaving(true);
         setError(null);
         try {
             await fetchAPI(AdminAPI.timeEntries.timer.cancel(), { method: "POST" });
@@ -527,288 +614,510 @@ export function TimeTrackingWorkspace() {
         } catch (cancelError) {
             setError(cancelError instanceof Error ? cancelError.message : "Unable to cancel timer.");
         } finally {
-            setIsSaving(false);
+            setSaving(false);
         }
     }
 
-    if (isLoading && !options) return <DataLoading label="Loading time tracking..." />;
-    if (error && !options) return <DataError message={error} onRetry={() => void load()} />;
+    if (loading && !options) return <DataLoading label="Loading time tracking..." />;
+    if (error && !options) return <DataError message={error} onRetry={() => void loadBootstrap()} />;
     if (!options) return null;
 
-    const billableHours = Number(pageData?.billable_hours ?? 0);
-    const trackedHours = Number(pageData?.tracked_hours ?? 0);
     const elapsed = timer
-        ? Math.floor((now - new Date(timer.started_at).getTime()) / 1000)
+        ? Math.max(
+              timer.elapsed_seconds,
+              Math.floor((now - new Date(timer.started_at).getTime()) / 1000),
+          )
         : 0;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-8">
             {error ? (
-                <div
-                    role="alert"
-                    className="rounded-lg border border-red-900/70 bg-red-950/40 px-4 py-3 text-sm text-red-200"
-                >
+                <div className="rounded-lg border border-red-900/70 bg-red-950/40 px-4 py-3 text-sm text-red-200">
                     {error}
                 </div>
             ) : null}
 
-            {timer ? (
-                <Card className="p-6">
-                    <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                        <div>
-                            <div className="text-xs font-medium uppercase tracking-wide text-emerald-400">
-                                Timer running
+            <section className="space-y-4">
+                {timer ? (
+                    <Card className="border-emerald-900/60 p-5">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                                <div className="text-xs font-semibold uppercase tracking-wide text-emerald-400">
+                                    Active timer
+                                </div>
+                                <div className="mt-1 text-lg font-semibold text-white">
+                                    {contextLabel(timer)}
+                                </div>
+                                <div className="mt-1 text-sm text-slate-500">
+                                    {timer.description || "Tracking work"}
+                                </div>
                             </div>
-                            <h2 className="mt-1 text-lg font-semibold text-white">
-                                {contextLabel(timer)}
-                            </h2>
-                            <p className="mt-1 text-sm text-slate-400">
-                                {timer.description || "No description yet"}
-                            </p>
-                        </div>
-                        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-                            <div className="font-mono text-3xl font-semibold tabular-nums text-white">
-                                {formatElapsed(elapsed)}
-                            </div>
-                            <div className="flex gap-2">
-                                <Button disabled={isSaving} onClick={() => void stop()}>
-                                    Stop timer
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className="font-mono text-3xl font-semibold tabular-nums text-white">
+                                    {formatElapsed(elapsed)}
+                                </div>
+                                <Button disabled={saving} onClick={() => void stopTimer()}>
+                                    {saving ? "Stopping…" : "Stop timer"}
                                 </Button>
-                                <Button
-                                    variant="outline"
-                                    disabled={isSaving}
-                                    onClick={() => void cancel()}
-                                >
+                                <Button variant="outline" disabled={saving} onClick={() => void cancelTimer()}>
                                     Cancel
                                 </Button>
                             </div>
                         </div>
-                    </div>
-                </Card>
-            ) : null}
-
-            {options.can_add_time ? (
-                <div id="record-time" className="grid scroll-mt-8 gap-6 xl:grid-cols-2">
-                    <Card
-                        className={`p-5 ${initialMode === "manual" ? "xl:order-2" : ""} ${initialMode === "timer" ? "ring-1 ring-cyan-800/60" : ""}`}
-                    >
-                        <h2 className="text-sm font-semibold text-white">Start timer</h2>
-                        <p className="mt-1 text-sm text-slate-500">
-                            The timer is stored server-side, so it keeps running if you leave this page.
-                        </p>
-                        <form onSubmit={(event) => void start(event)} className="mt-5 space-y-4">
-                            <ContextFields
-                                value={timerContext}
-                                onChange={setTimerContext}
-                                options={options}
-                            />
-                            <label className={`block ${labelClasses}`}>
-                                <span>Description</span>
-                                <Textarea
-                                    value={timerDescription}
-                                    onChange={(event) => setTimerDescription(event.target.value)}
-                                    rows={3}
-                                    placeholder="What are you working on?"
-                                />
-                            </label>
-                            <label className="flex items-center gap-2 text-sm text-slate-300">
-                                <input
-                                    type="checkbox"
-                                    checked={timerPayload?.internal ? false : timerBillable}
-                                    disabled={timerPayload?.internal ?? false}
-                                    onChange={(event) => setTimerBillable(event.target.checked)}
-                                />
-                                Billable
-                            </label>
-                            <Button type="submit" disabled={isSaving || timer !== null}>
-                                Start timer
-                            </Button>
-                        </form>
                     </Card>
-
-                    <Card
-                        className={`p-5 ${initialMode === "manual" ? "xl:order-1 ring-1 ring-cyan-800/60" : ""} ${initialMode === "timer" ? "xl:order-2" : ""}`}
-                    >
-                        <h2 className="text-sm font-semibold text-white">Add time manually</h2>
-                        <p className="mt-1 text-sm text-slate-500">
-                            Record work completed away from the timer or correct historical time.
-                        </p>
-                        <form
-                            onSubmit={(event) => void addManualEntry(event)}
-                            className="mt-5 space-y-4"
-                        >
-                            <ContextFields
-                                value={manualContext}
-                                onChange={setManualContext}
-                                options={options}
-                            />
-                            <div className="grid gap-4 sm:grid-cols-3">
-                                <label className={labelClasses}>
-                                    <span>Date</span>
-                                    <Input
-                                        type="date"
-                                        value={manualDate}
-                                        onChange={(event) => setManualDate(event.target.value)}
-                                        required
-                                    />
-                                </label>
-                                <label className={labelClasses}>
-                                    <span>Hours</span>
-                                    <Input
-                                        type="number"
-                                        min="0"
-                                        step="1"
-                                        value={manualHours}
-                                        onChange={(event) => setManualHours(event.target.value)}
-                                        required
-                                    />
-                                </label>
-                                <label className={labelClasses}>
-                                    <span>Minutes</span>
-                                    <Input
-                                        type="number"
-                                        min="0"
-                                        max="59"
-                                        step="1"
-                                        value={manualMinutes}
-                                        onChange={(event) => setManualMinutes(event.target.value)}
-                                        required
-                                    />
-                                </label>
-                            </div>
-                            <label className={`block ${labelClasses}`}>
-                                <span>Description</span>
-                                <Textarea
-                                    value={manualDescription}
-                                    onChange={(event) => setManualDescription(event.target.value)}
-                                    rows={3}
-                                    required
-                                />
-                            </label>
-                            <label className="flex items-center gap-2 text-sm text-slate-300">
-                                <input
-                                    type="checkbox"
-                                    checked={manualPayload?.internal ? false : manualBillable}
-                                    disabled={manualPayload?.internal ?? false}
-                                    onChange={(event) => setManualBillable(event.target.checked)}
-                                />
-                                Billable
-                            </label>
-                            <Button type="submit" disabled={isSaving}>
-                                Add time
-                            </Button>
-                        </form>
-                    </Card>
-                </div>
-            ) : (
-                <Card id="record-time" className="scroll-mt-8 p-5">
-                    <h2 className="text-sm font-semibold text-white">Time recording unavailable</h2>
-                    <p className="mt-2 text-sm text-slate-500">
-                        You can review tracked time, but your account does not have permission to add time entries or start timers.
-                    </p>
-                </Card>
-            )}
-
-            <div className="grid gap-4 sm:grid-cols-3">
-                <Card className="p-5">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Tracked</div>
-                    <div className="mt-2 text-2xl font-semibold text-white">
-                        {formatHours(trackedHours)}
-                    </div>
-                </Card>
-                <Card className="p-5">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Billable</div>
-                    <div className="mt-2 text-2xl font-semibold text-white">
-                        {formatHours(billableHours)}
-                    </div>
-                </Card>
-                <Card className="p-5">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Non-billable</div>
-                    <div className="mt-2 text-2xl font-semibold text-white">
-                        {formatHours(Math.max(0, trackedHours - billableHours))}
-                    </div>
-                </Card>
-            </div>
-
-            <Card className="overflow-hidden">
-                <div className="border-b border-slate-800 px-5 py-4">
-                    <h2 className="text-sm font-semibold text-white">Time history</h2>
-                </div>
-                {isLoading && !pageData ? <DataLoading label="Loading time entries..." /> : null}
-                {pageData && pageData.items.length === 0 ? (
-                    <EmptyState
-                        title="No time recorded yet"
-                        description="Manual entries and stopped timers will appear here."
-                    />
                 ) : null}
-                {pageData && pageData.items.length > 0 ? (
+
+                {options.can_add_time ? (
+                    <Card className="overflow-hidden">
+                        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                            <div>
+                                <h2 className="text-sm font-semibold text-white">Record time</h2>
+                                <p className="mt-1 text-xs text-slate-500">
+                                    Keep recording controls available without letting them dominate the page.
+                                </p>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button
+                                    variant={recordingPanel === "timer" ? "secondary" : "outline"}
+                                    disabled={timer !== null}
+                                    onClick={() =>
+                                        setRecordingPanel((current) => (current === "timer" ? null : "timer"))
+                                    }
+                                >
+                                    Start timer
+                                </Button>
+                                <Button
+                                    variant={recordingPanel === "manual" ? "secondary" : "outline"}
+                                    onClick={() =>
+                                        setRecordingPanel((current) =>
+                                            current === "manual" ? null : "manual",
+                                        )
+                                    }
+                                >
+                                    Add manually
+                                </Button>
+                            </div>
+                        </div>
+
+                        {recordingPanel === "timer" && !timer ? (
+                            <form
+                                onSubmit={(event) => void startTimer(event)}
+                                className="space-y-4 border-t border-slate-800 p-5"
+                            >
+                                <ContextFields
+                                    value={timerContext}
+                                    onChange={setTimerContext}
+                                    options={options}
+                                />
+                                <label className={`block ${labelClasses}`}>
+                                    <span>Description</span>
+                                    <Textarea
+                                        value={timerDescription}
+                                        onChange={(event) => setTimerDescription(event.target.value)}
+                                        rows={2}
+                                        placeholder="Optional — the work item will be used if left blank."
+                                    />
+                                </label>
+                                <label className="flex items-center gap-2 text-sm text-slate-300">
+                                    <input
+                                        type="checkbox"
+                                        checked={timerPayload?.internal ? false : timerBillable}
+                                        disabled={timerPayload?.internal ?? false}
+                                        onChange={(event) => setTimerBillable(event.target.checked)}
+                                    />
+                                    Billable
+                                </label>
+                                <Button type="submit" disabled={saving}>
+                                    Start timer
+                                </Button>
+                            </form>
+                        ) : null}
+
+                        {recordingPanel === "manual" ? (
+                            <form
+                                onSubmit={(event) => void addManualEntry(event)}
+                                className="space-y-4 border-t border-slate-800 p-5"
+                            >
+                                <ContextFields
+                                    value={manualContext}
+                                    onChange={setManualContext}
+                                    options={options}
+                                />
+                                <div className="grid gap-4 sm:grid-cols-3">
+                                    <label className={labelClasses}>
+                                        <span>Date</span>
+                                        <Input
+                                            type="date"
+                                            value={manualDate}
+                                            onChange={(event) => setManualDate(event.target.value)}
+                                            required
+                                        />
+                                    </label>
+                                    <label className={labelClasses}>
+                                        <span>Hours</span>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            value={manualHours}
+                                            onChange={(event) => setManualHours(event.target.value)}
+                                            required
+                                        />
+                                    </label>
+                                    <label className={labelClasses}>
+                                        <span>Minutes</span>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            max="59"
+                                            step="1"
+                                            value={manualMinutes}
+                                            onChange={(event) => setManualMinutes(event.target.value)}
+                                            required
+                                        />
+                                    </label>
+                                </div>
+                                <label className={`block ${labelClasses}`}>
+                                    <span>Description</span>
+                                    <Textarea
+                                        value={manualDescription}
+                                        onChange={(event) => setManualDescription(event.target.value)}
+                                        rows={2}
+                                        required
+                                    />
+                                </label>
+                                <label className="flex items-center gap-2 text-sm text-slate-300">
+                                    <input
+                                        type="checkbox"
+                                        checked={manualPayload?.internal ? false : manualBillable}
+                                        disabled={manualPayload?.internal ?? false}
+                                        onChange={(event) => setManualBillable(event.target.checked)}
+                                    />
+                                    Billable
+                                </label>
+                                <Button type="submit" disabled={saving}>
+                                    Add time
+                                </Button>
+                            </form>
+                        ) : null}
+                    </Card>
+                ) : null}
+            </section>
+
+            <section className="space-y-5">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                    <div>
+                        <h2 className="text-lg font-semibold text-white">Time workspace</h2>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Choose a period, then drill into the Client, Project or Internal work you care about.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap gap-1 rounded-lg border border-slate-800 bg-slate-900 p-1">
+                        {periods.map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => {
+                                    setPeriod(option.value);
+                                    setPage(1);
+                                }}
+                                className={`rounded-md px-3 py-2 text-xs font-medium transition ${
+                                    period === option.value
+                                        ? "bg-slate-700 text-white"
+                                        : "text-slate-400 hover:text-slate-200"
+                                }`}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {summary ? (
                     <>
-                        <Table>
-                            <TableHead>
-                                <tr>
-                                    <TableHeaderCell>Date</TableHeaderCell>
-                                    <TableHeaderCell>Work</TableHeaderCell>
-                                    <TableHeaderCell>Description</TableHeaderCell>
-                                    <TableHeaderCell>Staff</TableHeaderCell>
-                                    <TableHeaderCell>Type</TableHeaderCell>
-                                    <TableHeaderCell>Billing</TableHeaderCell>
-                                    <TableHeaderCell className="text-right">Time</TableHeaderCell>
-                                </tr>
-                            </TableHead>
-                            <TableBody>
-                                {pageData.items.map((entry) => {
-                                    const href = contextLink(entry);
+                        <div className="text-xs text-slate-600">
+                            {formatDate(summary.date_from)} – {formatDate(summary.date_to)} · {summary.entry_count} entries
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                            <Card className="p-5">
+                                <div className="text-xs uppercase tracking-wide text-slate-500">Tracked</div>
+                                <div className="mt-2 text-2xl font-semibold text-white">
+                                    {formatHours(summary.tracked_hours)}
+                                </div>
+                            </Card>
+                            <Card className="p-5">
+                                <div className="text-xs uppercase tracking-wide text-slate-500">Billable</div>
+                                <div className="mt-2 text-2xl font-semibold text-white">
+                                    {formatHours(summary.billable_hours)}
+                                </div>
+                            </Card>
+                            <Card className="p-5">
+                                <div className="text-xs uppercase tracking-wide text-slate-500">Client work</div>
+                                <div className="mt-2 text-2xl font-semibold text-white">
+                                    {formatHours(summary.client_hours)}
+                                </div>
+                            </Card>
+                            <Card className="p-5">
+                                <div className="text-xs uppercase tracking-wide text-slate-500">Internal</div>
+                                <div className="mt-2 text-2xl font-semibold text-white">
+                                    {formatHours(summary.internal_hours)}
+                                </div>
+                            </Card>
+                        </div>
+                    </>
+                ) : reportLoading ? (
+                    <DataLoading label="Loading time overview..." />
+                ) : null}
+
+                <div className="flex gap-1 overflow-x-auto border-b border-slate-800">
+                    {(
+                        [
+                            ["clients", "Clients"],
+                            ["projects", "Projects"],
+                            ["internal", "Internal"],
+                        ] as Array<[BrowseMode, string]>
+                    ).map(([value, label]) => (
+                        <button
+                            key={value}
+                            type="button"
+                            onClick={() => selectBrowseMode(value)}
+                            className={`border-b-2 px-4 py-3 text-sm font-medium transition ${
+                                browseMode === value
+                                    ? "border-adb-cyan-400 text-white"
+                                    : "border-transparent text-slate-500 hover:text-slate-300"
+                            }`}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+
+                {!scope && browseMode === "clients" ? (
+                    <Card className="overflow-hidden">
+                        <div className="border-b border-slate-800 px-5 py-4">
+                            <h3 className="text-sm font-semibold text-white">Clients</h3>
+                            <p className="mt-1 text-xs text-slate-500">
+                                Open a Client to inspect only their entries for the selected period.
+                            </p>
+                        </div>
+                        {options.clients.length ? (
+                            <div className="divide-y divide-slate-800">
+                                {options.clients.map((client) => {
+                                    const clientSummary = clientSummaryById.get(client.id);
                                     return (
-                                        <TableRow key={entry.id}>
-                                            <TableCell className="whitespace-nowrap text-slate-400">
-                                                {formatDate(entry.date)}
-                                            </TableCell>
-                                            <TableCell>
-                                                {href ? (
-                                                    <Link
-                                                        href={href}
-                                                        className="font-medium text-slate-200 hover:text-adb-cyan-300"
-                                                    >
-                                                        {contextLabel(entry)}
-                                                    </Link>
-                                                ) : (
-                                                    <span className="font-medium text-slate-200">
-                                                        {contextLabel(entry)}
-                                                    </span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="max-w-md text-slate-400">
-                                                {entry.description || "—"}
-                                            </TableCell>
-                                            <TableCell className="text-slate-400">
-                                                {entry.user_name || "Unknown"}
-                                            </TableCell>
-                                            <TableCell className="capitalize text-slate-400">
-                                                {entry.entry_type}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge>
-                                                    {entry.billable ? "Billable" : "Non-billable"}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right font-semibold tabular-nums text-slate-200">
-                                                {formatHours(entry.duration_hours)}
-                                            </TableCell>
-                                        </TableRow>
+                                        <button
+                                            key={client.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setScope({ type: "client", id: client.id, label: client.name });
+                                                setPage(1);
+                                            }}
+                                            className="grid w-full gap-2 px-5 py-4 text-left transition hover:bg-slate-900/60 sm:grid-cols-[minmax(0,1fr)_7rem_7rem_6rem] sm:items-center"
+                                        >
+                                            <div>
+                                                <div className="font-medium text-slate-200">{client.name}</div>
+                                                <div className="mt-1 text-xs text-slate-600">
+                                                    {clientSummary?.entry_count ?? 0} entries · {clientSummary?.project_count ?? 0} projects
+                                                </div>
+                                            </div>
+                                            <div className="text-sm tabular-nums text-slate-400">
+                                                {formatHours(clientSummary?.tracked_hours ?? 0)}
+                                            </div>
+                                            <div className="text-sm tabular-nums text-slate-500">
+                                                {formatHours(clientSummary?.billable_hours ?? 0)} billable
+                                            </div>
+                                            <div className="text-right text-xs font-medium text-adb-cyan-300">
+                                                View time →
+                                            </div>
+                                        </button>
                                     );
                                 })}
-                            </TableBody>
-                        </Table>
-                        <Pagination
-                            page={pageData.page}
-                            pageSize={pageData.page_size}
-                            totalItems={pageData.total}
-                            onPageChange={setPage}
-                            disabled={isLoading}
-                        />
-                    </>
+                            </div>
+                        ) : (
+                            <EmptyState title="No Clients available" description="Clients in your access scope will appear here." />
+                        )}
+                    </Card>
                 ) : null}
-            </Card>
+
+                {!scope && browseMode === "projects" ? (
+                    <Card className="overflow-hidden">
+                        <div className="border-b border-slate-800 px-5 py-4">
+                            <h3 className="text-sm font-semibold text-white">Projects</h3>
+                            <p className="mt-1 text-xs text-slate-500">
+                                Open a Project to review its time ledger for the selected period.
+                            </p>
+                        </div>
+                        {options.projects.length ? (
+                            <div className="divide-y divide-slate-800">
+                                {options.projects.map((project) => (
+                                    <button
+                                        key={project.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setScope({ type: "project", id: project.id, label: project.name });
+                                            setPage(1);
+                                        }}
+                                        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-slate-900/60"
+                                    >
+                                        <div>
+                                            <div className="font-medium text-slate-200">{project.name}</div>
+                                            <div className="mt-1 text-xs text-slate-600">
+                                                {project.client_name || "ADB Internal"}
+                                            </div>
+                                        </div>
+                                        <span className="text-xs font-medium text-adb-cyan-300">View time →</span>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <EmptyState title="No Projects available" description="Projects in your access scope will appear here." />
+                        )}
+                    </Card>
+                ) : null}
+
+                {scope ? (
+                    <div className="space-y-5">
+                        {scope.type !== "internal" ? (
+                            <button
+                                type="button"
+                                onClick={() => setScope(null)}
+                                className="text-sm text-slate-500 hover:text-slate-300"
+                            >
+                                ← Back to {scope.type === "client" ? "Clients" : "Projects"}
+                            </button>
+                        ) : null}
+
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                                    {scope.type === "internal" ? "Internal time" : `${scope.type} time`}
+                                </div>
+                                <h3 className="mt-1 text-xl font-semibold text-white">{scope.label}</h3>
+                            </div>
+                            {scope.type === "client" && scope.id ? (
+                                <Link
+                                    href={`/admin/clients/${scope.id}`}
+                                    className="text-sm text-slate-500 hover:text-adb-cyan-300"
+                                >
+                                    Open Client workspace →
+                                </Link>
+                            ) : null}
+                            {scope.type === "project" && scope.id ? (
+                                <Link
+                                    href={`/admin/projects/${scope.id}`}
+                                    className="text-sm text-slate-500 hover:text-adb-cyan-300"
+                                >
+                                    Open Project →
+                                </Link>
+                            ) : null}
+                        </div>
+
+                        {entries ? (
+                            <>
+                                <div className="grid gap-4 sm:grid-cols-3">
+                                    <Card className="p-5">
+                                        <div className="text-xs uppercase tracking-wide text-slate-500">Tracked</div>
+                                        <div className="mt-2 text-2xl font-semibold text-white">
+                                            {formatHours(entries.tracked_hours)}
+                                        </div>
+                                    </Card>
+                                    <Card className="p-5">
+                                        <div className="text-xs uppercase tracking-wide text-slate-500">Billable</div>
+                                        <div className="mt-2 text-2xl font-semibold text-white">
+                                            {formatHours(entries.billable_hours)}
+                                        </div>
+                                    </Card>
+                                    <Card className="p-5">
+                                        <div className="text-xs uppercase tracking-wide text-slate-500">Non-billable</div>
+                                        <div className="mt-2 text-2xl font-semibold text-white">
+                                            {formatHours(entries.non_billable_hours)}
+                                        </div>
+                                    </Card>
+                                </div>
+
+                                <Card className="overflow-hidden">
+                                    <div className="border-b border-slate-800 px-5 py-4">
+                                        <h4 className="text-sm font-semibold text-white">Time entries</h4>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            {formatDate(entries.date_from)} – {formatDate(entries.date_to)} · {entries.total} entries
+                                        </p>
+                                    </div>
+                                    {entries.items.length ? (
+                                        <>
+                                            <Table>
+                                                <TableHead>
+                                                    <tr>
+                                                        <TableHeaderCell>Date</TableHeaderCell>
+                                                        <TableHeaderCell>Work</TableHeaderCell>
+                                                        <TableHeaderCell>Description</TableHeaderCell>
+                                                        <TableHeaderCell>Staff</TableHeaderCell>
+                                                        <TableHeaderCell>Billing</TableHeaderCell>
+                                                        <TableHeaderCell className="text-right">Time</TableHeaderCell>
+                                                    </tr>
+                                                </TableHead>
+                                                <TableBody>
+                                                    {entries.items.map((entry) => {
+                                                        const href = contextLink(entry);
+                                                        return (
+                                                            <TableRow key={entry.id}>
+                                                                <TableCell className="whitespace-nowrap text-slate-400">
+                                                                    {formatDate(entry.date)}
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    {href ? (
+                                                                        <Link
+                                                                            href={href}
+                                                                            className="font-medium text-slate-200 hover:text-adb-cyan-300"
+                                                                        >
+                                                                            {contextLabel(entry)}
+                                                                        </Link>
+                                                                    ) : (
+                                                                        <span className="font-medium text-slate-200">
+                                                                            {contextLabel(entry)}
+                                                                        </span>
+                                                                    )}
+                                                                </TableCell>
+                                                                <TableCell className="max-w-md text-slate-400">
+                                                                    {entry.description || "—"}
+                                                                </TableCell>
+                                                                <TableCell className="text-slate-400">
+                                                                    {entry.user_name || "Unknown"}
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <Badge>
+                                                                        {entry.billable ? "Billable" : "Non-billable"}
+                                                                    </Badge>
+                                                                </TableCell>
+                                                                <TableCell className="text-right font-semibold tabular-nums text-slate-200">
+                                                                    {formatHours(entry.duration_hours)}
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        );
+                                                    })}
+                                                </TableBody>
+                                            </Table>
+                                            <Pagination
+                                                page={entries.page}
+                                                pageSize={entries.page_size}
+                                                totalItems={entries.total}
+                                                onPageChange={setPage}
+                                                disabled={reportLoading}
+                                            />
+                                        </>
+                                    ) : (
+                                        <EmptyState
+                                            title="No time in this period"
+                                            description="Choose another period or record time against this work context."
+                                        />
+                                    )}
+                                </Card>
+                            </>
+                        ) : reportLoading ? (
+                            <DataLoading label="Loading time entries..." />
+                        ) : null}
+                    </div>
+                ) : null}
+            </section>
         </div>
     );
 }
