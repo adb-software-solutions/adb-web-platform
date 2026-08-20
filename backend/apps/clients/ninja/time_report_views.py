@@ -17,6 +17,7 @@ from .time_report_schemas import TimeReportClientOut, TimeReportDayOut, TimeRepo
 
 time_report_router = Router(tags=["admin-time-reporting"])
 StaffProblem = tuple[int, dict[str, Any]]
+ZERO_HOURS = Decimal("0")
 
 
 def _problem(message: str, code: str, status: int = 400) -> StaffProblem:
@@ -102,22 +103,38 @@ def time_report_summary(
         entries = entries.filter(client_id=client_id)
 
     totals = entries.aggregate(
-        tracked=Sum("duration_hours"),
-        billable=Sum("duration_hours", filter=Q(billable=True)),
-        client=Sum("duration_hours", filter=Q(client__isnull=False)),
-        internal=Sum("duration_hours", filter=Q(client__isnull=True)),
+        tracked_hours=Sum("duration_hours", default=ZERO_HOURS),
+        billable_hours=Sum(
+            "duration_hours",
+            filter=Q(billable=True),
+            default=ZERO_HOURS,
+        ),
+        client_hours=Sum(
+            "duration_hours",
+            filter=Q(client__isnull=False),
+            default=ZERO_HOURS,
+        ),
+        internal_hours=Sum(
+            "duration_hours",
+            filter=Q(client__isnull=True),
+            default=ZERO_HOURS,
+        ),
     )
-    tracked = totals["tracked"] or Decimal(0)
-    billable = totals["billable"] or Decimal(0)
-    client_hours = totals["client"] or Decimal(0)
-    internal_hours = totals["internal"] or Decimal(0)
+    tracked = totals["tracked_hours"]
+    billable = totals["billable_hours"]
+    client_hours = totals["client_hours"]
+    internal_hours = totals["internal_hours"]
 
     client_rows = (
         entries.filter(client__isnull=False)
         .values("client_id", "client__company", "client__name")
         .annotate(
-            tracked=Sum("duration_hours"),
-            billable=Sum("duration_hours", filter=Q(billable=True)),
+            tracked_hours=Sum("duration_hours", default=ZERO_HOURS),
+            billable_hours=Sum(
+                "duration_hours",
+                filter=Q(billable=True),
+                default=ZERO_HOURS,
+            ),
             entry_count=Count("id"),
             project_count=Count(
                 "project_id",
@@ -125,15 +142,15 @@ def time_report_summary(
                 filter=Q(project__isnull=False),
             ),
         )
-        .order_by("-tracked", "client__company", "client__name")
+        .order_by("-tracked_hours", "client__company", "client__name")
     )
     clients = [
         TimeReportClientOut(
             client_id=row["client_id"],
             client_name=row["client__company"] or row["client__name"],
-            tracked_hours=row["tracked"] or Decimal(0),
-            billable_hours=row["billable"] or Decimal(0),
-            non_billable_hours=(row["tracked"] or Decimal(0)) - (row["billable"] or Decimal(0)),
+            tracked_hours=row["tracked_hours"],
+            billable_hours=row["billable_hours"],
+            non_billable_hours=row["tracked_hours"] - row["billable_hours"],
             entry_count=row["entry_count"],
             project_count=row["project_count"],
         )
@@ -143,16 +160,20 @@ def time_report_summary(
     daily_rows = (
         entries.values("date")
         .annotate(
-            tracked=Sum("duration_hours"),
-            billable=Sum("duration_hours", filter=Q(billable=True)),
+            tracked_hours=Sum("duration_hours", default=ZERO_HOURS),
+            billable_hours=Sum(
+                "duration_hours",
+                filter=Q(billable=True),
+                default=ZERO_HOURS,
+            ),
         )
         .order_by("date")
     )
     daily = [
         TimeReportDayOut(
             date=row["date"],
-            tracked_hours=row["tracked"] or Decimal(0),
-            billable_hours=row["billable"] or Decimal(0),
+            tracked_hours=row["tracked_hours"],
+            billable_hours=row["billable_hours"],
         )
         for row in daily_rows
     ]
