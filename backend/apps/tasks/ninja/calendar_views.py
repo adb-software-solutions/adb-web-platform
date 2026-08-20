@@ -42,7 +42,9 @@ def _permission_problem(request: HttpRequest) -> StaffProblem | None:
     return None
 
 
-def _task_calendar_items(request: HttpRequest, date_from: date, date_to: date) -> list[CalendarItemOut]:
+def _task_calendar_items(
+    request: HttpRequest, date_from: date, date_to: date
+) -> list[CalendarItemOut]:
     if not request.user.has_perm("tasks.view_task"):
         return []
 
