@@ -94,7 +94,10 @@ class TicketFocusApiTests(TestCase):
 
         result = cast(TicketFocusPageOut, ticket_focus(self._request()))
 
-        self.assertEqual([item.id for item in result.items], [new_ticket.id, open_ticket.id, waiting_ticket.id])
+        self.assertEqual(
+            [item.id for item in result.items],
+            [new_ticket.id, open_ticket.id, waiting_ticket.id],
+        )
         self.assertEqual(result.counts.mine, 3)
         self.assertEqual(result.counts.unassigned, 1)
         self.assertEqual(result.counts.active, 4)
@@ -125,8 +128,12 @@ class TicketFocusApiTests(TestCase):
 
         result = cast(TicketFocusPageOut, ticket_focus(self._request()))
         self.assertEqual([item.id for item in result.items], [support_ticket.id])
-        self.assertTrue(next(queue for queue in result.queues if queue.id == self.support.id).is_default)
-        self.assertFalse(next(queue for queue in result.queues if queue.id == self.sales.id).is_default)
+        self.assertTrue(
+            next(queue for queue in result.queues if queue.id == self.support.id).is_default
+        )
+        self.assertFalse(
+            next(queue for queue in result.queues if queue.id == self.sales.id).is_default
+        )
 
         all_result = update_ticket_queue_preferences(
             self._request("put"),

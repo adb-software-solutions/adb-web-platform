@@ -96,7 +96,7 @@ def _ticket_item(ticket: Ticket) -> TicketListItemOut:
         source=ticket.source,
         assigned_to_id=ticket.assigned_to_id,
         assigned_to_name=_user_label(ticket.assigned_to),
-        message_count=ticket.message_count,
+        message_count=cast(int, getattr(ticket, "message_count", 0)),
         last_message_at=ticket.last_message_at,
         created_at=ticket.created_at,
     )
