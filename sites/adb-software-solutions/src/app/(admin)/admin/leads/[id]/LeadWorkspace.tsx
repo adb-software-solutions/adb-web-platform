@@ -7,23 +7,12 @@ import {
     Card,
     DataError,
     DataLoading,
-    EmptyState,
     Select,
 } from "@/components/ui";
 import { AdminAPI } from "@/lib/api/endpoints";
 import { fetchAPI } from "@/lib/api/fetch";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-
-interface RelatedTicket {
-    id: number;
-    reference: string;
-    subject: string;
-    status: string;
-    priority: string;
-    queue_name: string;
-    last_message_at: string | null;
-}
 
 interface LeadAgent {
     id: string;
@@ -59,7 +48,6 @@ interface LeadDetail {
     notes: string;
     created_at: string;
     updated_at: string;
-    related_tickets: RelatedTicket[];
 }
 
 interface LeadConversionResponse {
@@ -80,14 +68,13 @@ function formatDate(value: string | null) {
     }).format(new Date(value));
 }
 
-function label(value: string) {
-    return value
-        .split("_")
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ");
-}
-
-export function LeadWorkspace({ leadId }: { leadId: number }) {
+export function LeadWorkspace({
+    leadId,
+    presentation = "page",
+}: {
+    leadId: number;
+    presentation?: "page" | "drawer";
+}) {
     const [lead, setLead] = useState<LeadDetail | null>(null);
     const [options, setOptions] = useState<LeadOptions>({ assignees: [] });
     const [isLoading, setIsLoading] = useState(true);
@@ -210,10 +197,12 @@ export function LeadWorkspace({ leadId }: { leadId: number }) {
 
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                    <Link href="/admin/leads" className="text-xs text-slate-500 hover:text-slate-300">
-                        ← Leads
-                    </Link>
-                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                    {presentation === "page" ? (
+                        <Link href="/admin/leads" className="text-xs text-slate-500 hover:text-slate-300">
+                            ← Leads
+                        </Link>
+                    ) : null}
+                    <div className={`${presentation === "page" ? "mt-2 " : ""}flex flex-wrap items-center gap-3`}>
                         <h1 className="text-2xl font-semibold text-white">
                             {lead.company || lead.name}
                         </h1>
@@ -223,12 +212,11 @@ export function LeadWorkspace({ leadId }: { leadId: number }) {
                     {lead.company ? <p className="mt-1 text-sm text-slate-400">{lead.name}</p> : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <a
-                        href={`mailto:${lead.email}`}
-                        className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:bg-slate-900"
-                    >
-                        Email
-                    </a>
+                    {!lead.converted_at ? (
+                        <ButtonLink href="#lead-email" variant="outline">
+                            Email
+                        </ButtonLink>
+                    ) : null}
                     {lead.phone ? (
                         <a
                             href={`tel:${lead.phone}`}
@@ -356,46 +344,6 @@ export function LeadWorkspace({ leadId }: { leadId: number }) {
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-300">
                     {lead.message || "No enquiry text was recorded for this lead."}
                 </p>
-            </Card>
-
-            <Card className="p-5">
-                <div className="mb-4">
-                    <h2 className="text-sm font-semibold text-white">Related tickets and email</h2>
-                    <p className="mt-1 text-xs text-slate-500">
-                        Recent ticket conversations matched to {lead.email}.
-                    </p>
-                </div>
-                {lead.related_tickets.length === 0 ? (
-                    <EmptyState
-                        title="No related conversations"
-                        description="Ticket conversations from this lead's email address will appear here automatically."
-                    />
-                ) : (
-                    <div className="divide-y divide-slate-800">
-                        {lead.related_tickets.map((ticket) => (
-                            <Link
-                                key={ticket.id}
-                                href={`/admin/tickets/${ticket.id}`}
-                                className="flex flex-col gap-2 px-1 py-4 transition hover:bg-slate-900/40 sm:flex-row sm:items-center sm:justify-between sm:px-3"
-                            >
-                                <div className="min-w-0">
-                                    <div className="truncate text-sm font-medium text-slate-200">
-                                        {ticket.subject}
-                                    </div>
-                                    <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
-                                        <span className="font-mono text-slate-400">{ticket.reference}</span>
-                                        <span>{ticket.queue_name}</span>
-                                        <span>{formatDate(ticket.last_message_at)}</span>
-                                    </div>
-                                </div>
-                                <div className="flex shrink-0 items-center gap-2">
-                                    <Badge>{label(ticket.priority)}</Badge>
-                                    <Badge>{label(ticket.status)}</Badge>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                )}
             </Card>
         </div>
     );
