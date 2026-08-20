@@ -4,7 +4,7 @@ import { Button, ButtonLink, DataLoading, Input, Select, Textarea } from "@/comp
 import { AdminAPI } from "@/lib/api/endpoints";
 import { fetchAPI } from "@/lib/api/fetch";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 interface Lookup {
     id: number;
@@ -54,7 +54,15 @@ function optionalId(value: string) {
     return value ? Number(value) : null;
 }
 
-export function LeadForm({ leadId }: { leadId?: number }) {
+export function LeadForm({
+    leadId,
+    onSaved,
+    onCancel,
+}: {
+    leadId?: number;
+    onSaved?: (lead: LeadResponse) => void;
+    onCancel?: () => void;
+}) {
     const router = useRouter();
     const [form, setForm] = useState<LeadFormState>(EMPTY_FORM);
     const [brands, setBrands] = useState<Brand[]>([]);
@@ -91,7 +99,9 @@ export function LeadForm({ leadId }: { leadId?: number }) {
                     });
                 }
             } catch (loadError) {
-                setError(loadError instanceof Error ? loadError.message : "Unable to load lead details.");
+                setError(
+                    loadError instanceof Error ? loadError.message : "Unable to load lead details.",
+                );
             } finally {
                 setIsLoading(false);
             }
@@ -99,6 +109,11 @@ export function LeadForm({ leadId }: { leadId?: number }) {
 
         void load();
     }, [leadId]);
+
+    const visibleBrands = useMemo(
+        () => brands.filter((brand) => brand.is_active || brand.id === form.brand_id),
+        [brands, form.brand_id],
+    );
 
     function update<K extends keyof LeadFormState>(key: K, value: LeadFormState[K]) {
         setForm((current) => ({ ...current, [key]: value }));
@@ -117,8 +132,12 @@ export function LeadForm({ leadId }: { leadId?: number }) {
                     body: JSON.stringify(form),
                 },
             )) as LeadResponse;
-            router.push(`/admin/leads/${lead.id}`);
-            router.refresh();
+            if (onSaved) {
+                onSaved(lead);
+            } else {
+                router.push(`/admin/leads/${lead.id}`);
+                router.refresh();
+            }
         } catch (saveError) {
             setError(saveError instanceof Error ? saveError.message : "Unable to save the lead.");
         } finally {
@@ -186,9 +205,10 @@ export function LeadForm({ leadId }: { leadId?: number }) {
                         onChange={(event) => update("brand_id", optionalId(event.target.value))}
                     >
                         <option value="">Unassigned</option>
-                        {brands.map((brand) => (
+                        {visibleBrands.map((brand) => (
                             <option key={brand.id} value={brand.id}>
-                                {brand.name}{brand.is_active ? "" : " (inactive)"}
+                                {brand.name}
+                                {brand.is_active ? "" : " (inactive)"}
                             </option>
                         ))}
                     </Select>
@@ -251,9 +271,18 @@ export function LeadForm({ leadId }: { leadId?: number }) {
                 <Button type="submit" disabled={isSaving}>
                     {isSaving ? "Saving..." : leadId ? "Save changes" : "Create lead"}
                 </Button>
-                <ButtonLink href={leadId ? `/admin/leads/${leadId}` : "/admin/leads"} variant="outline">
-                    Cancel
-                </ButtonLink>
+                {onCancel ? (
+                    <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
+                        Cancel
+                    </Button>
+                ) : (
+                    <ButtonLink
+                        href={leadId ? `/admin/leads/${leadId}` : "/admin/leads"}
+                        variant="outline"
+                    >
+                        Cancel
+                    </ButtonLink>
+                )}
             </div>
         </form>
     );

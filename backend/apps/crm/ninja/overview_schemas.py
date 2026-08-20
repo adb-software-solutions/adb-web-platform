@@ -9,6 +9,7 @@ class LeadOverviewItemOut(Schema):
     company: str
     email: str
     status: str
+    outcome: str
     source: str
     brand: str
     assigned_to_name: str | None
@@ -17,9 +18,8 @@ class LeadOverviewItemOut(Schema):
 
 
 class LeadOverviewStatsOut(Schema):
-    total: int
-    open: int
-    converted: int
+    active: int
+    mine: int
     unassigned: int
     new_last_30_days: int
 
