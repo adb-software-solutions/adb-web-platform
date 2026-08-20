@@ -85,6 +85,15 @@ function formatDateTime(value: string | null) {
     }).format(new Date(value));
 }
 
+function formatDate(value: string | null) {
+    if (!value) return "—";
+    return new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+    }).format(new Date(`${value}T00:00:00`));
+}
+
 export function TaskWorkspace({
     taskId,
     presentation = "page",
@@ -181,7 +190,7 @@ export function TaskWorkspace({
     if (!task) return <DataError message="Task could not be loaded." onRetry={() => void loadTask()} />;
 
     const editable = task.can_change && !task.completed_at;
-    const canTrackTime = hasPermission("clients.add_timeentry");
+    const canAddTime = hasPermission("clients.add_timeentry");
 
     return (
         <div className={presentation === "drawer" ? "space-y-5" : "space-y-6"}>
@@ -233,7 +242,11 @@ export function TaskWorkspace({
                                     aria-label="Task title"
                                 />
                             ) : (
-                                <h1 className={`text-2xl font-semibold ${task.completed_at ? "text-slate-500 line-through" : "text-white"}`}>
+                                <h1
+                                    className={`text-2xl font-semibold ${
+                                        task.completed_at ? "text-slate-500 line-through" : "text-white"
+                                    }`}
+                                >
                                     {task.title}
                                 </h1>
                             )}
@@ -250,21 +263,13 @@ export function TaskWorkspace({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                    {canTrackTime ? (
-                        <>
-                            <ButtonLink
-                                href={`/admin/time-tracking?task_id=${task.id}&mode=timer#record-time`}
-                                variant="secondary"
-                            >
-                                Start timer
-                            </ButtonLink>
-                            <ButtonLink
-                                href={`/admin/time-tracking?task_id=${task.id}&mode=manual#record-time`}
-                                variant="outline"
-                            >
-                                Add time
-                            </ButtonLink>
-                        </>
+                    {canAddTime ? (
+                        <ButtonLink
+                            href={`/admin/time-tracking?task_id=${task.id}&mode=manual#record-time`}
+                            variant="outline"
+                        >
+                            Add time
+                        </ButtonLink>
                     ) : null}
                     {task.can_reopen ? (
                         <Button
@@ -301,7 +306,9 @@ export function TaskWorkspace({
                         <div className="flex items-center justify-between gap-3">
                             <h2 className="text-sm font-semibold text-white">Description</h2>
                             {editable ? (
-                                <span className="text-xs text-slate-600">Autosaves when you leave the field</span>
+                                <span className="text-xs text-slate-600">
+                                    Autosaves when you leave the field
+                                </span>
                             ) : null}
                         </div>
                         {editable ? (
@@ -376,7 +383,9 @@ export function TaskWorkspace({
                                     ))}
                                 </Select>
                             ) : (
-                                <div className="text-sm text-slate-300">{task.assigned_to_name || "Unassigned"}</div>
+                                <div className="text-sm text-slate-300">
+                                    {task.assigned_to_name || "Unassigned"}
+                                </div>
                             )}
                         </label>
 
@@ -386,7 +395,9 @@ export function TaskWorkspace({
                                 <Select
                                     value={task.priority}
                                     disabled={isSaving}
-                                    onChange={(event) => void quickUpdate({ priority: Number(event.target.value) })}
+                                    onChange={(event) =>
+                                        void quickUpdate({ priority: Number(event.target.value) })
+                                    }
                                 >
                                     {Object.entries(priorityLabels).map(([value, label]) => (
                                         <option key={value} value={value}>
@@ -395,7 +406,9 @@ export function TaskWorkspace({
                                     ))}
                                 </Select>
                             ) : (
-                                <div className="text-sm text-slate-300">{priorityLabels[task.priority] ?? "Unknown"}</div>
+                                <div className="text-sm text-slate-300">
+                                    {priorityLabels[task.priority] ?? "Unknown"}
+                                </div>
                             )}
                         </label>
 
@@ -406,10 +419,14 @@ export function TaskWorkspace({
                                     type="date"
                                     value={task.start_date ?? ""}
                                     disabled={isSaving}
-                                    onChange={(event) => void quickUpdate({ start_date: event.target.value || null })}
+                                    onChange={(event) =>
+                                        void quickUpdate({ start_date: event.target.value || null })
+                                    }
                                 />
                             ) : (
-                                <div className="text-sm text-slate-300">{task.start_date || "No start date"}</div>
+                                <div className="text-sm text-slate-300">
+                                    {task.start_date ? formatDate(task.start_date) : "No start date"}
+                                </div>
                             )}
                         </label>
 
@@ -420,10 +437,14 @@ export function TaskWorkspace({
                                     type="date"
                                     value={task.due_date ?? ""}
                                     disabled={isSaving}
-                                    onChange={(event) => void quickUpdate({ due_date: event.target.value || null })}
+                                    onChange={(event) =>
+                                        void quickUpdate({ due_date: event.target.value || null })
+                                    }
                                 />
                             ) : (
-                                <div className="text-sm text-slate-300">{task.due_date || "No due date"}</div>
+                                <div className="text-sm text-slate-300">
+                                    {task.due_date ? formatDate(task.due_date) : "No due date"}
+                                </div>
                             )}
                         </label>
 
@@ -436,7 +457,10 @@ export function TaskWorkspace({
                             <div className="text-xs font-medium text-slate-500">Project</div>
                             <div className="mt-1.5 text-sm text-slate-300">
                                 {task.project_id ? (
-                                    <Link href={`/admin/projects/${task.project_id}`} className="hover:text-adb-cyan-300">
+                                    <Link
+                                        href={`/admin/projects/${task.project_id}`}
+                                        className="hover:text-adb-cyan-300"
+                                    >
                                         {task.project_name}
                                     </Link>
                                 ) : (
@@ -449,7 +473,10 @@ export function TaskWorkspace({
                             <div className="text-xs font-medium text-slate-500">Task list</div>
                             <div className="mt-1.5 text-sm text-slate-300">
                                 {task.task_list_id ? (
-                                    <Link href={`/admin/task-lists/${task.task_list_id}`} className="hover:text-adb-cyan-300">
+                                    <Link
+                                        href={`/admin/task-lists/${task.task_list_id}`}
+                                        className="hover:text-adb-cyan-300"
+                                    >
                                         {task.task_list_name}
                                     </Link>
                                 ) : (
@@ -460,8 +487,10 @@ export function TaskWorkspace({
 
                         <div>
                             <div className="text-xs font-medium text-slate-500">Recurrence</div>
-                            <div className="mt-1.5 capitalize text-sm text-slate-300">
-                                {task.recurrence_frequency === "none" ? "Does not repeat" : task.recurrence_frequency}
+                            <div className="mt-1.5 text-sm capitalize text-slate-300">
+                                {task.recurrence_frequency === "none"
+                                    ? "Does not repeat"
+                                    : task.recurrence_frequency}
                             </div>
                         </div>
 
