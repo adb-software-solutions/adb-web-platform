@@ -2,18 +2,20 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.utils import timezone
 
 from apps.core.models import AuditEvent
 from apps.credentials.models import StoredCredential
 
 SECRET_PAYLOAD_VERSION = 1
+LEGACY_PLAINTEXT_FIELDS = ("password", "api_key", "secret_key", "private_key", "notes")
 
 
 class CredentialEncryptionError(RuntimeError):
@@ -26,6 +28,10 @@ class CredentialEncryptionNotConfiguredError(CredentialEncryptionError):
 
 class CredentialDecryptionError(CredentialEncryptionError):
     """A stored encrypted credential payload cannot be decrypted safely."""
+
+
+class CredentialSecretFieldError(CredentialEncryptionError):
+    """A requested encrypted secret field does not exist."""
 
 
 def store_credential_secrets(
@@ -46,12 +52,35 @@ def store_credential_secrets(
     ).encode("utf-8")
     credential.encrypted_secret_payload = _fernet().encrypt(encoded).decode("ascii")
     credential.secret_payload_version = SECRET_PAYLOAD_VERSION
+    credential.secret_field_keys = sorted(payload)
 
-    update_fields = ["encrypted_secret_payload", "secret_payload_version", "updated_at"]
+    update_fields = [
+        "encrypted_secret_payload",
+        "secret_payload_version",
+        "secret_field_keys",
+        "updated_at",
+    ]
     if mark_rotated:
         credential.last_rotated_at = timezone.now()
         update_fields.append("last_rotated_at")
     credential.save(update_fields=update_fields)
+
+
+def merge_credential_secrets(
+    credential: StoredCredential,
+    updates: Mapping[str, str],
+    *,
+    clear_fields: Iterable[str] = (),
+) -> None:
+    """Merge secret edits without requiring unchanged values to leave the server."""
+    existing = _decrypt_payload(credential) if credential.encrypted_secret_payload else {}
+    for field in clear_fields:
+        existing.pop(field.strip(), None)
+    existing.update(_normalise_secrets(updates))
+    if not existing:
+        clear_credential_secrets(credential)
+        return
+    store_credential_secrets(credential, existing, mark_rotated=True)
 
 
 def load_credential_secrets_for_service(credential: StoredCredential) -> dict[str, str]:
@@ -63,6 +92,7 @@ def reveal_credential_secrets(
     credential: StoredCredential,
     *,
     actor: Any,
+    fields: Iterable[str] | None = None,
     ip_address: str | None = None,
     user_agent: str = "",
 ) -> dict[str, str]:
@@ -72,7 +102,7 @@ def reveal_credential_secrets(
     ):
         raise PermissionDenied("You do not have permission to reveal credential secrets.")
 
-    secrets = _decrypt_payload(credential)
+    secrets = _select_fields(_decrypt_payload(credential), fields)
     AuditEvent.record(
         action="credentials.secret_revealed",
         actor=actor,
@@ -82,6 +112,48 @@ def reveal_credential_secrets(
         user_agent=user_agent,
     )
     return secrets
+
+
+def copy_credential_secret(
+    credential: StoredCredential,
+    field_key: str,
+    *,
+    actor: Any,
+    ip_address: str | None = None,
+    user_agent: str = "",
+) -> str:
+    """Return one secret for clipboard use and audit the copy operation."""
+    return _single_secret_action(
+        credential,
+        field_key,
+        actor=actor,
+        permission="credentials.copy_storedcredential_secret",
+        action="credentials.secret_copied",
+        denied_message="You do not have permission to copy credential secrets.",
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
+
+def download_credential_secret(
+    credential: StoredCredential,
+    field_key: str,
+    *,
+    actor: Any,
+    ip_address: str | None = None,
+    user_agent: str = "",
+) -> str:
+    """Return one secret for an explicit file download and audit the operation."""
+    return _single_secret_action(
+        credential,
+        field_key,
+        actor=actor,
+        permission="credentials.download_storedcredential_secret",
+        action="credentials.secret_downloaded",
+        denied_message="You do not have permission to download credential secrets.",
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
 
 
 def rotate_credential_encryption(credential: StoredCredential) -> None:
@@ -94,15 +166,100 @@ def clear_credential_secrets(credential: StoredCredential) -> None:
     """Remove only the encrypted secret payload, leaving credential metadata intact."""
     credential.encrypted_secret_payload = ""
     credential.secret_payload_version = SECRET_PAYLOAD_VERSION
+    credential.secret_field_keys = []
     credential.last_rotated_at = timezone.now()
     credential.save(
         update_fields=[
             "encrypted_secret_payload",
             "secret_payload_version",
+            "secret_field_keys",
             "last_rotated_at",
             "updated_at",
         ]
     )
+
+
+@transaction.atomic
+def migrate_legacy_plaintext_secrets(
+    credential: StoredCredential,
+    *,
+    actor: Any,
+    ip_address: str | None = None,
+    user_agent: str = "",
+) -> list[str]:
+    """Encrypt legacy plaintext secret columns and blank them in one transaction."""
+    if not getattr(actor, "is_authenticated", False) or not actor.has_perm(
+        "credentials.change_storedcredential"
+    ):
+        raise PermissionDenied("You do not have permission to migrate credential secrets.")
+
+    legacy = {
+        field: str(getattr(credential, field))
+        for field in LEGACY_PLAINTEXT_FIELDS
+        if getattr(credential, field)
+    }
+    if not legacy:
+        return []
+
+    merge_credential_secrets(credential, legacy)
+    for field in legacy:
+        setattr(credential, field, "")
+    credential.updated_by = actor
+    credential.save(update_fields=[*legacy.keys(), "updated_by", "updated_at"])
+    AuditEvent.record(
+        action="credentials.legacy_secrets_encrypted",
+        actor=actor,
+        target=credential,
+        metadata={"secret_fields": sorted(legacy)},
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+    return sorted(legacy)
+
+
+def _single_secret_action(
+    credential: StoredCredential,
+    field_key: str,
+    *,
+    actor: Any,
+    permission: str,
+    action: str,
+    denied_message: str,
+    ip_address: str | None,
+    user_agent: str,
+) -> str:
+    if not getattr(actor, "is_authenticated", False) or not actor.has_perm(permission):
+        raise PermissionDenied(denied_message)
+
+    key = field_key.strip()
+    secrets = _decrypt_payload(credential)
+    try:
+        value = secrets[key]
+    except KeyError as exc:
+        raise CredentialSecretFieldError("Credential secret field was not found.") from exc
+
+    AuditEvent.record(
+        action=action,
+        actor=actor,
+        target=credential,
+        metadata={"secret_fields": [key]},
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+    return value
+
+
+def _select_fields(
+    secrets: dict[str, str],
+    fields: Iterable[str] | None,
+) -> dict[str, str]:
+    if fields is None:
+        return secrets
+    requested = {field.strip() for field in fields if field.strip()}
+    missing = requested.difference(secrets)
+    if missing:
+        raise CredentialSecretFieldError(f"Credential secret field was not found: {min(missing)}")
+    return {key: value for key, value in secrets.items() if key in requested}
 
 
 def _decrypt_payload(credential: StoredCredential) -> dict[str, str]:

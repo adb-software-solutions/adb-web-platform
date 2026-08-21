@@ -13,6 +13,7 @@ from apps.clients.ninja.time_report_views import time_report_router
 from apps.clients.ninja.time_views import time_tracking_router
 from apps.core.ninja.admin_views import core_admin_router
 from apps.core.ninja.resource_views import resource_admin_router
+from apps.credentials.ninja.views import credential_router
 from apps.crm.ninja.admin_views import crm_admin_router
 from apps.crm.ninja.email_views import lead_email_router
 from apps.crm.ninja.overview_views import lead_overview_router
@@ -89,6 +90,7 @@ admin_router.add_router("", infrastructure_admin_router)
 admin_router.add_router("", infrastructure_extended_router)
 admin_router.add_router("", infrastructure_resource_router)
 admin_router.add_router("", infrastructure_reconciliation_router)
+admin_router.add_router("", credential_router)
 admin_router.add_router("", resource_admin_router)
 admin_router.add_router("/website", website_admin_router)
 api.add_router("/admin", admin_router)
