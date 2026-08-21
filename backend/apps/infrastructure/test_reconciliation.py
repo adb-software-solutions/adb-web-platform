@@ -21,8 +21,8 @@ from apps.infrastructure.models import (
 from apps.infrastructure.ninja.reconciliation_schemas import (
     LegacyReconciliationOptionsOut,
     LegacyReconciliationPageOut,
-    ReconcileLegacyResourceIn,
     ReconciledResourceOut,
+    ReconcileLegacyResourceIn,
 )
 from apps.infrastructure.ninja.reconciliation_views import (
     legacy_reconciliation_options,
