@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from django.db import models, transaction
 
@@ -25,10 +26,10 @@ from .models import (
     LicenceResourceIdentity,
     MobileApp,
     MobileAppResourceIdentity,
-    SSLCertificate,
-    SSLCertificateResourceIdentity,
     Server,
     ServerResourceIdentity,
+    SSLCertificate,
+    SSLCertificateResourceIdentity,
     Website,
     WebsiteResourceIdentity,
 )
@@ -54,16 +55,24 @@ class LegacyResourceAlreadyLinkedError(LegacyResourceError):
 class LegacyResourceDefinition:
     key: str
     label: str
-    model: type[models.Model]
-    identity_model: type[models.Model]
+    model: Any
+    identity_model: Any
     identity_field: str
     resource_type: str
-    display_name: Callable[[models.Model], str]
+    display_name: Callable[[Any], str]
     select_related: tuple[str, ...] = ()
 
 
-def _name(instance: models.Model) -> str:
-    return str(getattr(instance, "name"))
+def _name(instance: Any) -> str:
+    return str(instance.name)
+
+
+def _server_name(instance: Any) -> str:
+    return str(instance.hostname)
+
+
+def _domain_name(instance: Any) -> str:
+    return str(instance.domain_name)
 
 
 LEGACY_RESOURCE_DEFINITIONS: tuple[LegacyResourceDefinition, ...] = (
@@ -74,7 +83,7 @@ LEGACY_RESOURCE_DEFINITIONS: tuple[LegacyResourceDefinition, ...] = (
         identity_model=ServerResourceIdentity,
         identity_field="server",
         resource_type=InfrastructureResource.ResourceType.SERVER,
-        display_name=lambda item: str(getattr(item, "hostname")),
+        display_name=_server_name,
     ),
     LegacyResourceDefinition(
         key="database",
@@ -101,7 +110,7 @@ LEGACY_RESOURCE_DEFINITIONS: tuple[LegacyResourceDefinition, ...] = (
         identity_model=DomainResourceIdentity,
         identity_field="domain",
         resource_type=InfrastructureResource.ResourceType.DOMAIN,
-        display_name=lambda item: str(getattr(item, "domain_name")),
+        display_name=_domain_name,
     ),
     LegacyResourceDefinition(
         key="ssl_certificate",
@@ -110,7 +119,7 @@ LEGACY_RESOURCE_DEFINITIONS: tuple[LegacyResourceDefinition, ...] = (
         identity_model=SSLCertificateResourceIdentity,
         identity_field="ssl_certificate",
         resource_type=InfrastructureResource.ResourceType.TLS_CERTIFICATE,
-        display_name=lambda item: str(item),
+        display_name=str,
         select_related=("domain",),
     ),
     LegacyResourceDefinition(
@@ -165,7 +174,7 @@ LEGACY_RESOURCE_DEFINITIONS: tuple[LegacyResourceDefinition, ...] = (
         identity_model=EmailSystemResourceIdentity,
         identity_field="email_system",
         resource_type=InfrastructureResource.ResourceType.EMAIL_SYSTEM,
-        display_name=lambda item: str(item),
+        display_name=str,
     ),
 )
 
@@ -237,9 +246,7 @@ def reconcile_legacy_resource(
         queryset = queryset.select_related(*definition.select_related)
     legacy = queryset.filter(pk=legacy_id).first()
     if legacy is None:
-        raise LegacyResourceNotFoundError(
-            f"{definition.label} record {legacy_id} was not found."
-        )
+        raise LegacyResourceNotFoundError(f"{definition.label} record {legacy_id} was not found.")
 
     if get_legacy_identity(definition, legacy_id) is not None:
         raise LegacyResourceAlreadyLinkedError(
