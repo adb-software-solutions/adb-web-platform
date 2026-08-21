@@ -1,4 +1,4 @@
-import { Container, PageHeader } from "@/components/ui";
+import { ButtonLink, Container, PageHeader } from "@/components/ui";
 import { InfrastructureOverview } from "./InfrastructureOverview";
 
 export const metadata = {
@@ -11,6 +11,14 @@ export default function InfrastructurePage() {
             <PageHeader
                 title="Infrastructure"
                 description="Operational inventory for servers, databases, websites, domains, certificates, licences and applications."
+                actions={
+                    <ButtonLink
+                        href="/admin/infrastructure/reconciliation"
+                        variant="secondary"
+                    >
+                        Reconcile existing records
+                    </ButtonLink>
+                }
             />
             <div className="mt-6">
                 <InfrastructureOverview />
