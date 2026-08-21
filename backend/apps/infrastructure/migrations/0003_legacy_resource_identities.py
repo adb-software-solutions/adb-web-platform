@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
@@ -15,13 +13,8 @@ def _identity_model(
     legacy_field: str,
     legacy_model: str,
     ordering: str,
-    permissions: list[tuple[str, str]] | None = None,
 ) -> migrations.CreateModel:
     model_slug = name.lower()
-    options: dict[str, Any] = {"ordering": [ordering]}
-    if permissions:
-        options["permissions"] = permissions
-
     return migrations.CreateModel(
         name=name,
         fields=[
@@ -62,7 +55,7 @@ def _identity_model(
                 ),
             ),
         ],
-        options=options,
+        options={"ordering": [ordering]},
     )
 
 
@@ -73,17 +66,23 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.AlterModelOptions(
+            name="infrastructureresource",
+            options={
+                "ordering": ["name", "id"],
+                "permissions": [
+                    (
+                        "reconcile_legacy_infrastructure",
+                        "Can reconcile legacy infrastructure with structured resources",
+                    )
+                ],
+            },
+        ),
         _identity_model(
             name="ServerResourceIdentity",
             legacy_field="server",
             legacy_model="server",
             ordering="server__hostname",
-            permissions=[
-                (
-                    "reconcile_legacy_infrastructure",
-                    "Can reconcile legacy infrastructure with structured resources",
-                )
-            ],
         ),
         _identity_model(
             name="DatabaseResourceIdentity",
