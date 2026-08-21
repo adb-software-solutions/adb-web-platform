@@ -15,6 +15,8 @@ def can_access_infrastructure_resource(user: Any, resource: InfrastructureResour
         return False
     if getattr(user, "is_superuser", False):
         return True
+    if not getattr(user, "is_staff", False):
+        return False
     if resource.ownership_type == OwnershipType.INTERNAL:
         return True
     if resource.client is None:
@@ -33,6 +35,8 @@ def scope_infrastructure_resources_for_user(
         return queryset.none()
     if getattr(user, "is_superuser", False):
         return queryset
+    if not getattr(user, "is_staff", False):
+        return queryset.none()
 
     clients = scope_clients_for_user(user)
     return queryset.filter(
