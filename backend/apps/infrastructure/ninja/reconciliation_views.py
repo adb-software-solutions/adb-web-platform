@@ -9,9 +9,7 @@ from ninja import Router
 from apps.access_control.policies import can_access_client, scope_clients_for_user
 from apps.clients.models import Client
 from apps.core.ownership import OwnershipType
-from authentication.ninja.schemas import ProblemDetail
-
-from ..legacy_reconciliation import (
+from apps.infrastructure.legacy_reconciliation import (
     LEGACY_RESOURCE_DEFINITIONS,
     LegacyResourceAlreadyLinkedError,
     LegacyResourceNotFoundError,
@@ -19,21 +17,21 @@ from ..legacy_reconciliation import (
     reconcile_legacy_resource,
     reconciliation_counts,
 )
-from ..resource_models import InfrastructureResource
+from apps.infrastructure.resource_models import InfrastructureResource
+from authentication.ninja.schemas import ProblemDetail
+
 from .reconciliation_schemas import (
     LegacyReconciliationItemOut,
     LegacyReconciliationOptionsOut,
     LegacyReconciliationPageOut,
     LegacyReconciliationStatus,
     LegacyResourceType,
-    ReconcileLegacyResourceIn,
     ReconciledResourceOut,
+    ReconcileLegacyResourceIn,
     ReconciliationClientOptionOut,
 )
 
-infrastructure_reconciliation_router = Router(
-    tags=["admin-infrastructure-reconciliation"]
-)
+infrastructure_reconciliation_router = Router(tags=["admin-infrastructure-reconciliation"])
 StaffProblem = tuple[int, dict[str, Any]]
 
 
@@ -151,9 +149,7 @@ def legacy_reconciliation_options(
             for client in clients
         ],
         legacy_types=[definition.key for definition in LEGACY_RESOURCE_DEFINITIONS],
-        lifecycle_statuses=[
-            choice.value for choice in InfrastructureResource.LifecycleStatus
-        ],
+        lifecycle_statuses=[choice.value for choice in InfrastructureResource.LifecycleStatus],
         environments=[choice.value for choice in InfrastructureResource.Environment],
         criticalities=[choice.value for choice in InfrastructureResource.Criticality],
     )
