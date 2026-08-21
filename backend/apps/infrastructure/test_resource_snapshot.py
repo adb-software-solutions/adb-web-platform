@@ -39,7 +39,7 @@ class LegacyResourceSnapshotTests(TestCase):
         self.assertEqual(snapshot.register_path, "/admin/infrastructure/servers")
         self.assertEqual(fields["hostname"], "adb-lon-ws01")
         self.assertEqual(fields["provider"], "DigitalOcean")
-        self.assertEqual(fields["operating_system"] if "operating_system" in fields else fields["os"], "Ubuntu 24.04")
+        self.assertEqual(fields["os"], "Ubuntu 24.04")
         self.assertEqual(fields["ram_gb"], "8 GB")
 
     def test_licence_snapshot_never_exposes_legacy_secret_key(self) -> None:
