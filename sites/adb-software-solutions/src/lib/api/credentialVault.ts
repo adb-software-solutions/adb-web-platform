@@ -4,7 +4,11 @@ import { API_URL } from "@/lib/config";
 export type CredentialStatus = "active" | "inactive" | "archived";
 export type CredentialOwnership = "internal" | "client";
 export type CredentialFieldKind = "text" | "password" | "textarea" | "url";
-export type CredentialFieldStorage = "username" | "url" | "metadata" | "secret";
+export type CredentialFieldStorage =
+    | "username"
+    | "url"
+    | "metadata"
+    | "secret";
 
 export interface CredentialField {
     key: string;
@@ -129,8 +133,10 @@ export const CredentialVaultAPI = {
     get: (credentialId: number) => `${BASE}/credentials/${credentialId}`,
     create: () => `${BASE}/credentials`,
     update: (credentialId: number) => `${BASE}/credentials/${credentialId}`,
-    archive: (credentialId: number) => `${BASE}/credentials/${credentialId}/archive`,
-    reveal: (credentialId: number) => `${BASE}/credentials/${credentialId}/reveal`,
+    archive: (credentialId: number) =>
+        `${BASE}/credentials/${credentialId}/archive`,
+    reveal: (credentialId: number) =>
+        `${BASE}/credentials/${credentialId}/reveal`,
     copy: (credentialId: number, fieldKey: string) =>
         `${BASE}/credentials/${credentialId}/secrets/${encodeURIComponent(fieldKey)}/copy`,
     download: (credentialId: number, fieldKey: string) =>
@@ -143,14 +149,21 @@ export async function downloadCredentialSecret(
     credentialId: number,
     fieldKey: string,
 ): Promise<void> {
-    const response = await fetchRawAPI(CredentialVaultAPI.download(credentialId, fieldKey), {
-        method: "POST",
-    });
+    const response = await fetchRawAPI(
+        CredentialVaultAPI.download(credentialId, fieldKey),
+        {
+            method: "POST",
+        },
+    );
     if (!response.ok) {
         const error = (await response.json().catch(() => ({
             message: "Unable to download credential secret.",
         }))) as { detail?: string; message?: string };
-        throw new Error(error.detail || error.message || "Unable to download credential secret.");
+        throw new Error(
+            error.detail ||
+                error.message ||
+                "Unable to download credential secret.",
+        );
     }
 
     const blob = await response.blob();
@@ -174,8 +187,11 @@ export async function copyCredentialSecret(
     credentialId: number,
     fieldKey: string,
 ): Promise<void> {
-    const payload = (await fetchAPI(CredentialVaultAPI.copy(credentialId, fieldKey), {
-        method: "POST",
-    })) as { field_key: string; value: string };
+    const payload = (await fetchAPI(
+        CredentialVaultAPI.copy(credentialId, fieldKey),
+        {
+            method: "POST",
+        },
+    )) as { field_key: string; value: string };
     await navigator.clipboard.writeText(payload.value);
 }
