@@ -16,6 +16,7 @@ from apps.infrastructure.ninja.resource_views import (
     get_infrastructure_resource,
     list_infrastructure_resources,
 )
+from apps.infrastructure.policies import scope_infrastructure_resources_for_user
 from authentication.models import User
 
 
@@ -149,6 +150,19 @@ class InfrastructureResourceApiTests(TestCase):
         )
 
         self.assertEqual([resource.id for resource in result.items], [self.internal.id])
+
+    def test_non_staff_scope_excludes_internal_resources(self) -> None:
+        user = User.objects.create_user(
+            email="portal-infra@example.com",
+            password="test-password",
+            first_name="Portal",
+            last_name="User",
+            is_staff=False,
+        )
+
+        scoped = scope_infrastructure_resources_for_user(user)
+
+        self.assertFalse(scoped.exists())
 
     def test_missing_capability_is_forbidden(self) -> None:
         user = self._user("no-infra-permission@example.com", with_permission=False)
