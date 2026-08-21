@@ -12,12 +12,17 @@ export default function InfrastructurePage() {
                 title="Infrastructure"
                 description="Operational inventory for servers, databases, websites, domains, certificates, licences and applications."
                 actions={
-                    <ButtonLink
-                        href="/admin/infrastructure/reconciliation"
-                        variant="secondary"
-                    >
-                        Reconcile existing records
-                    </ButtonLink>
+                    <>
+                        <ButtonLink href="/admin/infrastructure/resources">
+                            Structured resources
+                        </ButtonLink>
+                        <ButtonLink
+                            href="/admin/infrastructure/reconciliation"
+                            variant="secondary"
+                        >
+                            Reconcile existing records
+                        </ButtonLink>
+                    </>
                 }
             />
             <div className="mt-6">
