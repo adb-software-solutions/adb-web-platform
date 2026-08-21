@@ -327,7 +327,7 @@ def create_infrastructure_relationship(
         relationship_type=payload.relationship_type,
         label=payload.label.strip(),
         notes=payload.notes.strip(),
-        created_by=request.user,
+        created_by_id=request.user.pk,
     )
     try:
         relationship.full_clean()
@@ -363,7 +363,7 @@ def delete_infrastructure_relationship(
     request: HttpRequest,
     resource_id: int,
     relationship_id: int,
-) -> tuple[int, None | dict[str, object]]:
+) -> tuple[int, dict[str, object] | None]:
     problem = _relationship_permission_problem(
         request,
         "infrastructure.delete_resourcerelationship",
