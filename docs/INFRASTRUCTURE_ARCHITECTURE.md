@@ -349,9 +349,30 @@ Migration rules:
 
 Moving legacy Python model definitions between modules must preserve their Django app/model identity and database schema.
 
+### 14.1 Transitional identity bridges
+
+Until the specialist models are redesigned around `InfrastructureResource` directly, each existing infrastructure family uses a typed one-to-one identity bridge. The bridge preserves the existing row unchanged while binding it to exactly one structured resource.
+
+The bridge validates that the resource type matches the specialist family. For example, a legacy Server can only reconcile to a resource whose type is `server`, and a legacy Website can only reconcile to `website`.
+
+Reconciliation is intentionally an operator action. The operator chooses:
+
+- Internal or Client ownership;
+- the Client when Client-owned;
+- resource name;
+- lifecycle state;
+- environment;
+- criticality.
+
+The system must not infer ownership merely from legacy relationships. Client selection is restricted by the operator's normal Client access scope.
+
+Reconciliation is protected by the dedicated `reconcile_legacy_infrastructure` capability. Each legacy row may be reconciled only once. The resulting structured resource records who performed the reconciliation and resource detail APIs retain a reference to the underlying specialist row.
+
+The reconciliation workspace defaults to records still requiring review and provides explicit Linked/All history views. This is a migration/transition tool, not the long-term create/edit experience for infrastructure.
+
 ## 15. Current foundation boundary
 
-The initial Resource Foundation provides:
+The implemented Infrastructure foundation now provides:
 
 - `InfrastructureResource`;
 - reusable tags;
@@ -361,16 +382,19 @@ The initial Resource Foundation provides:
 - ownership and cross-Client relationship validation;
 - permission-aware resource list/detail APIs;
 - normal operational defaults that exclude retired/archived history;
-- preservation of the existing infrastructure records without guessing ownership.
+- preservation of the existing infrastructure records without guessing ownership;
+- typed one-to-one identity bridges for every current legacy infrastructure family;
+- an explicit permission-aware reconciliation API and operator workspace;
+- specialist references from reconciled structured-resource detail.
 
 It intentionally does **not** yet implement:
 
-- specialist resource create/edit workflows;
+- final specialist Server/Database/Website/etc. create/edit workflows;
 - automatic legacy ownership conversion;
 - credential-resource links;
 - monitoring checks/results/incidents;
 - KB-resource links;
-- the full Infrastructure frontend workspace;
+- the mature Infrastructure resource workspace;
 - Kubernetes/Docker specialist models.
 
 Those belong to subsequent focused changes built on this foundation.
