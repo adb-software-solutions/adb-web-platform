@@ -2,17 +2,23 @@ from __future__ import annotations
 
 import math
 
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.http import HttpRequest
 from ninja import Router
 
+from apps.core.ownership import OwnershipType
 from apps.infrastructure.legacy_resource_snapshot import legacy_resource_snapshot
 from apps.infrastructure.models import InfrastructureResource, ResourceRelationship
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
 from authentication.ninja.schemas import ProblemDetail
 
 from .resource_schemas import (
+    InfrastructureRelationshipCreateIn,
+    InfrastructureRelationshipOptionsOut,
     InfrastructureRelationshipOut,
+    InfrastructureRelationshipTargetOut,
+    InfrastructureRelationshipTypeOut,
     InfrastructureResourceDetailOut,
     InfrastructureResourcePageOut,
     InfrastructureResourceSummaryOut,
@@ -62,6 +68,45 @@ def _permission_problem(request: HttpRequest) -> StaffProblem | None:
             "code": "forbidden",
         }
     return None
+
+
+def _relationship_permission_problem(
+    request: HttpRequest,
+    permission: str,
+    message: str,
+) -> StaffProblem | None:
+    problem = _permission_problem(request)
+    if problem:
+        return problem
+    if not request.user.has_perm(permission):
+        return 403, {
+            "message": message,
+            "success": False,
+            "code": "forbidden",
+        }
+    return None
+
+
+def _visible_resource(
+    request: HttpRequest,
+    resource_id: int,
+) -> InfrastructureResource | None:
+    return (
+        scope_infrastructure_resources_for_user(
+            request.user,
+            InfrastructureResource.objects.select_related("client").prefetch_related("tags"),
+        )
+        .filter(id=resource_id)
+        .first()
+    )
+
+
+def _resource_not_found() -> StaffProblem:
+    return 404, {
+        "message": "Infrastructure resource not found.",
+        "success": False,
+        "code": "not_found",
+    }
 
 
 def _resource_summary(resource: InfrastructureResource) -> InfrastructureResourceSummaryOut:
@@ -184,6 +229,183 @@ def list_infrastructure_resources(
 
 
 @infrastructure_resource_router.get(
+    "/infrastructure/resources/{resource_id}/relationship-options",
+    response={
+        200: InfrastructureRelationshipOptionsOut,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
+)
+def infrastructure_relationship_options(
+    request: HttpRequest,
+    resource_id: int,
+    search: str | None = None,
+) -> InfrastructureRelationshipOptionsOut | StaffProblem:
+    problem = _permission_problem(request)
+    if problem:
+        return problem
+
+    resource = _visible_resource(request, resource_id)
+    if resource is None:
+        return _resource_not_found()
+
+    targets = scope_infrastructure_resources_for_user(
+        request.user,
+        InfrastructureResource.objects.select_related("client"),
+    ).filter(lifecycle_status__in=CURRENT_LIFECYCLE_STATUSES)
+    targets = targets.exclude(id=resource.id)
+    if resource.ownership_type == OwnershipType.CLIENT:
+        targets = targets.filter(
+            Q(ownership_type=OwnershipType.INTERNAL) | Q(client_id=resource.client_id)
+        )
+    if search:
+        term = search.strip()
+        if term:
+            targets = targets.filter(
+                Q(name__icontains=term)
+                | Q(client__name__icontains=term)
+                | Q(client__company__icontains=term)
+            )
+
+    return InfrastructureRelationshipOptionsOut(
+        relationship_types=[
+            InfrastructureRelationshipTypeOut(value=value, label=label)
+            for value, label in ResourceRelationship.RelationshipType.choices
+        ],
+        targets=[
+            InfrastructureRelationshipTargetOut(
+                id=target.id,
+                name=target.name,
+                resource_type=target.resource_type,
+                ownership_type=target.ownership_type,
+                client_name=str(target.client) if target.client else None,
+            )
+            for target in targets.order_by("name", "id")[:100]
+        ],
+    )
+
+
+@infrastructure_resource_router.post(
+    "/infrastructure/resources/{resource_id}/relationships",
+    response={
+        201: InfrastructureRelationshipOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
+)
+def create_infrastructure_relationship(
+    request: HttpRequest,
+    resource_id: int,
+    payload: InfrastructureRelationshipCreateIn,
+) -> tuple[int, InfrastructureRelationshipOut | dict[str, object]]:
+    problem = _relationship_permission_problem(
+        request,
+        "infrastructure.add_resourcerelationship",
+        "You do not have permission to create infrastructure relationships.",
+    )
+    if problem:
+        return problem
+
+    source = _visible_resource(request, resource_id)
+    target = _visible_resource(request, payload.target_resource_id)
+    if source is None or target is None:
+        return _resource_not_found()
+
+    if payload.relationship_type not in ResourceRelationship.RelationshipType.values:
+        return 400, {
+            "message": "Choose a valid infrastructure relationship type.",
+            "success": False,
+            "code": "invalid_relationship_type",
+        }
+
+    relationship = ResourceRelationship(
+        source_resource=source,
+        target_resource=target,
+        relationship_type=payload.relationship_type,
+        label=payload.label.strip(),
+        notes=payload.notes.strip(),
+        created_by=request.user,
+    )
+    try:
+        relationship.full_clean()
+    except ValidationError as error:
+        return 400, {
+            "message": " ".join(error.messages),
+            "success": False,
+            "code": "invalid_relationship",
+        }
+    relationship.save()
+
+    return 201, InfrastructureRelationshipOut(
+        id=relationship.id,
+        direction="outgoing",
+        relationship_type=relationship.relationship_type,
+        label=relationship.label,
+        related_resource_id=target.id,
+        related_resource_name=target.name,
+        related_resource_type=target.resource_type,
+    )
+
+
+@infrastructure_resource_router.delete(
+    "/infrastructure/resources/{resource_id}/relationships/{relationship_id}",
+    response={
+        204: None,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
+)
+def delete_infrastructure_relationship(
+    request: HttpRequest,
+    resource_id: int,
+    relationship_id: int,
+) -> tuple[int, None | dict[str, object]]:
+    problem = _relationship_permission_problem(
+        request,
+        "infrastructure.delete_resourcerelationship",
+        "You do not have permission to delete infrastructure relationships.",
+    )
+    if problem:
+        return problem
+
+    resource = _visible_resource(request, resource_id)
+    if resource is None:
+        return _resource_not_found()
+
+    relationship = (
+        ResourceRelationship.objects.select_related("source_resource", "target_resource")
+        .filter(id=relationship_id)
+        .filter(Q(source_resource=resource) | Q(target_resource=resource))
+        .first()
+    )
+    if relationship is None:
+        return 404, {
+            "message": "Infrastructure relationship not found.",
+            "success": False,
+            "code": "not_found",
+        }
+
+    related_id = (
+        relationship.target_resource_id
+        if relationship.source_resource_id == resource.id
+        else relationship.source_resource_id
+    )
+    if not scope_infrastructure_resources_for_user(request.user).filter(id=related_id).exists():
+        return 404, {
+            "message": "Infrastructure relationship not found.",
+            "success": False,
+            "code": "not_found",
+        }
+
+    relationship.delete()
+    return 204, None
+
+
+@infrastructure_resource_router.get(
     "/infrastructure/resources/{resource_id}",
     response={
         200: InfrastructureResourceDetailOut,
@@ -200,20 +422,9 @@ def get_infrastructure_resource(
     if problem:
         return problem
 
-    resource = (
-        scope_infrastructure_resources_for_user(
-            request.user,
-            InfrastructureResource.objects.select_related("client").prefetch_related("tags"),
-        )
-        .filter(id=resource_id)
-        .first()
-    )
+    resource = _visible_resource(request, resource_id)
     if resource is None:
-        return 404, {
-            "message": "Infrastructure resource not found.",
-            "success": False,
-            "code": "not_found",
-        }
+        return _resource_not_found()
 
     specialist = legacy_resource_snapshot(resource)
     summary = _resource_summary(resource)

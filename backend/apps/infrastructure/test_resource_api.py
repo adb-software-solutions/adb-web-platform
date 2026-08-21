@@ -9,11 +9,17 @@ from apps.clients.models import Client
 from apps.core.ownership import OwnershipType
 from apps.infrastructure.models import InfrastructureResource, ResourceRelationship
 from apps.infrastructure.ninja.resource_schemas import (
+    InfrastructureRelationshipCreateIn,
+    InfrastructureRelationshipOptionsOut,
+    InfrastructureRelationshipOut,
     InfrastructureResourceDetailOut,
     InfrastructureResourcePageOut,
 )
 from apps.infrastructure.ninja.resource_views import (
+    create_infrastructure_relationship,
+    delete_infrastructure_relationship,
     get_infrastructure_resource,
+    infrastructure_relationship_options,
     list_infrastructure_resources,
 )
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
@@ -57,13 +63,19 @@ class InfrastructureResourceApiTests(TestCase):
             resource_type=InfrastructureResource.ResourceType.SERVER,
             lifecycle_status=InfrastructureResource.LifecycleStatus.ARCHIVED,
         )
-        ResourceRelationship.objects.create(
+        self.hosted_relationship = ResourceRelationship.objects.create(
             source_resource=self.resource_a,
             target_resource=self.internal,
             relationship_type=ResourceRelationship.RelationshipType.HOSTED_ON,
         )
 
-    def _user(self, email: str, *, with_permission: bool = True) -> User:
+    def _user(
+        self,
+        email: str,
+        *,
+        with_permission: bool = True,
+        relationship_permissions: bool = False,
+    ) -> User:
         user = User.objects.create_user(
             email=email,
             password="test-password",
@@ -71,12 +83,26 @@ class InfrastructureResourceApiTests(TestCase):
             last_name="User",
             is_staff=True,
         )
+        permissions: list[Permission] = []
         if with_permission:
-            permission = Permission.objects.get(
-                content_type__app_label="infrastructure",
-                codename="view_infrastructureresource",
+            permissions.append(
+                Permission.objects.get(
+                    content_type__app_label="infrastructure",
+                    codename="view_infrastructureresource",
+                )
             )
-            user.user_permissions.add(permission)
+        if relationship_permissions:
+            permissions.extend(
+                Permission.objects.filter(
+                    content_type__app_label="infrastructure",
+                    codename__in=[
+                        "add_resourcerelationship",
+                        "delete_resourcerelationship",
+                    ],
+                )
+            )
+        if permissions:
+            user.user_permissions.add(*permissions)
         return user
 
     def _request(self, user: User | None) -> HttpRequest:
@@ -217,6 +243,131 @@ class InfrastructureResourceApiTests(TestCase):
 
         self.assertNotIn(self.archived.id, {resource.id for resource in current.items})
         self.assertEqual([resource.id for resource in history.items], [self.archived.id])
+
+    def test_relationship_options_respect_client_scope_and_ownership(self) -> None:
+        user = self._user("relationship-options@example.com")
+        profile = StaffAccessProfile.objects.create(user=user)
+        ClientAccessGrant.objects.create(profile=profile, client=self.client_a)
+
+        result = cast(
+            InfrastructureRelationshipOptionsOut,
+            infrastructure_relationship_options(self._request(user), self.resource_a.id),
+        )
+
+        self.assertEqual([target.id for target in result.targets], [self.internal.id])
+        self.assertIn(
+            ResourceRelationship.RelationshipType.DEPENDS_ON,
+            {relationship.value for relationship in result.relationship_types},
+        )
+
+    def test_relationship_can_be_created_to_visible_resource(self) -> None:
+        user = self._user(
+            "relationship-create@example.com",
+            relationship_permissions=True,
+        )
+        profile = StaffAccessProfile.objects.create(user=user)
+        ClientAccessGrant.objects.create(profile=profile, client=self.client_a)
+
+        status, result = create_infrastructure_relationship(
+            self._request(user),
+            self.resource_a.id,
+            InfrastructureRelationshipCreateIn(
+                target_resource_id=self.internal.id,
+                relationship_type=ResourceRelationship.RelationshipType.DEPENDS_ON,
+                label="Production host dependency",
+            ),
+        )
+
+        self.assertEqual(status, 201)
+        relationship = cast(InfrastructureRelationshipOut, result)
+        self.assertEqual(relationship.related_resource_id, self.internal.id)
+        self.assertEqual(relationship.label, "Production host dependency")
+        self.assertTrue(
+            ResourceRelationship.objects.filter(
+                source_resource=self.resource_a,
+                target_resource=self.internal,
+                relationship_type=ResourceRelationship.RelationshipType.DEPENDS_ON,
+                created_by=user,
+            ).exists()
+        )
+
+    def test_relationship_cannot_target_inaccessible_client(self) -> None:
+        user = self._user(
+            "relationship-cross-client@example.com",
+            relationship_permissions=True,
+        )
+        profile = StaffAccessProfile.objects.create(user=user)
+        ClientAccessGrant.objects.create(profile=profile, client=self.client_a)
+
+        result = create_infrastructure_relationship(
+            self._request(user),
+            self.resource_a.id,
+            InfrastructureRelationshipCreateIn(
+                target_resource_id=self.resource_b.id,
+                relationship_type=ResourceRelationship.RelationshipType.DEPENDS_ON,
+            ),
+        )
+
+        status, payload = result
+        self.assertEqual(status, 404)
+        self.assertEqual(cast(dict[str, object], payload)["code"], "not_found")
+
+    def test_duplicate_relationship_is_rejected(self) -> None:
+        user = self._user(
+            "relationship-duplicate@example.com",
+            relationship_permissions=True,
+        )
+        profile = StaffAccessProfile.objects.create(user=user)
+        ClientAccessGrant.objects.create(profile=profile, client=self.client_a)
+
+        status, payload = create_infrastructure_relationship(
+            self._request(user),
+            self.resource_a.id,
+            InfrastructureRelationshipCreateIn(
+                target_resource_id=self.internal.id,
+                relationship_type=ResourceRelationship.RelationshipType.HOSTED_ON,
+            ),
+        )
+
+        self.assertEqual(status, 400)
+        self.assertEqual(cast(dict[str, object], payload)["code"], "invalid_relationship")
+
+    def test_relationship_create_requires_capability(self) -> None:
+        user = self._user("relationship-no-create@example.com")
+        profile = StaffAccessProfile.objects.create(user=user)
+        ClientAccessGrant.objects.create(profile=profile, client=self.client_a)
+
+        status, payload = create_infrastructure_relationship(
+            self._request(user),
+            self.resource_a.id,
+            InfrastructureRelationshipCreateIn(
+                target_resource_id=self.internal.id,
+                relationship_type=ResourceRelationship.RelationshipType.DEPENDS_ON,
+            ),
+        )
+
+        self.assertEqual(status, 403)
+        self.assertEqual(cast(dict[str, object], payload)["code"], "forbidden")
+
+    def test_visible_relationship_can_be_deleted(self) -> None:
+        user = self._user(
+            "relationship-delete@example.com",
+            relationship_permissions=True,
+        )
+        profile = StaffAccessProfile.objects.create(user=user)
+        ClientAccessGrant.objects.create(profile=profile, client=self.client_a)
+
+        status, payload = delete_infrastructure_relationship(
+            self._request(user),
+            self.resource_a.id,
+            self.hosted_relationship.id,
+        )
+
+        self.assertEqual(status, 204)
+        self.assertIsNone(payload)
+        self.assertFalse(
+            ResourceRelationship.objects.filter(id=self.hosted_relationship.id).exists()
+        )
 
 
 class _AnonymousUser:
