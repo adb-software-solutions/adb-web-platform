@@ -72,12 +72,6 @@ class ServerResourceIdentity(LegacyResourceIdentityBase):
 
     class Meta:
         ordering = ["server__hostname"]
-        permissions = [
-            (
-                "reconcile_legacy_infrastructure",
-                "Can reconcile legacy infrastructure with structured resources",
-            )
-        ]
 
     def __str__(self) -> str:
         return f"{self.server} -> {self.resource}"
