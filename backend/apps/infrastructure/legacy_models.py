@@ -74,7 +74,7 @@ class Server(models.Model):
     class Meta:
         ordering = ["hostname"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.hostname
 
 
@@ -120,7 +120,7 @@ class Database(models.Model):
         ordering = ["name"]
         verbose_name_plural = "Databases"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -169,7 +169,7 @@ class Website(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -192,7 +192,7 @@ class WebsiteTechStack(models.Model):
     class Meta:
         unique_together = ("website", "technology")
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.website} - {self.technology}"
 
 
@@ -223,7 +223,7 @@ class Domain(models.Model):
     class Meta:
         ordering = ["domain_name"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.domain_name
 
 
@@ -249,7 +249,7 @@ class SSLCertificate(models.Model):
     class Meta:
         ordering = ["domain"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.domain} SSL"
 
 
@@ -283,7 +283,7 @@ class Licence(models.Model):
     class Meta:
         ordering = ["-renewal_date"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -325,7 +325,7 @@ class Application(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -381,7 +381,7 @@ class MobileApp(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -438,7 +438,7 @@ class API(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -485,7 +485,7 @@ class Bot(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -516,5 +516,5 @@ class EmailSystem(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.provider} Email System"
