@@ -4,11 +4,7 @@ from django.http import HttpRequest
 from django.test import RequestFactory, TestCase
 
 from apps.core.ownership import OwnershipType
-from apps.infrastructure.models import (
-    InfrastructureResource,
-    Licence,
-    LicenceResourceIdentity,
-)
+from apps.infrastructure.models import InfrastructureResource, Licence, LicenceResourceIdentity
 from apps.infrastructure.ninja.resource_schemas import InfrastructureResourceDetailOut
 from apps.infrastructure.ninja.resource_views import get_infrastructure_resource
 from authentication.models import User
