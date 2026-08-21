@@ -56,6 +56,11 @@ interface ResourceDetail {
     updated_at: string;
 }
 
+interface InfrastructureResourceWorkspaceProps {
+    resourceId: number;
+    presentation?: "page" | "drawer";
+}
+
 function label(value: string): string {
     const special: Record<string, string> = {
         not_applicable: "Not applicable",
@@ -122,7 +127,10 @@ function SpecialistValue({ field }: { field: SpecialistField }) {
     return <span className="text-slate-300">{field.value}</span>;
 }
 
-export function InfrastructureResourceWorkspace({ resourceId }: { resourceId: number }) {
+export function InfrastructureResourceWorkspace({
+    resourceId,
+    presentation = "page",
+}: InfrastructureResourceWorkspaceProps) {
     const [resource, setResource] = useState<ResourceDetail | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -173,9 +181,11 @@ export function InfrastructureResourceWorkspace({ resourceId }: { resourceId: nu
                     `${resource.client_name || "ADB Internal"} · ${label(resource.environment)} · ${label(resource.lifecycle_status)}`
                 }
                 actions={
-                    <ButtonLink href="/admin/infrastructure/resources" variant="secondary">
-                        Back to resources
-                    </ButtonLink>
+                    presentation === "page" ? (
+                        <ButtonLink href="/admin/infrastructure/resources" variant="secondary">
+                            Back to resources
+                        </ButtonLink>
+                    ) : undefined
                 }
             />
 

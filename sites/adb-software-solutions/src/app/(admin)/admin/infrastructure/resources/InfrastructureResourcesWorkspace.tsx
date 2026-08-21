@@ -1,5 +1,6 @@
 "use client";
 
+import { RecordDrawer } from "@/components/admin/RecordDrawer";
 import {
     ButtonLink,
     Card,
@@ -13,8 +14,8 @@ import {
 } from "@/components/ui";
 import { fetchAPI } from "@/lib/api/fetch";
 import { API_URL } from "@/lib/config";
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { InfrastructureResourceWorkspace } from "./[id]/InfrastructureResourceWorkspace";
 
 interface ResourceSummary {
     id: number;
@@ -127,6 +128,7 @@ export function InfrastructureResourcesWorkspace() {
     const [lifecycle, setLifecycle] = useState("current");
     const [resourceType, setResourceType] = useState("all");
     const [environment, setEnvironment] = useState("all");
+    const [selectedResourceId, setSelectedResourceId] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -302,12 +304,13 @@ export function InfrastructureResourcesWorkspace() {
                                 {data.items.map((resource) => (
                                     <tr key={resource.id} className="bg-slate-900/20 hover:bg-slate-900/55">
                                         <td className="px-4 py-3">
-                                            <Link
-                                                href={`/admin/infrastructure/resources/${resource.id}`}
-                                                className="font-medium text-slate-100 hover:text-adb-cyan-300"
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedResourceId(resource.id)}
+                                                className="text-left font-medium text-slate-100 hover:text-adb-cyan-300"
                                             >
                                                 {resource.name}
-                                            </Link>
+                                            </button>
                                             {resource.tags.length > 0 ? (
                                                 <div className="mt-1 flex flex-wrap gap-1">
                                                     {resource.tags.map((tag) => (
@@ -355,6 +358,18 @@ export function InfrastructureResourcesWorkspace() {
                     disabled={isLoading}
                 />
             </Card>
+
+            {selectedResourceId !== null ? (
+                <RecordDrawer
+                    onClose={() => setSelectedResourceId(null)}
+                    fullPageHref={`/admin/infrastructure/resources/${selectedResourceId}`}
+                >
+                    <InfrastructureResourceWorkspace
+                        resourceId={selectedResourceId}
+                        presentation="drawer"
+                    />
+                </RecordDrawer>
+            ) : null}
         </div>
     );
 }

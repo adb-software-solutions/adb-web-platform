@@ -1,5 +1,6 @@
 "use client";
 
+import { RecordDrawer } from "@/components/admin/RecordDrawer";
 import {
     ButtonLink,
     Card,
@@ -13,8 +14,8 @@ import {
 } from "@/components/ui";
 import { fetchAPI } from "@/lib/api/fetch";
 import { API_URL } from "@/lib/config";
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { InfrastructureResourceWorkspace } from "../../../infrastructure/resources/[id]/InfrastructureResourceWorkspace";
 
 interface ResourceSummary {
     id: number;
@@ -75,6 +76,7 @@ export function ClientInfrastructureWorkspace({ clientId }: { clientId: number }
     const [search, setSearch] = useState("");
     const [lifecycle, setLifecycle] = useState("current");
     const [resourceType, setResourceType] = useState("all");
+    const [selectedResourceId, setSelectedResourceId] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -204,10 +206,11 @@ export function ClientInfrastructureWorkspace({ clientId }: { clientId: number }
                 ) : (
                     <div className="divide-y divide-slate-800/80">
                         {data.items.map((resource) => (
-                            <Link
+                            <button
                                 key={resource.id}
-                                href={`/admin/infrastructure/resources/${resource.id}`}
-                                className="flex flex-col gap-3 px-4 py-4 transition hover:bg-slate-900/60 sm:flex-row sm:items-center sm:justify-between"
+                                type="button"
+                                onClick={() => setSelectedResourceId(resource.id)}
+                                className="flex w-full flex-col gap-3 px-4 py-4 text-left transition hover:bg-slate-900/60 sm:flex-row sm:items-center sm:justify-between"
                             >
                                 <div className="min-w-0">
                                     <div className="font-medium text-slate-100">{resource.name}</div>
@@ -236,7 +239,7 @@ export function ClientInfrastructureWorkspace({ clientId }: { clientId: number }
                                         {label(resource.criticality)}
                                     </span>
                                 </div>
-                            </Link>
+                            </button>
                         ))}
                     </div>
                 )}
@@ -248,6 +251,18 @@ export function ClientInfrastructureWorkspace({ clientId }: { clientId: number }
                     disabled={isLoading}
                 />
             </Card>
+
+            {selectedResourceId !== null ? (
+                <RecordDrawer
+                    onClose={() => setSelectedResourceId(null)}
+                    fullPageHref={`/admin/infrastructure/resources/${selectedResourceId}`}
+                >
+                    <InfrastructureResourceWorkspace
+                        resourceId={selectedResourceId}
+                        presentation="drawer"
+                    />
+                </RecordDrawer>
+            ) : null}
         </div>
     );
 }
