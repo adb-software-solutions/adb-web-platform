@@ -222,8 +222,7 @@ class ProviderAccount(models.Model):
         super().clean()
         if (
             self.resource_id
-            and self.resource.resource_type
-            != InfrastructureResource.ResourceType.PROVIDER_ACCOUNT
+            and self.resource.resource_type != InfrastructureResource.ResourceType.PROVIDER_ACCOUNT
         ):
             raise ValidationError(
                 {"resource": "Provider accounts require a provider-account resource."}
