@@ -6,6 +6,7 @@ from django.db.models import Q
 from django.http import HttpRequest
 from ninja import Router
 
+from apps.infrastructure.legacy_reconciliation import legacy_resource_reference
 from apps.infrastructure.models import InfrastructureResource, ResourceRelationship
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
 from authentication.ninja.schemas import ProblemDetail
@@ -16,6 +17,7 @@ from .resource_schemas import (
     InfrastructureResourcePageOut,
     InfrastructureResourceSummaryOut,
     InfrastructureTagOut,
+    LegacyResourceReferenceOut,
     ResourceEnvironmentFilter,
     ResourceLifecycleFilter,
     ResourceOwnershipFilter,
@@ -212,11 +214,21 @@ def get_infrastructure_resource(
             "code": "not_found",
         }
 
+    legacy_reference = legacy_resource_reference(resource)
     summary = _resource_summary(resource)
     return InfrastructureResourceDetailOut(
         **summary.model_dump(),
         description=resource.description,
         is_portal_visible=resource.is_portal_visible,
         relationships=_relationship_rows(request, resource),
+        legacy_reference=(
+            LegacyResourceReferenceOut(
+                legacy_type=legacy_reference[0],
+                legacy_id=legacy_reference[1],
+                name=legacy_reference[2],
+            )
+            if legacy_reference
+            else None
+        ),
         created_at=resource.created_at,
     )
