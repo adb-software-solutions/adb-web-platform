@@ -29,6 +29,8 @@ from apps.infrastructure.ninja.reconciliation_views import (
     list_legacy_reconciliation,
     reconcile_legacy_record,
 )
+from apps.infrastructure.ninja.resource_schemas import InfrastructureResourceDetailOut
+from apps.infrastructure.ninja.resource_views import get_infrastructure_resource
 from authentication.models import User
 
 
@@ -148,6 +150,16 @@ class LegacyInfrastructureReconciliationTests(TestCase):
         identity = ServerResourceIdentity.objects.get(server=self.server)
         self.assertEqual(identity.resource_id, resource.id)
         self.assertEqual(identity.linked_by_id, self.superuser.id)
+
+        detail = cast(
+            InfrastructureResourceDetailOut,
+            get_infrastructure_resource(self._request(self.superuser), resource.id),
+        )
+        self.assertIsNotNone(detail.legacy_reference)
+        assert detail.legacy_reference is not None
+        self.assertEqual(detail.legacy_reference.legacy_type, "server")
+        self.assertEqual(detail.legacy_reference.legacy_id, self.server.id)
+        self.assertEqual(detail.legacy_reference.name, self.server.hostname)
 
     def test_client_reconciliation_respects_client_scope(self) -> None:
         user = self._staff_user("scoped-infra@example.com")
