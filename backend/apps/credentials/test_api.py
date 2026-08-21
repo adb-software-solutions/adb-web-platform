@@ -12,7 +12,9 @@ from apps.credentials.models import CredentialType, StoredCredential
 from apps.credentials.ninja.schemas import (
     CredentialCreateIn,
     CredentialDetailOut,
+    CredentialLegacyMigrationOut,
     CredentialPageOut,
+    CredentialResourceLinkIn,
     CredentialSecretRevealIn,
     CredentialSecretsOut,
     CredentialSecretValueOut,
@@ -29,7 +31,10 @@ from apps.credentials.ninja.views import (
     reveal_credential,
     update_credential,
 )
-from apps.credentials.secrets import load_credential_secrets_for_service
+from apps.credentials.secrets import (
+    load_credential_secrets_for_service,
+    store_credential_secrets,
+)
 from apps.infrastructure.models import InfrastructureResource
 from authentication.models import User
 
@@ -120,7 +125,9 @@ class CredentialVaultApiTests(TestCase):
         self.assertEqual(status, 401)
         self.assertEqual(payload["code"], "unauthenticated")
 
-    def test_selected_client_scope_includes_internal_and_selected_client_only(self) -> None:
+    def test_selected_client_scope_includes_internal_and_selected_client_only(
+        self,
+    ) -> None:
         user = self._user("scope@example.test", ("view_storedcredential",))
         profile = StaffAccessProfile.objects.create(user=user)
         ClientAccessGrant.objects.create(profile=profile, client=self.client_a)
@@ -149,8 +156,6 @@ class CredentialVaultApiTests(TestCase):
     def test_detail_does_not_return_secret_values(self) -> None:
         user = self._user("detail@example.test", ("view_storedcredential",))
         with override_settings(CREDENTIAL_ENCRYPTION_KEYS=[self.encryption_key]):
-            from apps.credentials.secrets import store_credential_secrets
-
             store_credential_secrets(
                 self.internal,
                 {"password": "never-in-metadata", "notes": "also-encrypted"},
@@ -180,8 +185,14 @@ class CredentialVaultApiTests(TestCase):
                 "notes": "encrypted notes",
             },
             resource_links=[
-                {"resource_id": self.internal_resource.id, "purpose": "Server login"},
-                {"resource_id": self.client_a_resource.id, "purpose": "Website login"},
+                CredentialResourceLinkIn(
+                    resource_id=self.internal_resource.id,
+                    purpose="Server login",
+                ),
+                CredentialResourceLinkIn(
+                    resource_id=self.client_a_resource.id,
+                    purpose="Website login",
+                ),
             ],
         )
 
@@ -214,15 +225,25 @@ class CredentialVaultApiTests(TestCase):
             ownership_type="client",
             client_id=self.client_a.id,
             values={"password": "secret"},
-            resource_links=[{"resource_id": self.client_b_resource.id}],
+            resource_links=[
+                CredentialResourceLinkIn(resource_id=self.client_b_resource.id)
+            ],
         )
 
         with override_settings(CREDENTIAL_ENCRYPTION_KEYS=[self.encryption_key]):
             status, body = create_credential(self._request(user, "post"), payload)
 
         self.assertEqual(status, 400)
-        self.assertEqual(cast(dict[str, object], body)["code"], "invalid_resource_link")
-        self.assertFalse(StoredCredential.objects.filter(name="Client A login", created_by=user).exists())
+        self.assertEqual(
+            cast(dict[str, object], body)["code"],
+            "invalid_resource_link",
+        )
+        self.assertFalse(
+            StoredCredential.objects.filter(
+                name="Client A login",
+                created_by=user,
+            ).exists()
+        )
 
     def test_update_merges_new_secret_without_exposing_existing_secret(self) -> None:
         user = self._user(
@@ -230,8 +251,6 @@ class CredentialVaultApiTests(TestCase):
             ("view_storedcredential", "change_storedcredential"),
         )
         with override_settings(CREDENTIAL_ENCRYPTION_KEYS=[self.encryption_key]):
-            from apps.credentials.secrets import store_credential_secrets
-
             store_credential_secrets(
                 self.internal,
                 {"password": "keep-me", "notes": "old notes"},
@@ -254,8 +273,6 @@ class CredentialVaultApiTests(TestCase):
             ("view_storedcredential", "copy_storedcredential_secret"),
         )
         with override_settings(CREDENTIAL_ENCRYPTION_KEYS=[self.encryption_key]):
-            from apps.credentials.secrets import store_credential_secrets
-
             store_credential_secrets(self.internal, {"password": "copy-value"})
             copy_result = copy_credential_field(
                 self._request(user, "post"),
@@ -269,7 +286,10 @@ class CredentialVaultApiTests(TestCase):
             )
 
         self.assertIsInstance(copy_result, CredentialSecretValueOut)
-        self.assertEqual(cast(CredentialSecretValueOut, copy_result).value, "copy-value")
+        self.assertEqual(
+            cast(CredentialSecretValueOut, copy_result).value,
+            "copy-value",
+        )
         self.assertIsInstance(reveal_result, tuple)
         self.assertEqual(cast(tuple[int, object], reveal_result)[0], 403)
 
@@ -279,8 +299,6 @@ class CredentialVaultApiTests(TestCase):
             ("view_storedcredential", "reveal_storedcredential"),
         )
         with override_settings(CREDENTIAL_ENCRYPTION_KEYS=[self.encryption_key]):
-            from apps.credentials.secrets import store_credential_secrets
-
             store_credential_secrets(
                 self.internal,
                 {"password": "visible", "notes": "not-requested"},
@@ -292,7 +310,10 @@ class CredentialVaultApiTests(TestCase):
             )
 
         self.assertIsInstance(result, CredentialSecretsOut)
-        self.assertEqual(cast(CredentialSecretsOut, result).fields, {"password": "visible"})
+        self.assertEqual(
+            cast(CredentialSecretsOut, result).fields,
+            {"password": "visible"},
+        )
 
     def test_download_requires_download_permission_and_disables_caching(self) -> None:
         user = self._user(
@@ -300,8 +321,6 @@ class CredentialVaultApiTests(TestCase):
             ("view_storedcredential", "download_storedcredential_secret"),
         )
         with override_settings(CREDENTIAL_ENCRYPTION_KEYS=[self.encryption_key]):
-            from apps.credentials.secrets import store_credential_secrets
-
             store_credential_secrets(self.internal, {"private_key": "private-key"})
             response = download_credential_field(
                 self._request(user, "post"),
@@ -325,9 +344,12 @@ class CredentialVaultApiTests(TestCase):
         self.internal.save(update_fields=["password", "notes", "updated_at"])
 
         with override_settings(CREDENTIAL_ENCRYPTION_KEYS=[self.encryption_key]):
-            result = migrate_credential_legacy_secrets(
-                self._request(user, "post"),
-                self.internal.id,
+            result = cast(
+                CredentialLegacyMigrationOut,
+                migrate_credential_legacy_secrets(
+                    self._request(user, "post"),
+                    self.internal.id,
+                ),
             )
             self.internal.refresh_from_db()
             decrypted = load_credential_secrets_for_service(self.internal)

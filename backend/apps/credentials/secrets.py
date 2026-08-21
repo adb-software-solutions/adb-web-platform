@@ -259,7 +259,7 @@ def _select_fields(
     missing = requested.difference(secrets)
     if missing:
         raise CredentialSecretFieldError(
-            f"Credential secret field was not found: {sorted(missing)[0]}"
+            f"Credential secret field was not found: {min(missing)}"
         )
     return {key: value for key, value in secrets.items() if key in requested}
 
