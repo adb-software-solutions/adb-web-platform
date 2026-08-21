@@ -94,10 +94,19 @@ class InfrastructureRelationshipOut(Schema):
     related_resource_type: str
 
 
+class SpecialistFieldOut(Schema):
+    key: str
+    label: str
+    value: str
+    kind: Literal["text", "code", "url", "multiline"]
+
+
 class LegacyResourceReferenceOut(Schema):
     legacy_type: str
     legacy_id: int
     name: str
+    register_path: str
+    fields: list[SpecialistFieldOut]
 
 
 class InfrastructureResourceDetailOut(InfrastructureResourceSummaryOut):
