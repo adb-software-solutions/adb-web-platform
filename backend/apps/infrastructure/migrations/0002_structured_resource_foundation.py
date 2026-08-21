@@ -17,7 +17,12 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="InfrastructureTag",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
                 ("name", models.CharField(max_length=100, unique=True)),
                 ("slug", models.SlugField(max_length=100, unique=True)),
                 ("colour", models.CharField(blank=True, max_length=32)),
@@ -28,7 +33,12 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="ServiceProvider",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
                 ("name", models.CharField(max_length=200, unique=True)),
                 ("slug", models.SlugField(max_length=200, unique=True)),
                 (
@@ -63,7 +73,12 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="InfrastructureResource",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
                 (
                     "ownership_type",
                     models.CharField(
@@ -232,7 +247,12 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="ProviderAccount",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
                 ("account_identifier", models.CharField(blank=True, max_length=200)),
                 ("tenant_id", models.CharField(blank=True, max_length=200)),
                 ("project_id", models.CharField(blank=True, max_length=200)),
@@ -264,7 +284,12 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="ResourceRelationship",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
                 (
                     "relationship_type",
                     models.CharField(
@@ -314,9 +339,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={
-                "ordering": ["source_resource__name", "target_resource__name", "id"]
-            },
+            options={"ordering": ["source_resource__name", "target_resource__name", "id"]},
         ),
         migrations.AddConstraint(
             model_name="resourcerelationship",
