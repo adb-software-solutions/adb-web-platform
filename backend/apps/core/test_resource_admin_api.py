@@ -104,9 +104,12 @@ class AdminResourceAPITests(TestCase):
         allowed = self.client.get("/api/admin/credentials")
 
         self.assertEqual(allowed.status_code, 200)
-        names = {credential["name"] for credential in allowed.json()}
+        payload = allowed.json()
+        credentials = payload["items"]
+        names = {credential["name"] for credential in credentials}
         self.assertSetEqual(names, {"Internal Credential", "Allowed Credential"})
-        for credential in allowed.json():
+        self.assertEqual(payload["total"], 2)
+        for credential in credentials:
             self.assertNotIn("password", credential)
             self.assertNotIn("api_key", credential)
             self.assertNotIn("secret_key", credential)
