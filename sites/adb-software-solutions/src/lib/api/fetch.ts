@@ -35,7 +35,7 @@ async function ensureCsrfToken(): Promise<string | null> {
     return getCookie("csrftoken") ?? payload.token ?? null;
 }
 
-export async function fetchAPI(url: string, options: RequestInit = {}) {
+export async function fetchRawAPI(url: string, options: RequestInit = {}) {
     const method = (options.method ?? "GET").toUpperCase();
     const headers = new Headers(options.headers);
 
@@ -51,12 +51,16 @@ export async function fetchAPI(url: string, options: RequestInit = {}) {
         headers.set("X-CSRFToken", csrfToken);
     }
 
-    const response = await fetch(url, {
+    return fetch(url, {
         ...options,
         method,
         headers,
         credentials: "include",
     });
+}
+
+export async function fetchAPI(url: string, options: RequestInit = {}) {
+    const response = await fetchRawAPI(url, options);
 
     if (!response.ok) {
         const error = (await response.json().catch(() => ({
