@@ -10,7 +10,7 @@ export function RecordDrawer({
 }: {
     children: ReactNode;
     onClose: () => void;
-    fullPageHref: string;
+    fullPageHref?: string;
 }) {
     useEffect(() => {
         const previousOverflow = document.body.style.overflow;
@@ -37,9 +37,11 @@ export function RecordDrawer({
             />
             <aside className="relative h-full w-full overflow-y-auto border-l border-slate-800 bg-slate-950 shadow-2xl shadow-black/50 sm:max-w-4xl 2xl:max-w-6xl">
                 <div className="sticky top-0 z-20 flex items-center justify-end gap-2 border-b border-slate-800 bg-slate-950/95 px-5 py-3 backdrop-blur">
-                    <ButtonLink href={fullPageHref} variant="ghost" size="sm">
-                        Open full page
-                    </ButtonLink>
+                    {fullPageHref ? (
+                        <ButtonLink href={fullPageHref} variant="ghost" size="sm">
+                            Open full page
+                        </ButtonLink>
+                    ) : null}
                     <Button type="button" variant="ghost" size="sm" onClick={onClose}>
                         Close
                     </Button>
