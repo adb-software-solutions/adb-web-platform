@@ -94,8 +94,15 @@ class InfrastructureRelationshipOut(Schema):
     related_resource_type: str
 
 
+class LegacyResourceReferenceOut(Schema):
+    legacy_type: str
+    legacy_id: int
+    name: str
+
+
 class InfrastructureResourceDetailOut(InfrastructureResourceSummaryOut):
     description: str
     is_portal_visible: bool
     relationships: list[InfrastructureRelationshipOut]
+    legacy_reference: LegacyResourceReferenceOut | None
     created_at: datetime
