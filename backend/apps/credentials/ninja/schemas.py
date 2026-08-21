@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Literal
 
 from ninja import Schema
-from pydantic import Field
+from pydantic import Field, model_validator
 
 CredentialOwnershipFilter = Literal["all", "internal", "client"]
 CredentialStatusFilter = Literal["active", "inactive", "archived", "all"]
@@ -12,6 +12,15 @@ CredentialStatusValue = Literal["active", "inactive", "archived"]
 CredentialOwnershipValue = Literal["internal", "client"]
 CredentialFieldKind = Literal["text", "password", "textarea", "url"]
 CredentialFieldStorage = Literal["username", "url", "metadata", "secret"]
+
+LEGACY_SECRET_FIELD_LABELS = {
+    "password": "Password",
+    "api_key": "API key",
+    "secret_key": "Secret key",
+    "private_key": "Private key",
+    "notes": "Notes",
+}
+LEGACY_MULTILINE_SECRET_FIELDS = {"private_key", "notes"}
 
 
 class CredentialFieldOut(Schema):
@@ -107,6 +116,29 @@ class CredentialDetailOut(CredentialSummaryOut):
     created_by: str | None
     updated_by: str | None
     created_at: datetime
+
+    @model_validator(mode="after")
+    def include_untyped_encrypted_fields(self) -> CredentialDetailOut:
+        """Keep migrated legacy secrets visible even without template metadata."""
+        known_keys = {field.key for field in self.fields}
+        for raw_key in self.secret_field_keys:
+            key = raw_key.strip()
+            if not key or key in known_keys:
+                continue
+            self.fields.append(
+                CredentialFieldOut(
+                    key=key,
+                    label=LEGACY_SECRET_FIELD_LABELS.get(
+                        key,
+                        key.replace("_", " ").title(),
+                    ),
+                    kind="textarea" if key in LEGACY_MULTILINE_SECRET_FIELDS else "password",
+                    storage="secret",
+                    required=False,
+                )
+            )
+            known_keys.add(key)
+        return self
 
 
 class CredentialClientOptionOut(Schema):
