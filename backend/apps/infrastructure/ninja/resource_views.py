@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.http import HttpRequest
 from ninja import Router
 
-from apps.infrastructure.legacy_reconciliation import legacy_resource_reference
+from apps.infrastructure.legacy_resource_snapshot import legacy_resource_snapshot
 from apps.infrastructure.models import InfrastructureResource, ResourceRelationship
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
 from authentication.ninja.schemas import ProblemDetail
@@ -22,6 +22,7 @@ from .resource_schemas import (
     ResourceLifecycleFilter,
     ResourceOwnershipFilter,
     ResourceTypeFilter,
+    SpecialistFieldOut,
 )
 
 infrastructure_resource_router = Router(tags=["admin-infrastructure-resources"])
@@ -214,7 +215,7 @@ def get_infrastructure_resource(
             "code": "not_found",
         }
 
-    legacy_reference = legacy_resource_reference(resource)
+    specialist = legacy_resource_snapshot(resource)
     summary = _resource_summary(resource)
     return InfrastructureResourceDetailOut(
         **summary.model_dump(),
@@ -223,11 +224,21 @@ def get_infrastructure_resource(
         relationships=_relationship_rows(request, resource),
         legacy_reference=(
             LegacyResourceReferenceOut(
-                legacy_type=legacy_reference[0],
-                legacy_id=legacy_reference[1],
-                name=legacy_reference[2],
+                legacy_type=specialist.legacy_type,
+                legacy_id=specialist.legacy_id,
+                name=specialist.name,
+                register_path=specialist.register_path,
+                fields=[
+                    SpecialistFieldOut(
+                        key=field.key,
+                        label=field.label,
+                        value=field.value,
+                        kind=field.kind,
+                    )
+                    for field in specialist.fields
+                ],
             )
-            if legacy_reference
+            if specialist
             else None
         ),
         created_at=resource.created_at,
