@@ -94,6 +94,31 @@ class InfrastructureRelationshipOut(Schema):
     related_resource_type: str
 
 
+class InfrastructureRelationshipCreateIn(Schema):
+    target_resource_id: int
+    relationship_type: str
+    label: str = ""
+    notes: str = ""
+
+
+class InfrastructureRelationshipTypeOut(Schema):
+    value: str
+    label: str
+
+
+class InfrastructureRelationshipTargetOut(Schema):
+    id: int
+    name: str
+    resource_type: str
+    ownership_type: str
+    client_name: str | None
+
+
+class InfrastructureRelationshipOptionsOut(Schema):
+    relationship_types: list[InfrastructureRelationshipTypeOut]
+    targets: list[InfrastructureRelationshipTargetOut]
+
+
 class SpecialistFieldOut(Schema):
     key: str
     label: str
