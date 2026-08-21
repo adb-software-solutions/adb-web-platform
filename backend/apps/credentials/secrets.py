@@ -8,12 +8,14 @@ from typing import Any
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.utils import timezone
 
 from apps.core.models import AuditEvent
 from apps.credentials.models import StoredCredential
 
 SECRET_PAYLOAD_VERSION = 1
+LEGACY_PLAINTEXT_FIELDS = ("password", "api_key", "secret_key", "private_key", "notes")
 
 
 class CredentialEncryptionError(RuntimeError):
@@ -71,9 +73,7 @@ def merge_credential_secrets(
     clear_fields: Iterable[str] = (),
 ) -> None:
     """Merge secret edits without requiring unchanged values to leave the server."""
-    existing = (
-        _decrypt_payload(credential) if credential.encrypted_secret_payload else {}
-    )
+    existing = _decrypt_payload(credential) if credential.encrypted_secret_payload else {}
     for field in clear_fields:
         existing.pop(field.strip(), None)
     existing.update(_normalise_secrets(updates))
@@ -177,6 +177,44 @@ def clear_credential_secrets(credential: StoredCredential) -> None:
             "updated_at",
         ]
     )
+
+
+@transaction.atomic
+def migrate_legacy_plaintext_secrets(
+    credential: StoredCredential,
+    *,
+    actor: Any,
+    ip_address: str | None = None,
+    user_agent: str = "",
+) -> list[str]:
+    """Encrypt legacy plaintext secret columns and blank them in one transaction."""
+    if not getattr(actor, "is_authenticated", False) or not actor.has_perm(
+        "credentials.change_storedcredential"
+    ):
+        raise PermissionDenied("You do not have permission to migrate credential secrets.")
+
+    legacy = {
+        field: str(getattr(credential, field))
+        for field in LEGACY_PLAINTEXT_FIELDS
+        if getattr(credential, field)
+    }
+    if not legacy:
+        return []
+
+    merge_credential_secrets(credential, legacy)
+    for field in legacy:
+        setattr(credential, field, "")
+    credential.updated_by = actor
+    credential.save(update_fields=[*legacy.keys(), "updated_by", "updated_at"])
+    AuditEvent.record(
+        action="credentials.legacy_secrets_encrypted",
+        actor=actor,
+        target=credential,
+        metadata={"secret_fields": sorted(legacy)},
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+    return sorted(legacy)
 
 
 def _single_secret_action(

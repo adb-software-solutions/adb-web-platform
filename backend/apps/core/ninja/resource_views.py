@@ -7,25 +7,12 @@ from ninja import Router, Schema
 
 from apps.access_control.policies import scope_clients_for_user
 from apps.core.ownership import OwnershipType
-from apps.credentials.models import StoredCredential
 from apps.knowledge_base.models import KnowledgeBaseDocument
 from authentication.ninja.schemas import ProblemDetail
 
 resource_admin_router = Router(tags=["admin-resources"])
 
 StaffProblem = tuple[int, dict[str, Any]]
-
-
-class CredentialSummaryOut(Schema):
-    id: int
-    name: str
-    ownership_type: str
-    client: str | None
-    credential_type: str | None
-    username: str
-    url: str
-    expires_at: datetime | None
-    last_rotated_at: datetime | None
 
 
 class KnowledgeDocumentSummaryOut(Schema):
@@ -71,37 +58,6 @@ def _permission_problem(request: HttpRequest, permission: str) -> StaffProblem |
 def _ownership_scope(request: HttpRequest) -> Q:
     clients = scope_clients_for_user(request.user)
     return Q(ownership_type=OwnershipType.INTERNAL) | Q(client__in=clients)
-
-
-@resource_admin_router.get(
-    "/credentials",
-    response={200: list[CredentialSummaryOut], 401: ProblemDetail, 403: ProblemDetail},
-)
-def list_credentials(request: HttpRequest) -> list[CredentialSummaryOut] | StaffProblem:
-    problem = _permission_problem(request, "credentials.view_storedcredential")
-    if problem:
-        return problem
-
-    credentials = StoredCredential.objects.filter(_ownership_scope(request)).select_related(
-        "client",
-        "credential_type",
-    )
-    return [
-        CredentialSummaryOut(
-            id=credential.id,
-            name=credential.name,
-            ownership_type=credential.ownership_type,
-            client=credential.client.company if credential.client else None,
-            credential_type=(
-                credential.credential_type.name if credential.credential_type else None
-            ),
-            username=credential.username,
-            url=credential.url,
-            expires_at=credential.expires_at,
-            last_rotated_at=credential.last_rotated_at,
-        )
-        for credential in credentials
-    ]
 
 
 @resource_admin_router.get(
