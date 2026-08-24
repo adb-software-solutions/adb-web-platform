@@ -10,7 +10,7 @@ psycopg2==2.9.12
 Pillow==12.3.0
 python-dotenv==1.2.3
 gunicorn==26.0.0
-uvicorn[standard]==0.52.3
+uvicorn[standard]==0.52.4
 django-debug-toolbar==7.1.1
 graphene-django==3.2.3
 django-filter==26.1
