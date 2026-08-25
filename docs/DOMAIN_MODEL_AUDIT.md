@@ -16,6 +16,9 @@ The classifications used here are:
 - **Defer** — valid future domain, but detailed modelling is intentionally not
   agreed yet.
 
+Credential-specific field storage, encryption, permissions and migration rules
+are defined in `CREDENTIAL_VAULT_ARCHITECTURE.md`.
+
 Do not treat this audit as permission to implement every future field at once.
 
 ## 1. Cross-domain modelling rules
@@ -53,6 +56,8 @@ materially privileged actions.
 Audit metadata must be curated. Never put passwords, tokens, private keys,
 secret payloads, message bodies or other sensitive material into audit
 metadata merely because an action touched them.
+
+Credential reveal/copy/download events record safe field names/context only.
 
 ## 2. Authentication and staff identity
 
@@ -121,7 +126,8 @@ Established behaviour includes:
 - custom operations CRUD;
 - active-first global overview;
 - server-side stats/filtering/pagination;
-- scoped Client workspace.
+- scoped Client workspace;
+- contextual active Client-owned Credentials.
 
 Future commercial fields should be added by the commercial phase rather than
 pre-loading Client with invoice/accounting concepts now.
@@ -275,7 +281,12 @@ decision changes it. Browser tabs are not authoritative timer state.
 
 Represents one Microsoft tenant/application integration.
 
-Authentication belongs at connection level, not per Mailbox.
+Authentication belongs at connection level, not per Mailbox. Sensitive
+certificate/private-key/client-secret material belongs in the Credential Vault,
+not duplicate plaintext Graph settings.
+
+See `CREDENTIAL_VAULT_ARCHITECTURE.md` and
+`MICROSOFT_GRAPH_TICKETING_SETUP.md`.
 
 ### Mailbox — Keep / extend
 
@@ -318,7 +329,7 @@ remains important for idempotency and threading.
 
 ### TicketNote — Keep
 
-Internal staff-only conversation item. The UI now renders Notes chronologically
+Internal staff-only conversation item. The UI renders Notes chronologically
 within the Ticket feed rather than as a cramped side-panel silo.
 
 ### TicketAttachment — Keep
@@ -328,39 +339,47 @@ download are separate from the Ticket message model.
 
 ## 9. Credentials
 
-### CredentialType — Keep / evolve through typed templates
+### CredentialType — Keep / typed template catalogue
 
-Credential type/template metadata is useful, but the modern Vault defines
-stable field storage classes rather than relying on arbitrary plaintext model
-columns.
+Credential type/template metadata is the stable field-schema catalogue for the
+Vault.
 
-### StoredCredential — Keep as the credential identity
+Built-in templates cover username/password, SSH, database, API token, OAuth,
+service account, certificate/keypair, licence key, recovery codes, encryption
+key and custom secret use cases.
 
-The older audit statement that StoredCredential is simply a plaintext vault is
-obsolete.
+Each field has a stable key, presentation kind, required state and storage
+class. Safe metadata is separated from encrypted secret material.
 
-`encrypted_secret_payload` plus the configured MultiFernet/key-ring service is
-the security foundation on `main`.
+See `CREDENTIAL_VAULT_ARCHITECTURE.md`.
 
-The active Credential Vault slice expands this identity with:
+### StoredCredential — Keep
 
-- typed credential templates;
+`StoredCredential` is the Credential identity and now has a complete encrypted
+Vault workflow.
+
+Established behaviour includes:
+
+- Client/Internal ownership;
 - Active/Inactive/Archived lifecycle;
 - safe searchable metadata;
-- secure create/edit/archive;
-- reveal/copy/download action separation;
-- resource links;
 - expiry/rotation metadata;
-- atomic legacy plaintext reconciliation.
+- versioned `encrypted_secret_payload`;
+- ordered MultiFernet key ring through `CREDENTIAL_ENCRYPTION_KEYS`;
+- typed secure create/edit/archive;
+- separate reveal/copy/download actions;
+- resource links;
+- atomic legacy plaintext reconciliation;
+- safe audit events that never contain secret values;
+- fail-closed encryption/decryption behaviour.
 
-Until that feature is merged, main still contains legacy plaintext columns for
-compatibility. New production secret material must use the encrypted payload
-service, not those columns.
+Legacy plaintext columns remain temporarily for compatibility/migration only.
+New Vault operations do not write sensitive values to them.
 
 The long-term cleanup is to remove reconciled legacy plaintext columns only
 after production migration is verified.
 
-### Credential-to-resource link — Agreed / in-flight
+### CredentialResourceLink — Keep
 
 Credentials link to one or more InfrastructureResource records with purpose and
 primary semantics.
@@ -368,6 +387,15 @@ primary semantics.
 Client-owned Credentials may link only to resources owned by the same Client.
 Internal Credentials may legitimately link to Internal or Client resources
 where ADB operates shared provider/service access.
+
+Link-target choices are permission-scoped before ownership validation.
+
+### Secret browser state — Keep ephemeral
+
+Revealed secret values are not part of the ordinary Credential model returned
+by list/detail APIs. Frontend secret values may exist only in transient
+component state for an explicit secret action and must not be stored in browser
+storage, routes, analytics or normal caches.
 
 ## 10. Infrastructure
 
@@ -398,7 +426,7 @@ Represents a real provider account/tenant/project and is itself backed by an
 InfrastructureResource so Credentials, KB, Monitoring and relationships can
 attach consistently.
 
-Secrets do not belong directly on ProviderAccount.
+Secrets do not belong directly on ProviderAccount. They link through the Vault.
 
 ### ResourceRelationship — Keep
 
@@ -427,7 +455,9 @@ Do not guess ownership for historical rows. Reconciliation remains explicit and
 permission-controlled.
 
 Safe specialist metadata can be projected during transition; secret-bearing
-legacy fields must not leak through the structured resource API.
+legacy fields must not leak through the structured resource API. Secret values
+move to Vault Credentials where appropriate before old plaintext columns are
+retired.
 
 ### Future typed specialist models/relationships — Keep / extend progressively
 
@@ -444,7 +474,8 @@ The planned structured families include:
 - licences/subscriptions/email systems and other useful operations records.
 
 Implement these progressively rather than redesigning every technical model in
-one migration.
+one migration. Authentication material in those families references Vault
+Credentials.
 
 ## 11. Knowledge Base
 
@@ -472,6 +503,9 @@ Future mature behaviour includes:
 - Infrastructure/Ticket/Project/Credential links;
 - explicit future portal visibility, private by default.
 
+Knowledge content may link to a Credential but must not copy its decrypted
+secret into the document.
+
 ### DocumentVersion — Keep / strengthen service ownership
 
 Versions should be immutable history generated by document update services.
@@ -485,6 +519,9 @@ InfrastructureResource.
 
 The target includes Check, historical Result and Incident concepts rather than
 adding `is_up` fields to infrastructure specialists.
+
+Checks requiring authentication reference Vault Credentials; they do not own
+plaintext passwords/tokens.
 
 Detailed schedule/result-retention/escalation models should be decided in the
 Monitoring implementation slice.
@@ -503,6 +540,9 @@ cost; do not merge the models.
 Brand-aware editorial content remains valid. Public APIs must continue to scope
 content/taxonomy by Brand and never leak cross-Brand content accidentally.
 
+Public content APIs never receive Credential secrets merely because they share
+the Django backend.
+
 ## 14. Future commercial domains — Defer detailed models
 
 Agreed future product areas include:
@@ -520,6 +560,7 @@ not agreed. Do not create speculative tables in advance of the commercial
 phase.
 
 Reuse existing Client/Lead/Project/Ticket/Time identity when that phase begins.
+Commercial integration secrets belong in the Credential Vault.
 
 ## 15. Future Client portal — Defer
 
@@ -529,6 +570,9 @@ ClientContact.
 Per-domain portal visibility must be explicit and private by default. Do not add
 implicit portal access merely because a record belongs to a Client.
 
+Credential secret actions are staff-only unless a later explicit portal threat
+model says otherwise.
+
 ## 16. Migration discipline
 
 - Never delete/rewrite historical migrations that have been applied.
@@ -537,21 +581,23 @@ implicit portal access merely because a record belongs to a Client.
   app/model/database identity.
 - Do not make specialist InfrastructureResource links mandatory until legacy
   rows are deliberately reconciled.
-- Do not remove credential legacy plaintext columns until encrypted migration
-  has been verified.
+- Do not remove credential legacy plaintext columns until Vault reconciliation
+  and production verification are complete.
+- New secret-bearing fields belong in the encrypted Vault rather than new
+  plaintext columns.
 - Prefer reversible, explicit migrations where practical.
 
 ## 17. Current model priorities
 
-The model work should now follow the product roadmap rather than the old
-foundation audit:
+The model work now follows the product roadmap:
 
-1. finish Credential Vault and legacy-secret reconciliation;
-2. mature typed Infrastructure specialists;
-3. add Monitoring models/services;
-4. redesign the KB hierarchy/editor/linking model;
-5. complete Users & Access administration contracts;
-6. add cross-domain Activity/Search models only where concrete requirements
+1. mature typed Infrastructure specialists;
+2. add Monitoring models/services;
+3. redesign the KB hierarchy/editor/linking model;
+4. complete Users & Access administration contracts;
+5. add cross-domain Activity/Search models only where concrete requirements
    justify persistence;
+6. add Credential health/rotation-support models only when real operations
+   require them;
 7. add commercial models only in the commercial phase;
 8. add portal visibility/identity only in the portal phase.
