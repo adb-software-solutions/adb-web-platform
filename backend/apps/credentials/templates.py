@@ -57,8 +57,7 @@ BUILTIN_CREDENTIAL_TEMPLATES: tuple[CredentialTemplateDefinition, ...] = (
         "name": "SSH key",
         "icon": "terminal-square",
         "description": (
-            "SSH login using encrypted public/private key material and optional "
-            "passphrase."
+            "SSH login using encrypted public/private key material and optional passphrase."
         ),
         "sort_order": 20,
         "fields": [
@@ -73,9 +72,7 @@ BUILTIN_CREDENTIAL_TEMPLATES: tuple[CredentialTemplateDefinition, ...] = (
         "slug": "database-login",
         "name": "Database login",
         "icon": "database",
-        "description": (
-            "Database username/password with optional logical database identifier."
-        ),
+        "description": ("Database username/password with optional logical database identifier."),
         "sort_order": 30,
         "fields": [
             _field(
@@ -106,8 +103,7 @@ BUILTIN_CREDENTIAL_TEMPLATES: tuple[CredentialTemplateDefinition, ...] = (
         "name": "OAuth application",
         "icon": "shield-keyhole",
         "description": (
-            "OAuth/client-credential application with optional certificate "
-            "authentication."
+            "OAuth/client-credential application with optional certificate authentication."
         ),
         "sort_order": 50,
         "fields": [
@@ -124,9 +120,7 @@ BUILTIN_CREDENTIAL_TEMPLATES: tuple[CredentialTemplateDefinition, ...] = (
         "slug": "service-account",
         "name": "Service account",
         "icon": "bot",
-        "description": (
-            "Service-account credential, including encrypted JSON/key material."
-        ),
+        "description": ("Service-account credential, including encrypted JSON/key material."),
         "sort_order": 60,
         "fields": [
             _field("account_identifier", "Account identifier", storage="metadata"),
@@ -143,9 +137,7 @@ BUILTIN_CREDENTIAL_TEMPLATES: tuple[CredentialTemplateDefinition, ...] = (
         "slug": "certificate-keypair",
         "name": "Certificate and private key",
         "icon": "badge-check",
-        "description": (
-            "Certificate/keypair stored together with optional encrypted passphrase."
-        ),
+        "description": ("Certificate/keypair stored together with optional encrypted passphrase."),
         "sort_order": 70,
         "fields": [
             _field("certificate", "Certificate", kind="textarea", required=True),
