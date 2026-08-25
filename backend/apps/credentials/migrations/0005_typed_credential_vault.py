@@ -3,9 +3,28 @@
 from __future__ import annotations
 
 import django.db.models.deletion
+from django.apps.registry import Apps
 from django.conf import settings
 from django.db import migrations, models
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 from django.utils.text import slugify
+
+
+def _field(
+    key: str,
+    label: str,
+    *,
+    kind: str = "text",
+    storage: str = "secret",
+    required: bool = False,
+) -> dict[str, object]:
+    return {
+        "key": key,
+        "label": label,
+        "kind": kind,
+        "storage": storage,
+        "required": required,
+    }
 
 
 BUILTIN_TYPES = (
@@ -16,9 +35,9 @@ BUILTIN_TYPES = (
         "General username/password login for websites, servers and vendor portals.",
         10,
         [
-            {"key": "username", "label": "Username", "kind": "text", "storage": "username", "required": False},
-            {"key": "password", "label": "Password", "kind": "password", "storage": "secret", "required": True},
-            {"key": "notes", "label": "Encrypted notes", "kind": "textarea", "storage": "secret", "required": False},
+            _field("username", "Username", storage="username"),
+            _field("password", "Password", kind="password", required=True),
+            _field("notes", "Encrypted notes", kind="textarea"),
         ],
     ),
     (
@@ -28,11 +47,11 @@ BUILTIN_TYPES = (
         "SSH login using encrypted public/private key material and optional passphrase.",
         20,
         [
-            {"key": "username", "label": "SSH username", "kind": "text", "storage": "username", "required": False},
-            {"key": "public_key", "label": "Public key", "kind": "textarea", "storage": "secret", "required": False},
-            {"key": "private_key", "label": "Private key", "kind": "textarea", "storage": "secret", "required": True},
-            {"key": "passphrase", "label": "Key passphrase", "kind": "password", "storage": "secret", "required": False},
-            {"key": "notes", "label": "Encrypted notes", "kind": "textarea", "storage": "secret", "required": False},
+            _field("username", "SSH username", storage="username"),
+            _field("public_key", "Public key", kind="textarea"),
+            _field("private_key", "Private key", kind="textarea", required=True),
+            _field("passphrase", "Key passphrase", kind="password"),
+            _field("notes", "Encrypted notes", kind="textarea"),
         ],
     ),
     (
@@ -42,10 +61,10 @@ BUILTIN_TYPES = (
         "Database username/password with optional logical database identifier.",
         30,
         [
-            {"key": "username", "label": "Database username", "kind": "text", "storage": "username", "required": True},
-            {"key": "password", "label": "Database password", "kind": "password", "storage": "secret", "required": True},
-            {"key": "database_name", "label": "Database name", "kind": "text", "storage": "metadata", "required": False},
-            {"key": "notes", "label": "Encrypted notes", "kind": "textarea", "storage": "secret", "required": False},
+            _field("username", "Database username", storage="username", required=True),
+            _field("password", "Database password", kind="password", required=True),
+            _field("database_name", "Database name", storage="metadata"),
+            _field("notes", "Encrypted notes", kind="textarea"),
         ],
     ),
     (
@@ -55,9 +74,9 @@ BUILTIN_TYPES = (
         "API token/key pair for integrations and service access.",
         40,
         [
-            {"key": "api_key", "label": "API key / token", "kind": "password", "storage": "secret", "required": True},
-            {"key": "api_secret", "label": "API secret", "kind": "password", "storage": "secret", "required": False},
-            {"key": "notes", "label": "Encrypted notes", "kind": "textarea", "storage": "secret", "required": False},
+            _field("api_key", "API key / token", kind="password", required=True),
+            _field("api_secret", "API secret", kind="password"),
+            _field("notes", "Encrypted notes", kind="textarea"),
         ],
     ),
     (
@@ -67,13 +86,13 @@ BUILTIN_TYPES = (
         "OAuth/client-credential application with optional certificate authentication.",
         50,
         [
-            {"key": "client_id", "label": "Client ID", "kind": "text", "storage": "metadata", "required": True},
-            {"key": "tenant_id", "label": "Tenant ID", "kind": "text", "storage": "metadata", "required": False},
-            {"key": "client_secret", "label": "Client secret", "kind": "password", "storage": "secret", "required": False},
-            {"key": "certificate", "label": "Certificate", "kind": "textarea", "storage": "secret", "required": False},
-            {"key": "private_key", "label": "Private key", "kind": "textarea", "storage": "secret", "required": False},
-            {"key": "passphrase", "label": "Private-key passphrase", "kind": "password", "storage": "secret", "required": False},
-            {"key": "notes", "label": "Encrypted notes", "kind": "textarea", "storage": "secret", "required": False},
+            _field("client_id", "Client ID", storage="metadata", required=True),
+            _field("tenant_id", "Tenant ID", storage="metadata"),
+            _field("client_secret", "Client secret", kind="password"),
+            _field("certificate", "Certificate", kind="textarea"),
+            _field("private_key", "Private key", kind="textarea"),
+            _field("passphrase", "Private-key passphrase", kind="password"),
+            _field("notes", "Encrypted notes", kind="textarea"),
         ],
     ),
     (
@@ -83,9 +102,14 @@ BUILTIN_TYPES = (
         "Service-account credential, including encrypted JSON/key material.",
         60,
         [
-            {"key": "account_identifier", "label": "Account identifier", "kind": "text", "storage": "metadata", "required": False},
-            {"key": "service_account_json", "label": "Service-account JSON / key", "kind": "textarea", "storage": "secret", "required": True},
-            {"key": "notes", "label": "Encrypted notes", "kind": "textarea", "storage": "secret", "required": False},
+            _field("account_identifier", "Account identifier", storage="metadata"),
+            _field(
+                "service_account_json",
+                "Service-account JSON / key",
+                kind="textarea",
+                required=True,
+            ),
+            _field("notes", "Encrypted notes", kind="textarea"),
         ],
     ),
     (
@@ -95,10 +119,10 @@ BUILTIN_TYPES = (
         "Certificate/keypair stored together with optional encrypted passphrase.",
         70,
         [
-            {"key": "certificate", "label": "Certificate", "kind": "textarea", "storage": "secret", "required": True},
-            {"key": "private_key", "label": "Private key", "kind": "textarea", "storage": "secret", "required": True},
-            {"key": "passphrase", "label": "Private-key passphrase", "kind": "password", "storage": "secret", "required": False},
-            {"key": "notes", "label": "Encrypted notes", "kind": "textarea", "storage": "secret", "required": False},
+            _field("certificate", "Certificate", kind="textarea", required=True),
+            _field("private_key", "Private key", kind="textarea", required=True),
+            _field("passphrase", "Private-key passphrase", kind="password"),
+            _field("notes", "Encrypted notes", kind="textarea"),
         ],
     ),
     (
@@ -108,8 +132,8 @@ BUILTIN_TYPES = (
         "Encrypted software or service licence/activation key.",
         80,
         [
-            {"key": "licence_key", "label": "Licence key", "kind": "password", "storage": "secret", "required": True},
-            {"key": "notes", "label": "Encrypted notes", "kind": "textarea", "storage": "secret", "required": False},
+            _field("licence_key", "Licence key", kind="password", required=True),
+            _field("notes", "Encrypted notes", kind="textarea"),
         ],
     ),
     (
@@ -119,8 +143,8 @@ BUILTIN_TYPES = (
         "Encrypted MFA/account recovery codes.",
         90,
         [
-            {"key": "recovery_codes", "label": "Recovery codes", "kind": "textarea", "storage": "secret", "required": True},
-            {"key": "notes", "label": "Encrypted notes", "kind": "textarea", "storage": "secret", "required": False},
+            _field("recovery_codes", "Recovery codes", kind="textarea", required=True),
+            _field("notes", "Encrypted notes", kind="textarea"),
         ],
     ),
     (
@@ -130,8 +154,8 @@ BUILTIN_TYPES = (
         "Application, backup or other encryption key material.",
         100,
         [
-            {"key": "encryption_key", "label": "Encryption key", "kind": "password", "storage": "secret", "required": True},
-            {"key": "notes", "label": "Encrypted notes", "kind": "textarea", "storage": "secret", "required": False},
+            _field("encryption_key", "Encryption key", kind="password", required=True),
+            _field("notes", "Encrypted notes", kind="textarea"),
         ],
     ),
     (
@@ -141,23 +165,31 @@ BUILTIN_TYPES = (
         "General encrypted secret for credentials that do not fit another template.",
         110,
         [
-            {"key": "username", "label": "Username / identifier", "kind": "text", "storage": "username", "required": False},
-            {"key": "url", "label": "URL", "kind": "url", "storage": "url", "required": False},
-            {"key": "secret_value", "label": "Secret value", "kind": "password", "storage": "secret", "required": True},
-            {"key": "notes", "label": "Encrypted notes", "kind": "textarea", "storage": "secret", "required": False},
+            _field("username", "Username / identifier", storage="username"),
+            _field("url", "URL", kind="url", storage="url"),
+            _field("secret_value", "Secret value", kind="password", required=True),
+            _field("notes", "Encrypted notes", kind="textarea"),
         ],
     ),
 )
 
 
-def seed_credential_types(apps, schema_editor) -> None:
+def seed_credential_types(
+    apps: Apps,
+    schema_editor: BaseDatabaseSchemaEditor,
+) -> None:
+    del schema_editor
     CredentialType = apps.get_model("credentials", "CredentialType")
 
     for credential_type in CredentialType.objects.order_by("id"):
         base = slugify(credential_type.name) or f"credential-type-{credential_type.id}"
         candidate = base[:100]
         suffix = 2
-        while CredentialType.objects.filter(slug=candidate).exclude(pk=credential_type.pk).exists():
+        while (
+            CredentialType.objects.filter(slug=candidate)
+            .exclude(pk=credential_type.pk)
+            .exists()
+        ):
             suffix_text = f"-{suffix}"
             candidate = f"{base[: 100 - len(suffix_text)]}{suffix_text}"
             suffix += 1
@@ -180,6 +212,7 @@ def seed_credential_types(apps, schema_editor) -> None:
                 is_active=True,
             )
             continue
+
         existing.slug = slug
         existing.icon = icon
         existing.description = description
@@ -211,7 +244,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="credentialtype",
             name="slug",
-            field=models.SlugField(blank=True, max_length=100, null=True),
+            field=models.CharField(blank=True, max_length=100, null=True),
         ),
         migrations.AddField(
             model_name="credentialtype",
@@ -252,7 +285,11 @@ class Migration(migrations.Migration):
             model_name="storedcredential",
             name="status",
             field=models.CharField(
-                choices=[("active", "Active"), ("inactive", "Inactive"), ("archived", "Archived")],
+                choices=[
+                    ("active", "Active"),
+                    ("inactive", "Inactive"),
+                    ("archived", "Archived"),
+                ],
                 db_index=True,
                 default="active",
                 max_length=20,
@@ -301,8 +338,14 @@ class Migration(migrations.Migration):
                 "ordering": ["name", "id"],
                 "permissions": [
                     ("reveal_storedcredential", "Can reveal stored credential secrets"),
-                    ("copy_storedcredential_secret", "Can copy stored credential secrets"),
-                    ("download_storedcredential_secret", "Can download stored credential secrets"),
+                    (
+                        "copy_storedcredential_secret",
+                        "Can copy stored credential secrets",
+                    ),
+                    (
+                        "download_storedcredential_secret",
+                        "Can download stored credential secrets",
+                    ),
                 ],
             },
         ),
@@ -355,7 +398,9 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={"ordering": ["credential__name", "resource__name", "id"]},
+            options={
+                "ordering": ["credential__name", "resource__name", "id"],
+            },
         ),
         migrations.AddConstraint(
             model_name="credentialresourcelink",

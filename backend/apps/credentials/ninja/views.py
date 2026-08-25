@@ -6,7 +6,7 @@ from typing import Any, cast
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.utils.text import slugify
 from ninja import Router
@@ -117,22 +117,23 @@ def _not_found() -> StaffProblem:
     }
 
 
-def _visible_credential(request: HttpRequest, credential_id: int) -> StoredCredential | None:
-    return (
-        scope_credentials_for_user(request.user, _credential_queryset())
-        .filter(id=credential_id)
-        .first()
-    )
-
-
-def _credential_queryset():
+def _credential_queryset() -> QuerySet[StoredCredential]:
     return StoredCredential.objects.select_related(
         "client",
         "credential_type",
         "created_by",
         "updated_by",
-    ).prefetch_related(
-        "resource_links__resource__client",
+    ).prefetch_related("resource_links__resource__client")
+
+
+def _visible_credential(
+    request: HttpRequest,
+    credential_id: int,
+) -> StoredCredential | None:
+    return (
+        scope_credentials_for_user(request.user, _credential_queryset())
+        .filter(id=credential_id)
+        .first()
     )
 
 
@@ -192,6 +193,7 @@ def _resource_link_out(link: CredentialResourceLink) -> CredentialResourceLinkOu
 
 def _summary(credential: StoredCredential) -> CredentialSummaryOut:
     links = list(credential.resource_links.all())
+    credential_type = credential.credential_type
     return CredentialSummaryOut(
         id=credential.id,
         name=credential.name,
@@ -200,8 +202,8 @@ def _summary(credential: StoredCredential) -> CredentialSummaryOut:
         client_id=credential.client_id,
         client_name=str(credential.client) if credential.client else None,
         credential_type_id=credential.credential_type_id,
-        credential_type_slug=(credential.credential_type.slug if credential.credential_type else None),
-        credential_type_name=(credential.credential_type.name if credential.credential_type else None),
+        credential_type_slug=credential_type.slug if credential_type else None,
+        credential_type_name=credential_type.name if credential_type else None,
         username=credential.username,
         url=credential.url,
         expires_at=credential.expires_at,
@@ -227,9 +229,11 @@ def _detail(credential: StoredCredential) -> CredentialDetailOut:
         description=credential.description,
         metadata=metadata,
         fields=_field_rows(credential.credential_type),
-        resource_links=[_resource_link_out(link) for link in credential.resource_links.all()],
-        created_by=(credential.created_by.email if credential.created_by else None),
-        updated_by=(credential.updated_by.email if credential.updated_by else None),
+        resource_links=[
+            _resource_link_out(link) for link in credential.resource_links.all()
+        ],
+        created_by=credential.created_by.email if credential.created_by else None,
+        updated_by=credential.updated_by.email if credential.updated_by else None,
         created_at=credential.created_at,
     )
 
@@ -260,7 +264,11 @@ def _resolve_client(
                 "code": "invalid_ownership",
             },
         )
-    client = scope_clients_for_user(request.user, Client.objects.all()).filter(id=client_id).first()
+    client = (
+        scope_clients_for_user(request.user, Client.objects.all())
+        .filter(id=client_id)
+        .first()
+    )
     if client is None:
         return None, (
             404,
@@ -280,7 +288,7 @@ def _split_create_values(
     fields = {field.key: field for field in _field_rows(credential_type)}
     unknown = set(values).difference(fields)
     if unknown:
-        raise CredentialPayloadError(f"Unknown credential field: {sorted(unknown)[0]}")
+        raise CredentialPayloadError(f"Unknown credential field: {min(unknown)}")
 
     username = ""
     url = ""
@@ -311,13 +319,13 @@ def _apply_value_updates(
     fields = {field.key: field for field in _field_rows(credential.credential_type)}
     unknown = set(values).difference(fields)
     if unknown:
-        raise CredentialPayloadError(f"Unknown credential field: {sorted(unknown)[0]}")
+        raise CredentialPayloadError(f"Unknown credential field: {min(unknown)}")
 
     clear_fields = [field.strip() for field in clear_secret_fields if field.strip()]
     unknown_clear = set(clear_fields).difference(fields)
     if unknown_clear:
         raise CredentialPayloadError(
-            f"Unknown credential field: {sorted(unknown_clear)[0]}"
+            f"Unknown credential field: {min(unknown_clear)}"
         )
 
     metadata = dict(credential.metadata)
@@ -341,9 +349,13 @@ def _apply_value_updates(
     for key in clear_fields:
         field = fields[key]
         if field.storage != "secret":
-            raise CredentialPayloadError(f"{field.label} is not an encrypted secret field.")
+            raise CredentialPayloadError(
+                f"{field.label} is not an encrypted secret field."
+            )
         if field.required and key not in secret_updates:
-            raise CredentialPayloadError(f"{field.label} cannot be cleared without replacement.")
+            raise CredentialPayloadError(
+                f"{field.label} cannot be cleared without replacement."
+            )
 
     credential.metadata = metadata
     return secret_updates, clear_fields
@@ -429,12 +441,17 @@ def credential_options(request: HttpRequest) -> CredentialOptionsOut | StaffProb
     if problem:
         return problem
 
-    clients = scope_clients_for_user(request.user, Client.objects.all()).filter(status="active")
+    clients = scope_clients_for_user(request.user, Client.objects.all()).filter(
+        status="active"
+    )
     resources = scope_infrastructure_resources_for_user(
         request.user,
         InfrastructureResource.objects.select_related("client"),
     ).filter(lifecycle_status__in=CURRENT_RESOURCE_STATUSES)
-    credential_types = CredentialType.objects.filter(is_active=True).order_by("sort_order", "name")
+    credential_types = CredentialType.objects.filter(is_active=True).order_by(
+        "sort_order",
+        "name",
+    )
 
     return CredentialOptionsOut(
         types=[_type_out(credential_type) for credential_type in credential_types],
@@ -605,23 +622,25 @@ def create_credential(
                     "resource_ids": [link.resource_id for link in links],
                 },
             )
-    except (CredentialEncryptionError, ValidationError) as error:
-        if isinstance(error, CredentialEncryptionError):
-            return _secret_problem(error)
-        return 400, {
-            "message": " ".join(error.messages),
-            "success": False,
-            "code": "invalid_credential",
-        }
     except CredentialPayloadError as error:
         return 400, {
             "message": str(error),
             "success": False,
             "code": "invalid_resource_link",
         }
+    except CredentialEncryptionError as error:
+        return _secret_problem(error)
+    except ValidationError as error:
+        return 400, {
+            "message": " ".join(error.messages),
+            "success": False,
+            "code": "invalid_credential",
+        }
 
-    credential = cast(StoredCredential, _visible_credential(request, credential.id))
-    return 201, _detail(credential)
+    refreshed = _visible_credential(request, credential.id)
+    if refreshed is None:
+        return _not_found()
+    return 201, _detail(refreshed)
 
 
 @credential_router.get(
@@ -776,7 +795,7 @@ def archive_credential(
     credential.updated_by = actor
     credential.save(update_fields=["status", "updated_by", "updated_at"])
     AuditEvent.record(action="credentials.archived", actor=actor, target=credential)
-    return _detail(cast(StoredCredential, _visible_credential(request, credential.id)))
+    return _detail(credential)
 
 
 @credential_router.post(
@@ -896,8 +915,13 @@ def download_credential_field(
         "certificate": ".pem",
         "service_account_json": ".json",
     }.get(field_key, ".txt")
-    filename = f"{slugify(credential.name) or 'credential'}-{slugify(field_key) or 'secret'}{extension}"
-    response = HttpResponse(value.encode("utf-8"), content_type="application/octet-stream")
+    credential_slug = slugify(credential.name) or "credential"
+    field_slug = slugify(field_key) or "secret"
+    filename = f"{credential_slug}-{field_slug}{extension}"
+    response = HttpResponse(
+        value.encode("utf-8"),
+        content_type="application/octet-stream",
+    )
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     response["Cache-Control"] = "private, no-store"
     response["Pragma"] = "no-cache"
