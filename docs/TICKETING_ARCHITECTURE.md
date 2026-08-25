@@ -10,6 +10,11 @@ The system is not only an email archive. It is a current-first work queue with
 Client/Contact/Vendor context, assignment, priority, internal notes, time
 tracking, governed attachments and deterministic routing.
 
+Microsoft Graph certificate/private-key/client-secret material is stored through
+the Credential Vault. The secret-storage and human secret-action contract is
+defined in `CREDENTIAL_VAULT_ARCHITECTURE.md`; Microsoft deployment details are
+in `MICROSOFT_GRAPH_TICKETING_SETUP.md`.
+
 ---
 
 ## 1. Product principles
@@ -25,6 +30,8 @@ tracking, governed attachments and deterministic routing.
 - Operational mailboxes are Microsoft 365 Shared Mailboxes.
 - Database Mailbox records determine which technically accessible mailboxes the
   ADB application actually synchronises.
+- Graph authentication secrets live in Vault Credentials rather than duplicate
+  plaintext Ticketing settings.
 - Ingestion and delivery are idempotent/retry-safe where possible.
 - Threading never relies on subject text alone.
 - Classification/routing is deterministic and explainable first; AI is not a
@@ -47,12 +54,13 @@ Key concerns:
 - tenant ID;
 - application/client ID;
 - authentication method;
-- encrypted certificate/client-secret credential reference;
+- encrypted certificate/client-secret Credential reference;
 - enabled/verification/error state;
 - timestamps.
 
-Certificate/private-key material belongs in the encrypted credential service,
-not ordinary Graph settings responses.
+Certificate/private-key/client-secret material belongs in the Credential Vault,
+not ordinary Graph settings responses. Backend service decryption is distinct
+from human reveal/copy/download permission.
 
 For the normal ADB tenant, one enabled Graph connection is reused by every
 configured Ticketing Shared Mailbox.
@@ -75,6 +83,8 @@ Key concerns:
 The Mailbox table is an **application allow-list**. A mailbox being reachable by
 the Entra/Exchange application does not make it a Ticket source until it is
 configured and enabled in ADB.
+
+A Mailbox does not own another copy of the Graph private key/certificate.
 
 ### TicketQueue
 
@@ -198,7 +208,7 @@ The normal ADB configuration is:
 ```text
 one Microsoft 365 tenant
     + one Entra application
-    + one certificate credential
+    + one certificate Credential in the Vault
     + one MicrosoftGraphConnection
     + many configured Shared Mailboxes
 ```
@@ -232,6 +242,18 @@ Do not combine scoped Exchange permissions with equivalent broad Entra Mail
 application grants in a way that restores organisation-wide access. Those
 grants are additive.
 
+### Credential boundary
+
+The Exchange scope answers which Microsoft resources the app may access. The
+Vault answers how ADB stores the app's certificate/private-key material and who
+may perform human secret actions. The enabled Mailbox rows answer which Shared
+Mailboxes ADB actually synchronises.
+
+These are three separate controls and must not be conflated.
+
+See `CREDENTIAL_VAULT_ARCHITECTURE.md` for encryption/key rotation and
+`MICROSOFT_GRAPH_TICKETING_SETUP.md` for deployment.
+
 ### Adding a Shared Mailbox
 
 The normal ADB operator flow should be application configuration, not Microsoft
@@ -247,8 +269,6 @@ create another Exchange role assignment for each mailbox.
 
 If multiple Graph tenant connections are supported in active use later, the UI
 may need to ask which connection owns the mailbox.
-
-See `MICROSOFT_GRAPH_TICKETING_SETUP.md` for the deployment runbook.
 
 ---
 
@@ -270,6 +290,10 @@ Graph integration supports:
 Celery handles mailbox sync and outbound delivery. Reusable Graph/message
 business logic belongs in services so it can be tested and reused outside task
 functions.
+
+The Celery/service path decrypts the linked Graph Credential server-side and
+never needs a human reveal operation. Every process that performs that work must
+have the appropriate `CREDENTIAL_ENCRYPTION_KEYS` key ring.
 
 One remaining resilience refinement is the rare ambiguous-send case where
 Microsoft may accept a send but the worker loses the provider response before
@@ -380,6 +404,9 @@ is never downloadable.
 Enabling scanning must cause historic pending content to become gated until it
 is processed rather than implicitly trusting it.
 
+TicketAttachment downloads and Credential secret-file downloads are different
+security flows; each keeps its own permission/audit/policy checks.
+
 ---
 
 ## 11. Operational Ticket work queue
@@ -440,7 +467,8 @@ Established behaviour includes:
 - live Time timer and contextual Time history.
 
 As Infrastructure/KB mature, Ticket context may surface relevant technical
-resources/runbooks through the same permission policies.
+resources/runbooks through the same permission policies. Credentials should be
+linked through those resources rather than copied into Ticket Notes/messages.
 
 ---
 
@@ -476,6 +504,8 @@ create a disconnected enquiries inbox.
 Lead capture should remain resilient if downstream Ticket routing temporarily
 fails according to the established ingestion contract.
 
+Public form endpoints never expose or require access to Vault secrets.
+
 ---
 
 ## 15. Permissions
@@ -498,7 +528,11 @@ Capabilities distinguish actions such as:
 The main focus views, Queue preferences, record drawers, Client/Contact panels
 and Time controls all use the same backend policy rather than bypassing it.
 
-See `PERMISSIONS_AND_ACCESS_MODEL.md`.
+Graph configuration capability does not automatically grant Credential
+reveal/copy/download. Those permissions remain in the Credential domain.
+
+See `PERMISSIONS_AND_ACCESS_MODEL.md` and
+`CREDENTIAL_VAULT_ARCHITECTURE.md`.
 
 ---
 
@@ -517,6 +551,9 @@ Celery handles work that should not block requests, including:
 Critical operations remain idempotent so retries do not duplicate Tickets,
 Messages or sends.
 
+Background tasks that need a secret use the Vault's server-side credential
+service; they do not call human reveal/copy endpoints.
+
 ---
 
 ## 17. Future refinements
@@ -534,4 +571,5 @@ Likely later refinements:
 - SLA/escalation behaviour;
 - Client portal communication through the same Ticket thread model.
 
-Do not create a second communications system for any of these features.
+Do not create a second communications system or a second secret store for any
+of these features.
