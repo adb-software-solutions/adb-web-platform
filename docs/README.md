@@ -19,10 +19,10 @@ decision says otherwise:
    authorisation rules.
 3. `DOMAIN_MODEL_AUDIT.md` — current domain/model decisions and migration
    boundaries.
-4. `CURRENT_STATE_AND_FOUNDATION_CHECKLIST.md` — what is implemented on `main`,
-   what is in flight and what remains.
-5. Domain architecture/runbooks such as `TICKETING_ARCHITECTURE.md`,
-   `INFRASTRUCTURE_ARCHITECTURE.md` and
+4. `CURRENT_STATE_AND_FOUNDATION_CHECKLIST.md` — what is implemented, what is
+   next and what remains.
+5. Domain architecture/runbooks such as `CREDENTIAL_VAULT_ARCHITECTURE.md`,
+   `INFRASTRUCTURE_ARCHITECTURE.md`, `TICKETING_ARCHITECTURE.md` and
    `MICROSOFT_GRAPH_TICKETING_SETUP.md`.
 6. `HISTORICAL_PLANNING.md` and the older root-level plans for historical
    context only.
@@ -62,21 +62,23 @@ decision says otherwise:
   next work.
 - `DOMAIN_MODEL_AUDIT.md` — domain/model decisions.
 - `PERMISSIONS_AND_ACCESS_MODEL.md` — staff capability and object scope.
+- `CREDENTIAL_VAULT_ARCHITECTURE.md` — encrypted Credential storage, typed
+  templates, secret-action permissions, auditing, resource links, browser
+  handling, key rotation and legacy-secret reconciliation.
+- `INFRASTRUCTURE_ARCHITECTURE.md` — structured technical-resource graph,
+  specialist reconciliation, Credentials, Knowledge and Monitoring direction.
 - `TICKETING_ARCHITECTURE.md` — unified communications and operational Ticket
   workflow.
 - `MICROSOFT_GRAPH_TICKETING_SETUP.md` — Microsoft 365 Shared Mailbox app-only
-  deployment runbook.
-- `INFRASTRUCTURE_ARCHITECTURE.md` — structured technical-resource graph,
-  specialist reconciliation, Credentials, Knowledge and Monitoring direction.
+  deployment runbook and Vault-backed certificate handling.
 - `AUTH_FRONTEND_NEXTJS_MIGRATION.md` — completed authentication frontend
   migration record and guardrails.
 - `DEVELOPMENT_DATA.md` — deterministic local development data.
 - `HISTORICAL_PLANNING.md` — superseded assumptions and historical documents.
 
-The Credential Vault feature branch also introduces
-`CREDENTIAL_VAULT_ARCHITECTURE.md`. Until that feature is merged, the main
-branch retains the encrypted `StoredCredential` foundation documented in the
-canonical plan and current-state checklist.
+Credential security is defined by `CREDENTIAL_VAULT_ARCHITECTURE.md`. Other
+technical domains must reference Credentials rather than introducing duplicate
+plaintext password, token, certificate, private-key or sensitive-note fields.
 
 ## Updating these documents
 
@@ -84,10 +86,10 @@ Architectural changes should update the relevant canonical document in the
 same PR as the implementation whenever possible. The current-state checklist
 must distinguish clearly between:
 
-- implemented on `main`;
-- implemented only in an unmerged feature branch;
+- implemented capability;
 - agreed next work;
 - later/deferred work whose detailed design is intentionally unresolved.
 
-Do not mark an unmerged feature as implemented on `main`, and do not turn a
-long-term possibility into a present architectural requirement.
+Do not turn a long-term possibility into a present architectural requirement,
+and do not let domain docs drift away from the implementation state on the
+branch that will introduce them.
