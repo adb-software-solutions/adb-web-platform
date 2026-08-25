@@ -4,7 +4,8 @@
 
 This document defines the canonical authorisation model for the ADB Business
 Platform. It should be read with `PLATFORM_MASTER_PLAN.md`,
-`DOMAIN_MODEL_AUDIT.md` and `CURRENT_STATE_AND_FOUNDATION_CHECKLIST.md`.
+`DOMAIN_MODEL_AUDIT.md`, `CURRENT_STATE_AND_FOUNDATION_CHECKLIST.md` and
+`CREDENTIAL_VAULT_ARCHITECTURE.md`.
 
 The platform contains sensitive Client, communication, infrastructure,
 credential and future commercial data. Access therefore answers two separate
@@ -30,7 +31,7 @@ Frontend visibility is usability only. Django remains the security boundary.
 5. **Superuser bypass is deliberate, not the normal workflow.** Sensitive
    operations should still audit where useful.
 6. **Sensitive actions have narrow permissions.** Credential metadata access is
-   distinct from reveal/copy/download.
+   distinct from reveal, copy and download.
 7. **Denied objects do not enter normal API results.** Scope before
    serialisation.
 8. **Indirect paths obey the same scope.** Drawers, selectors, search,
@@ -42,6 +43,9 @@ Frontend visibility is usability only. Django remains the security boundary.
     not a shortcut around domain policy.
 12. **Server-backed preferences are not permissions.** Ticket Queue defaults
     change what the user sees first, never what the user is authorised to see.
+13. **Secret storage and secret access are separate concerns.** A backend
+    integration may decrypt through the Credential service without giving a
+    human staff user reveal permission.
 
 ---
 
@@ -98,17 +102,23 @@ infrastructure.reconcile_legacy_infrastructure
 credentials.view_storedcredential
 credentials.add_storedcredential
 credentials.change_storedcredential
+credentials.delete_storedcredential
 credentials.reveal_storedcredential
+credentials.copy_storedcredential_secret
+credentials.download_storedcredential_secret
 
 access_control.manage_staff_access
 
 core.view_auditevent
 ```
 
-The Credential Vault feature adds/uses distinct secret-action permissions for
-copy and download in addition to reveal. Exact codenames must follow the model
-and migration currently present in the branch being implemented; do not invent
-broad aliases such as `can_manage_everything`.
+Credential secret-action permissions are deliberately independent. A role can
+be allowed to view metadata without secrets, or be allowed to copy a single
+secret field without receiving a broad unrestricted secret payload. The Vault
+contract is defined in `CREDENTIAL_VAULT_ARCHITECTURE.md`.
+
+Do not invent broad aliases such as `can_manage_everything` to bypass this
+separation.
 
 ---
 
@@ -127,7 +137,8 @@ Django permissions
 ```
 
 A future Users & Access screen should make this understandable without hiding
-the actual effective capabilities.
+the actual effective capabilities, including Credential reveal/copy/download
+rights.
 
 ---
 
@@ -201,6 +212,7 @@ The same rule applies to:
 - detail pages and record drawers;
 - Client/Project/Ticket/Infrastructure contextual panels;
 - autocomplete/relationship selectors;
+- Credential resource-link choices;
 - search;
 - Dashboard widgets;
 - Calendar feeds;
@@ -230,7 +242,12 @@ required domain capability
 Internal records have their own staff-only policy and do not use a fake Client.
 
 Cross-domain references must validate ownership consistency. For example, a
-Client A Task cannot silently move into Client B Project context.
+Client A Task cannot silently move into Client B Project context, and a Client A
+Credential cannot link to Client B or Internal Infrastructure.
+
+Internal Credentials may link to Internal or Client Infrastructure where that
+represents shared ADB operational access. This does not make the Internal
+Credential Client-visible.
 
 ---
 
@@ -277,7 +294,7 @@ This policy applies to:
 - relationship create/delete;
 - specialist projections;
 - legacy reconciliation;
-- future Monitoring/KB/Credential contextual panels.
+- Monitoring/KB/Credential contextual panels.
 
 The `reconcile_legacy_infrastructure` capability is intentionally separate from
 ordinary resource view/change. Reconciliation also validates the operator's
@@ -287,36 +304,46 @@ Resource relationships must not bridge two different Client owners directly.
 Internal ADB resources may legitimately relate to Client resources without
 making the Internal resource Client-visible in a future portal.
 
+Seeing a resource does not imply permission to reveal linked Credential
+secrets. Resource workspaces ask the Credential domain for already-scoped
+metadata and secret actions remain separately authorised.
+
 ---
 
 ## 10. Credential permissions and secret boundary
 
 Credentials are a stronger security boundary than ordinary infrastructure
-metadata.
+metadata. The full contract is defined in
+`CREDENTIAL_VAULT_ARCHITECTURE.md`.
 
-At minimum distinguish:
+The implemented action separation is:
 
 - view metadata;
 - create;
-- change metadata/secret values;
-- archive/delete lifecycle action;
-- reveal;
-- copy one secret field;
-- download one secret field/file.
+- change metadata and explicitly supplied secret values;
+- archive lifecycle action through the delete capability;
+- reveal the credential secret payload;
+- copy one requested secret field;
+- download one requested secret field/file;
+- reconcile legacy plaintext values into the encrypted payload.
 
-The full copy/download action set is part of the active Credential Vault
-feature slice and becomes canonical main-branch behaviour only after merge.
-
-Rules that apply regardless:
+Rules:
 
 - ordinary list/detail/search responses never return secret values;
 - Client-owned credential metadata requires Client scope;
-- secret actions require the additional secret-action capability;
+- Client Credentials may link only to resources owned by that Client;
+- Internal Credentials may link to Internal or Client resources;
+- secret actions require their additional secret-action capability;
 - Infrastructure link targets are themselves scoped before ownership
   validation;
 - service/integration decryption is a separate backend service path and is not
   equivalent to giving a human reveal permission;
-- secret values never enter AuditEvent metadata, logs, URLs or analytics.
+- reveal/copy/download use POST so normal CSRF protections apply;
+- revealed frontend values are ephemeral component state and are not persisted
+  to localStorage, sessionStorage, cookies, routes, analytics or normal caches;
+- secret values never enter AuditEvent metadata, logs, URLs or analytics;
+- missing/wrong encryption configuration fails closed rather than falling back
+  to plaintext.
 
 A role may intentionally be allowed to view credential metadata without being
 allowed to reveal/copy/download secrets.
@@ -363,8 +390,9 @@ The workspace must support:
 - create/invite/activate/deactivate according to identity policy;
 - Group membership;
 - capability permissions;
-- all/selected Client scope;
-- all/selected Ticket Queue scope;
+- Client scope;
+- Ticket Queue scope;
+- Credential metadata/reveal/copy/download capability visibility;
 - clear effective-access display;
 - audit events for access changes;
 - allowed and denied path tests.
@@ -385,10 +413,14 @@ Examples:
 - Client Command Centre sections independently scope Projects, Tasks, Tickets,
   Time, Infrastructure, Credentials and Knowledge;
 - global search asks each participating domain for already-authorised results;
-- credential search indexes/returns metadata only.
+- credential search indexes/returns metadata only;
+- Client/Infrastructure credential embeds default to Active and do not reveal
+  secrets automatically.
 
 A Client page referencing a record does not make that record visible to a user
 who lacks its domain capability.
+
+Dashboard/search/activity must never surface decrypted Credential values.
 
 ---
 
@@ -396,13 +428,18 @@ who lacks its domain capability.
 
 Audit materially privileged/security-sensitive operations, including:
 
-- credential reveal/copy/download;
+- credential reveal;
+- credential field copy;
+- credential field download;
 - credential legacy-secret reconciliation;
 - Infrastructure legacy reconciliation;
 - staff Group/capability changes;
 - Client/Ticket Queue scope changes;
 - account/security changes where appropriate;
 - future privileged portal/commercial actions where justified.
+
+Credential secret events record safe field names/context only. Audit metadata
+must never copy the secret itself.
 
 Audit metadata should answer who/what/when/context without copying sensitive
 payload content.
@@ -419,6 +456,8 @@ Use normal Django Ninja/API contracts consistently:
   avoid existence leakage;
 - invalid cross-owner relationship -> explicit validation failure;
 - missing secret-action capability -> forbidden;
+- missing/invalid credential encryption key ring -> fail closed;
+- missing secret field -> explicit not-found response;
 - never return denied/secret data and rely on UI masking.
 
 ---
@@ -435,7 +474,8 @@ For restricted domains, cover the relevant combinations of:
 - staff with no required access profile;
 - non-staff identity where Internal staff-only data is involved;
 - unauthenticated identity;
-- sensitive credential action separation;
+- Credential metadata versus reveal/copy/download separation;
+- Credential/resource cross-Client link rejection;
 - selectors/related-object/drawer/search/composite endpoints;
 - access administration allowed/denied paths.
 
@@ -452,7 +492,8 @@ Portal visibility must be explicit and narrower than staff access. Client
 ownership alone must never automatically expose:
 
 - Internal Infrastructure;
-- credential secrets;
+- Credential metadata unless explicitly designed;
+- credential secret values or secret actions;
 - private Knowledge documents;
 - Ticket internal Notes;
 - staff-only Activity/Audit/Security data.
@@ -470,10 +511,12 @@ Do not:
 - give all staff superuser because ADB is currently small;
 - create a competing generic role/ACL engine without a concrete need;
 - treat Brand as Client scope;
-- treat Client access as credential reveal permission;
+- treat Client or Infrastructure access as Credential reveal permission;
 - let Ticket default Queue preferences grant Queue access;
 - load all records then remove denied ones client-side;
 - allow Dashboard/Search/Calendar/drawers to bypass normal policies;
 - expose Internal data through an Internal-to-Client Infrastructure relation;
 - put secrets into audit metadata;
+- return secrets in normal Credential detail/list endpoints;
+- persist revealed secrets in browser storage/routes/caches;
 - make future portal visibility implicit.
