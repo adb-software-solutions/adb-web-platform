@@ -20,8 +20,8 @@ application, another certificate, another tenant/client ID entry or a new
 Exchange RBAC assignment every time.
 
 Application/message architecture lives in `TICKETING_ARCHITECTURE.md`.
-Credential security lives in the Credential Vault architecture when that
-feature is merged.
+Credential storage, reveal/copy/download permissions, key rotation and browser
+secret handling are defined in `CREDENTIAL_VAULT_ARCHITECTURE.md`.
 
 ---
 
@@ -48,9 +48,13 @@ Microsoft 365 tenant
 
 ADB Business Platform
     |
+    +-- Credential Vault
+    |       |
+    |       +-- certificate/private-key Credential
+    |
     +-- one MicrosoftGraphConnection
     |       |
-    |       +-- encrypted certificate/private-key Credential
+    |       +-- references the Vault Credential
     |
     +-- one Mailbox row per Shared Mailbox actually used by Ticketing
             |
@@ -69,6 +73,8 @@ There are two different boundaries:
    synchronises enabled Mailbox rows.
 
 The database allow-list does not replace the Microsoft-side security boundary.
+The Credential Vault does not replace either boundary; it securely stores the
+application authentication material used by the Graph connection.
 
 ---
 
@@ -128,8 +134,9 @@ You need:
 - ExchangeOnlineManagement PowerShell module;
 - an RSA certificate/private key;
 - the ADB backend migrated/running;
-- valid `CREDENTIAL_ENCRYPTION_KEYS` in every process that decrypts Graph
-  credentials, including Celery workers;
+- valid `CREDENTIAL_ENCRYPTION_KEYS` in every process that decrypts Vault
+  Credentials, including Celery workers;
+- permission to create/update the Graph certificate Credential in the Vault;
 - Celery worker and Beat in production.
 
 ---
@@ -174,7 +181,8 @@ Applications, not the App Registration application-object ID.
 ## 7. Create and register the certificate
 
 Production should use a securely managed/rotated RSA certificate. Only the
-public certificate is uploaded to Entra. The private key remains an ADB secret.
+public certificate is uploaded to Entra. The private key remains a Vault
+secret.
 
 A disposable local/test self-signed example:
 
@@ -200,6 +208,10 @@ Upload the public certificate under **Certificates & secrets -> Certificates**
 in the Entra app registration.
 
 Never commit/upload the private-key file to Git.
+
+After the Vault Credential has been created and verified, remove disposable
+private-key copies from ordinary working directories according to the local
+secret-handling policy.
 
 ---
 
@@ -371,9 +383,9 @@ For this design:
 
 ---
 
-## 14. Configure ADB credential encryption
+## 14. Configure Credential Vault encryption
 
-Graph private-key material is encrypted using the platform Credential service.
+Graph private-key material is encrypted using the Credential Vault.
 
 Generate a Fernet key:
 
@@ -401,64 +413,35 @@ ring.
 
 Never commit encryption keys.
 
+See `CREDENTIAL_VAULT_ARCHITECTURE.md` for the full key-rotation and failure
+behaviour.
+
 ---
 
-## 15. Store the Graph certificate/private key in ADB
+## 15. Store the Graph certificate/private key in the Vault
 
-### Current `main` bootstrap
+Use `/admin/credentials` and the certificate/private-key credential template for
+normal operator administration.
 
-At the time of this documentation refresh, the full Credential Vault feature is
-still an unmerged feature slice. On current `main`, bootstrap Graph certificate
-material through the encrypted credential service (for example via Django
-shell/controlled deployment tooling), not through legacy plaintext fields.
+Create an **Internal** Credential for the Graph application and populate the
+certificate/private-key fields through the typed Vault form. If the private key
+has a passphrase, store it as an encrypted secret field in the same Credential.
 
-The important secret keys for certificate authentication are:
+The Vault ensures:
 
-- `private_key`;
-- `certificate`;
-- optional `passphrase`.
+- private-key material is written to the encrypted secret payload;
+- ordinary list/detail responses do not return it;
+- reveal, copy and download are independently permission checked/audited;
+- secret values are not persisted to browser storage/routes/normal caches;
+- missing encryption configuration fails closed.
 
-A representative shell flow is:
+Do not populate the legacy plaintext `password`, `api_key`, `secret_key`,
+`private_key` or sensitive `notes` columns.
 
-```python
-from pathlib import Path
-
-from apps.core.ownership import OwnershipType
-from apps.credentials.models import CredentialType, StoredCredential
-from apps.credentials.secrets import store_credential_secrets
-
-credential_type, _ = CredentialType.objects.get_or_create(
-    name="Microsoft Graph Certificate"
-)
-
-credential = StoredCredential.objects.create(
-    ownership_type=OwnershipType.INTERNAL,
-    name="Microsoft Graph - ADB Ticketing",
-    credential_type=credential_type,
-)
-
-private_key = Path("/secure/path/adb-ticketing-graph.key.pem").read_text()
-certificate = Path("/secure/path/adb-ticketing-graph.cert.pem").read_text()
-
-store_credential_secrets(
-    credential,
-    {
-        "private_key": private_key,
-        "certificate": certificate,
-    },
-)
-```
-
-Do not populate legacy plaintext password/API/private-key/secret fields.
-
-### After the Credential Vault feature merges
-
-Use the custom Vault UI and the certificate/private-key credential template for
-normal operator creation/rotation. The Vault's explicit permissions/audit and
-safe browser handling become the preferred workflow.
-
-Keep this runbook's deployment architecture the same; the Vault changes how the
-secret is administered, not the Graph tenant/application model.
+A controlled Django shell path may still be useful for disaster recovery or
+bootstrap automation, but it must call the same encrypted credential service
+rather than writing plaintext model columns. The Vault UI is the normal
+operational path.
 
 ---
 
@@ -469,16 +452,20 @@ Create the connection once for the tenant/application using:
 - tenant ID;
 - application/client ID;
 - certificate authentication method;
-- the encrypted Credential containing certificate/private key;
+- the encrypted Vault Credential containing certificate/private key;
 - enabled state.
 
 Use the custom Settings UI where the current implementation supports the
-operation; otherwise controlled Django shell/admin bootstrap is acceptable for
+operation; controlled Django shell/admin bootstrap is acceptable only for
 fields not yet exposed safely.
 
 Verify the connection before relying on mailbox sync.
 
 The connection is reusable by many Mailbox records.
+
+The Graph integration's backend decryption path does not grant a human operator
+permission to reveal the same Credential in the UI. Service decryption and
+human secret actions are separate security paths.
 
 ---
 
@@ -532,18 +519,18 @@ A safe certificate rotation is:
 
 1. generate/provision the new RSA certificate/private key;
 2. upload the **new public certificate** to the same Entra application;
-3. store the new private/public material in the encrypted ADB Credential;
+3. update/store the new private/public material in the Vault Credential;
 4. verify app-only token acquisition and Mailbox access;
 5. confirm inbound sync and outbound send;
 6. remove the old public certificate from Entra after the new path is proven;
-7. retire old private material according to the Credential lifecycle/audit
-   policy.
+7. retire old private material according to the Vault lifecycle/audit policy.
 
 Do not create a new Entra application/Exchange scope just to rotate a
 certificate.
 
-If rotating Fernet application-encryption keys as well, follow the Credential
-key-ring procedure separately.
+If rotating Fernet application-encryption keys as well, follow the Vault key-
+ring procedure separately. Certificate rotation and Vault encryption-key
+rotation are different operations.
 
 ---
 
@@ -572,7 +559,11 @@ You do **not** normally need to:
 - create another Exchange service principal;
 - create another management scope;
 - create another Mail.ReadWrite role assignment;
-- create another Mail.Send role assignment.
+- create another Mail.Send role assignment;
+- create another Vault Credential for each Shared Mailbox.
+
+The Graph application Credential belongs to the connection/application and is
+reused across its configured Shared Mailboxes.
 
 If the optional tagged Exchange scope is used instead of the ADB default, tag
 the new Shared Mailbox with the reserved custom attribute before verification.
@@ -589,12 +580,24 @@ Check in order:
 2. `Test-ServicePrincipalAuthorization` reports the two application roles in
    scope;
 3. no typo exists in tenant/client IDs;
-4. the certificate public key registered in Entra matches the private key used
-   by ADB;
-5. the ADB process can decrypt the credential with
+4. the certificate public key registered in Entra matches the private key
+   stored in the Vault;
+5. the ADB process can decrypt the Credential with
    `CREDENTIAL_ENCRYPTION_KEYS`;
 6. Microsoft permission propagation has completed;
 7. the Mailbox uses the intended Graph connection.
+
+### Vault reveal fails but Graph sync still works
+
+Human reveal permission and backend service decryption are separate. Check the
+staff user's `credentials.reveal_storedcredential` capability and Client/Internal
+scope rather than assuming the Graph connection is broken.
+
+### Graph sync fails because the Credential cannot decrypt
+
+Check that the web and Celery processes have the correct ordered
+`CREDENTIAL_ENCRYPTION_KEYS` key ring. Do not re-enter the private key into a
+plaintext model field as a workaround.
 
 ### A licensed user mailbox is accessible unexpectedly
 
@@ -624,8 +627,9 @@ matching looser.
 Before production:
 
 - [ ] production RSA certificate is managed outside Git;
-- [ ] private key is stored only through the encrypted Credential service/Vault;
+- [ ] private key is stored only through the encrypted Credential Vault;
 - [ ] `CREDENTIAL_ENCRYPTION_KEYS` is secret-managed and available to workers;
+- [ ] human Vault reveal/copy/download permissions follow least privilege;
 - [ ] Exchange RBAC uses the intended SharedMailbox resource scope;
 - [ ] equivalent broad Entra Mail application grants are absent;
 - [ ] an intended Shared Mailbox tests in-scope;
@@ -635,7 +639,9 @@ Before production:
 - [ ] outbound send works from the correct Shared Mailbox;
 - [ ] Client/Contact/routing behaviour is correct;
 - [ ] attachments follow quarantine/malware policy;
-- [ ] logs/audit events do not contain certificate/private-key/token material.
+- [ ] logs/audit events do not contain certificate/private-key/token material;
+- [ ] revealed Vault values are not stored in browser storage/routes/analytics.
 
 The deployment should preserve the distinction between **Microsoft technical
-access** and **ADB operational selection** throughout its lifetime.
+access**, **ADB operational mailbox selection** and **Vault secret access**
+throughout its lifetime.
