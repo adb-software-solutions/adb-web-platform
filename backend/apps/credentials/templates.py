@@ -42,7 +42,9 @@ BUILTIN_CREDENTIAL_TEMPLATES: tuple[CredentialTemplateDefinition, ...] = (
         "slug": "username-password",
         "name": "Username and password",
         "icon": "key-round",
-        "description": "General username/password login for websites, servers and vendor portals.",
+        "description": (
+            "General username/password login for websites, servers and vendor portals."
+        ),
         "sort_order": 10,
         "fields": [
             _field("username", "Username", storage="username"),
@@ -54,7 +56,10 @@ BUILTIN_CREDENTIAL_TEMPLATES: tuple[CredentialTemplateDefinition, ...] = (
         "slug": "ssh-key",
         "name": "SSH key",
         "icon": "terminal-square",
-        "description": "SSH login using encrypted public/private key material and optional passphrase.",
+        "description": (
+            "SSH login using encrypted public/private key material and optional "
+            "passphrase."
+        ),
         "sort_order": 20,
         "fields": [
             _field("username", "SSH username", storage="username"),
@@ -68,10 +73,17 @@ BUILTIN_CREDENTIAL_TEMPLATES: tuple[CredentialTemplateDefinition, ...] = (
         "slug": "database-login",
         "name": "Database login",
         "icon": "database",
-        "description": "Database username/password with optional logical database identifier.",
+        "description": (
+            "Database username/password with optional logical database identifier."
+        ),
         "sort_order": 30,
         "fields": [
-            _field("username", "Database username", storage="username", required=True),
+            _field(
+                "username",
+                "Database username",
+                storage="username",
+                required=True,
+            ),
             _field("password", "Database password", kind="password", required=True),
             _field("database_name", "Database name", storage="metadata"),
             _field("notes", "Encrypted notes", kind="textarea"),
@@ -93,7 +105,10 @@ BUILTIN_CREDENTIAL_TEMPLATES: tuple[CredentialTemplateDefinition, ...] = (
         "slug": "oauth-application",
         "name": "OAuth application",
         "icon": "shield-keyhole",
-        "description": "OAuth/client-credential application with optional certificate authentication.",
+        "description": (
+            "OAuth/client-credential application with optional certificate "
+            "authentication."
+        ),
         "sort_order": 50,
         "fields": [
             _field("client_id", "Client ID", storage="metadata", required=True),
@@ -109,11 +124,18 @@ BUILTIN_CREDENTIAL_TEMPLATES: tuple[CredentialTemplateDefinition, ...] = (
         "slug": "service-account",
         "name": "Service account",
         "icon": "bot",
-        "description": "Service-account credential, including encrypted JSON/key material.",
+        "description": (
+            "Service-account credential, including encrypted JSON/key material."
+        ),
         "sort_order": 60,
         "fields": [
             _field("account_identifier", "Account identifier", storage="metadata"),
-            _field("service_account_json", "Service-account JSON / key", kind="textarea", required=True),
+            _field(
+                "service_account_json",
+                "Service-account JSON / key",
+                kind="textarea",
+                required=True,
+            ),
             _field("notes", "Encrypted notes", kind="textarea"),
         ],
     },
@@ -121,7 +143,9 @@ BUILTIN_CREDENTIAL_TEMPLATES: tuple[CredentialTemplateDefinition, ...] = (
         "slug": "certificate-keypair",
         "name": "Certificate and private key",
         "icon": "badge-check",
-        "description": "Certificate/keypair stored together with optional encrypted passphrase.",
+        "description": (
+            "Certificate/keypair stored together with optional encrypted passphrase."
+        ),
         "sort_order": 70,
         "fields": [
             _field("certificate", "Certificate", kind="textarea", required=True),
@@ -167,7 +191,9 @@ BUILTIN_CREDENTIAL_TEMPLATES: tuple[CredentialTemplateDefinition, ...] = (
         "slug": "custom-secret",
         "name": "Custom secret",
         "icon": "lock-keyhole",
-        "description": "General encrypted secret for credentials that do not fit another template.",
+        "description": (
+            "General encrypted secret for credentials that do not fit another template."
+        ),
         "sort_order": 110,
         "fields": [
             _field("username", "Username / identifier", storage="username"),
