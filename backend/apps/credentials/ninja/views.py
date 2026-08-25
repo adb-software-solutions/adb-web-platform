@@ -229,9 +229,7 @@ def _detail(credential: StoredCredential) -> CredentialDetailOut:
         description=credential.description,
         metadata=metadata,
         fields=_field_rows(credential.credential_type),
-        resource_links=[
-            _resource_link_out(link) for link in credential.resource_links.all()
-        ],
+        resource_links=[_resource_link_out(link) for link in credential.resource_links.all()],
         created_by=credential.created_by.email if credential.created_by else None,
         updated_by=credential.updated_by.email if credential.updated_by else None,
         created_at=credential.created_at,
@@ -264,11 +262,7 @@ def _resolve_client(
                 "code": "invalid_ownership",
             },
         )
-    client = (
-        scope_clients_for_user(request.user, Client.objects.all())
-        .filter(id=client_id)
-        .first()
-    )
+    client = scope_clients_for_user(request.user, Client.objects.all()).filter(id=client_id).first()
     if client is None:
         return None, (
             404,
@@ -324,9 +318,7 @@ def _apply_value_updates(
     clear_fields = [field.strip() for field in clear_secret_fields if field.strip()]
     unknown_clear = set(clear_fields).difference(fields)
     if unknown_clear:
-        raise CredentialPayloadError(
-            f"Unknown credential field: {min(unknown_clear)}"
-        )
+        raise CredentialPayloadError(f"Unknown credential field: {min(unknown_clear)}")
 
     metadata = dict(credential.metadata)
     secret_updates: dict[str, str] = {}
@@ -349,13 +341,9 @@ def _apply_value_updates(
     for key in clear_fields:
         field = fields[key]
         if field.storage != "secret":
-            raise CredentialPayloadError(
-                f"{field.label} is not an encrypted secret field."
-            )
+            raise CredentialPayloadError(f"{field.label} is not an encrypted secret field.")
         if field.required and key not in secret_updates:
-            raise CredentialPayloadError(
-                f"{field.label} cannot be cleared without replacement."
-            )
+            raise CredentialPayloadError(f"{field.label} cannot be cleared without replacement.")
 
     credential.metadata = metadata
     return secret_updates, clear_fields
@@ -441,9 +429,7 @@ def credential_options(request: HttpRequest) -> CredentialOptionsOut | StaffProb
     if problem:
         return problem
 
-    clients = scope_clients_for_user(request.user, Client.objects.all()).filter(
-        status="active"
-    )
+    clients = scope_clients_for_user(request.user, Client.objects.all()).filter(status="active")
     resources = scope_infrastructure_resources_for_user(
         request.user,
         InfrastructureResource.objects.select_related("client"),
