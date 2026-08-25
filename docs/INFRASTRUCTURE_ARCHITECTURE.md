@@ -8,7 +8,8 @@ Business Platform. Read it with:
 - `PLATFORM_MASTER_PLAN.md`;
 - `PERMISSIONS_AND_ACCESS_MODEL.md`;
 - `DOMAIN_MODEL_AUDIT.md`;
-- `CURRENT_STATE_AND_FOUNDATION_CHECKLIST.md`.
+- `CURRENT_STATE_AND_FOUNDATION_CHECKLIST.md`;
+- `CREDENTIAL_VAULT_ARCHITECTURE.md`.
 
 The target is an IT Glue-style workspace for software development, web
 delivery, DevOps, Linux/system administration and technical support.
@@ -112,11 +113,16 @@ This applies to:
 - relationship selectors and mutations;
 - reconciliation;
 - specialist projections;
-- future Credentials/KB/Monitoring panels;
+- Credentials/KB/Monitoring panels;
 - search/topology.
 
 Denied records are removed at service/queryset level. Frontend filtering is not
 an access-control mechanism.
+
+Credential metadata and secret actions add their own independent capability
+boundary on top of Infrastructure visibility; seeing a Server does not grant
+permission to reveal its linked password or SSH key. See
+`CREDENTIAL_VAULT_ARCHITECTURE.md`.
 
 ---
 
@@ -157,6 +163,9 @@ Examples:
 
 Generic `ResourceRelationship` edges complement these known relationships. They
 do not replace good specialist modelling.
+
+Secret material is never a specialist-field concern. Specialist records link to
+Vault Credentials rather than adding password/token/private-key columns.
 
 ---
 
@@ -222,7 +231,8 @@ Safe account metadata may include:
 - billing/reference identifiers.
 
 Passwords, API tokens, client secrets and private keys never belong directly on
-ProviderAccount.
+ProviderAccount. They are stored in the Credential Vault and linked to the
+Provider Account resource.
 
 ---
 
@@ -268,6 +278,8 @@ metadata from the legacy record.
 
 Secret-bearing legacy fields such as licence keys, passwords/API material and
 general sensitive notes must not leak through the structured resource API.
+Where those values are migrated, the target is an encrypted Vault Credential,
+not another Infrastructure metadata field.
 
 The workspace retains provenance/back-links while the bridge remains useful.
 
@@ -280,17 +292,21 @@ The workspace retains provenance/back-links while the bridge remains useful.
 5. make the structured resource the operational relationship anchor once
    reconciled;
 6. introduce mature specialist CRUD progressively;
-7. retire duplicated legacy fields only after structured replacements are
+7. migrate secret-bearing legacy values into the Credential Vault before
+   removing duplicate plaintext fields;
+8. retire duplicated legacy fields only after structured replacements are
    migrated and verified.
 
 ---
 
 ## 9. Credential integration
 
-Credentials are a separate security boundary attached to resources rather than
-plaintext fields embedded in Infrastructure.
+Credentials are an implemented, separate security boundary attached to
+resources rather than plaintext fields embedded in Infrastructure.
 
-### Agreed Vault relationship
+The authoritative Vault design is `CREDENTIAL_VAULT_ARCHITECTURE.md`.
+
+### Resource links
 
 A Credential may link to one or more Infrastructure resources with purpose and
 primary semantics.
@@ -311,17 +327,25 @@ represents a real shared ADB operational credential.
 
 ### Security rules
 
-- ordinary APIs/search return metadata only;
-- secret values remain in the encrypted credential payload;
+- ordinary APIs/search return credential metadata only;
+- secret values remain in the encrypted, versioned credential payload;
+- `CREDENTIAL_ENCRYPTION_KEYS` supplies the ordered MultiFernet key ring;
 - reveal/copy/download are explicit separately permissioned actions;
 - audit records field/context only, never the secret value;
+- revealed browser values are ephemeral and are not persisted to local/session
+  storage, routes or normal application caches;
 - Infrastructure must reference Credentials instead of duplicating plaintext
-  secrets.
+  secrets;
+- missing/invalid encryption configuration fails closed.
 
-At the time of this docs refresh, the full Credential Vault/resource-link UI is
-implemented in the active `feat/credential-vault` feature slice but is not yet
-merged into `main`. The encrypted StoredCredential service remains the
-main-branch foundation.
+### Implemented workspace integration
+
+- `/admin/credentials` is Active-first with explicit history views;
+- typed create/edit forms use credential-template schemas;
+- Client workspaces surface active Client-owned Credentials;
+- Infrastructure Resource workspaces surface linked active Credentials;
+- legacy StoredCredential plaintext values can be atomically reconciled into
+  the encrypted payload before legacy columns are removed later.
 
 ---
 
@@ -347,7 +371,8 @@ A mature Resource workspace should surface linked documentation. A KB document
 should surface related resources.
 
 The KB must not become an alternative plaintext password store. Sensitive
-access material belongs in Credentials.
+access material belongs in the Credential Vault; documentation can link to the
+Credential record without embedding its secret value.
 
 ---
 
@@ -380,7 +405,8 @@ The Monitoring UI should follow the platform's current-first rule:
 - uptime/response history;
 - expiring domain/TLS alerts.
 
-If a check needs authentication, it references an encrypted Credential.
+If a check needs authentication, it references an encrypted Vault Credential.
+Monitoring result/history records never copy the secret into their metadata.
 
 Detailed retention/escalation/notification schema should be decided in the
 Monitoring slice rather than guessed now.
@@ -410,7 +436,7 @@ Monitoring slice rather than guessed now.
 - managed versus self-hosted semantics;
 - Logical Databases;
 - Server/Provider/endpoints/TLS/HA/replication metadata;
-- Credentials by reference.
+- Credentials by Vault reference.
 
 ### Web, domains and TLS
 
@@ -418,7 +444,8 @@ Monitoring slice rather than guessed now.
 - Domains;
 - DNS Zones/Records where useful;
 - TLS Certificates;
-- registrar/DNS/CDN/WAF Provider Account relationships.
+- registrar/DNS/CDN/WAF Provider Account relationships;
+- administrative credentials/keypairs by Vault reference.
 
 ### Containers and Kubernetes
 
@@ -428,7 +455,8 @@ Monitoring slice rather than guessed now.
 - workloads;
 - Services/Ingresses;
 - Helm releases;
-- persistent storage links.
+- persistent storage links;
+- kubeconfigs/service tokens/certificates through Vault Credentials.
 
 Document the useful operational shape without manually cloning the Kubernetes
 API into Django.
@@ -461,6 +489,9 @@ Resource
 Overview remains specialist-specific. Cross-cutting sections use the shared
 resource identity.
 
+The Credentials section is already backed by the Vault's scoped resource-link
+API and must retain independent secret-action permissions.
+
 Normal clicks may open resources in the shared right-side Record drawer while
 full-page deep links remain available.
 
@@ -486,13 +517,13 @@ as:
 PostgreSQL-backed search is acceptable initially. Dedicated search/graph
 infrastructure should not be introduced until scale/quality justifies it.
 
-Search never indexes decrypted secrets and never bypasses normal scope.
+Search never indexes decrypted Vault secrets and never bypasses normal scope.
 
 ---
 
-## 15. Current implemented boundary on `main`
+## 15. Current implemented boundary
 
-The merged technical foundation provides:
+The technical foundation now provides:
 
 - `InfrastructureResource`;
 - tags;
@@ -505,9 +536,14 @@ The merged technical foundation provides:
 - relationship target/options/create/delete APIs/UI;
 - typed identity bridges for every current legacy specialist family;
 - explicit permission-aware legacy reconciliation;
-- safe specialist projection/provenance.
+- safe specialist projection/provenance;
+- the typed encrypted Credential Vault;
+- Credential -> Infrastructure Resource links with ownership validation;
+- Client and Resource contextual Credential registers;
+- explicit reveal/copy/download audit boundaries;
+- atomic legacy StoredCredential secret reconciliation.
 
-It does **not** yet provide on `main`:
+It does **not** yet provide:
 
 - complete modern specialist Server/Database/Application/etc. CRUD;
 - mature Web/Domain/DNS/TLS specialist structures;
@@ -516,26 +552,24 @@ It does **not** yet provide on `main`:
 - Docker/Kubernetes specialist structures;
 - final broad technical topology/search polish.
 
-The Credential Vault resource-link workflow is the active in-flight slice and
-should be considered merged only after its PR lands.
-
 ---
 
 ## 16. Current technical-operations sequence
 
-1. finish/merge Credential Vault + resource links/legacy-secret reconciliation;
-2. core Server/network/Database/Application specialist structures;
-3. Website/Domain/DNS/TLS specialist structures;
-4. Monitoring checks/history/incidents + technical dashboards;
-5. Knowledge Base folder/editor/version/attachment work;
-6. KB/resource backlinks + contextual search foundations;
-7. Docker/Kubernetes structures;
-8. storage/backups/system services/scheduled jobs and remaining specialist
+1. core Server/network/Database/Application specialist structures;
+2. Website/Domain/DNS/TLS specialist structures;
+3. Monitoring checks/history/incidents + technical dashboards;
+4. Knowledge Base folder/editor/version/attachment work;
+5. KB/resource backlinks + contextual search foundations;
+6. Docker/Kubernetes structures;
+7. storage/backups/system services/scheduled jobs and remaining specialist
    operations records;
-9. unified topology/search/activity/audit polish.
+8. unified topology/search/activity/audit polish;
+9. Credential expiry/rotation health and bulk rotation tooling as operational
+   follow-up rather than a blocker for typed Infrastructure.
 
 Client Command Centre integration should continue incrementally as these domains
 mature rather than waiting for one giant final integration PR.
 
 Every slice must preserve Client/Internal ownership, capability/scope, current-
-first UX, audit boundaries and secret handling.
+first UX, audit boundaries and the Credential Vault secret-handling contract.
