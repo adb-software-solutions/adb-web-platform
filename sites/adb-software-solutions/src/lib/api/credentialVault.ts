@@ -4,11 +4,7 @@ import { API_URL } from "@/lib/config";
 export type CredentialStatus = "active" | "inactive" | "archived";
 export type CredentialOwnership = "internal" | "client";
 export type CredentialFieldKind = "text" | "password" | "textarea" | "url";
-export type CredentialFieldStorage =
-    | "username"
-    | "url"
-    | "metadata"
-    | "secret";
+export type CredentialFieldStorage = "username" | "url" | "metadata" | "secret";
 
 export interface CredentialField {
     key: string;
@@ -127,22 +123,27 @@ export interface CredentialUpdatePayload {
 
 const BASE = `${API_URL}/api/admin`;
 
+const credentialPath = (credentialId: number) =>
+    `${BASE}/credentials/${credentialId}`;
+
+const credentialSecretPath = (credentialId: number, fieldKey: string) =>
+    `${credentialPath(credentialId)}/secrets/${encodeURIComponent(fieldKey)}`;
+
 export const CredentialVaultAPI = {
     options: () => `${BASE}/credential-options`,
     list: (query = "") => `${BASE}/credentials${query ? `?${query}` : ""}`,
-    get: (credentialId: number) => `${BASE}/credentials/${credentialId}`,
+    get: credentialPath,
     create: () => `${BASE}/credentials`,
-    update: (credentialId: number) => `${BASE}/credentials/${credentialId}`,
+    update: credentialPath,
     archive: (credentialId: number) =>
-        `${BASE}/credentials/${credentialId}/archive`,
-    reveal: (credentialId: number) =>
-        `${BASE}/credentials/${credentialId}/reveal`,
+        `${credentialPath(credentialId)}/archive`,
+    reveal: (credentialId: number) => `${credentialPath(credentialId)}/reveal`,
     copy: (credentialId: number, fieldKey: string) =>
-        `${BASE}/credentials/${credentialId}/secrets/${encodeURIComponent(fieldKey)}/copy`,
+        `${credentialSecretPath(credentialId, fieldKey)}/copy`,
     download: (credentialId: number, fieldKey: string) =>
-        `${BASE}/credentials/${credentialId}/secrets/${encodeURIComponent(fieldKey)}/download`,
+        `${credentialSecretPath(credentialId, fieldKey)}/download`,
     migrateLegacy: (credentialId: number) =>
-        `${BASE}/credentials/${credentialId}/migrate-legacy-secrets`,
+        `${credentialPath(credentialId)}/migrate-legacy-secrets`,
 };
 
 export async function downloadCredentialSecret(
