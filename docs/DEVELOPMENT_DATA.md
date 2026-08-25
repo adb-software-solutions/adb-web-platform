@@ -10,6 +10,10 @@ Development data should exercise the product's current-first workspaces,
 Client/Internal ownership, permission boundaries and relationships without ever
 containing real Client secrets or private infrastructure data.
 
+Credential-specific security rules are defined in
+`CREDENTIAL_VAULT_ARCHITECTURE.md` and apply to development data as well as
+production data.
+
 ---
 
 ## 1. Canonical development seed command
@@ -58,7 +62,8 @@ At normal scale, the development dataset covers realistic examples across:
 - recurring/current/completed work examples;
 - Task/Project/Internal Time entries;
 - Knowledge Base documents and version-history foundations;
-- fake Credential metadata/encrypted demo secret values;
+- fake Credential metadata and encrypted demo secret values;
+- active/inactive/archived Credential lifecycle examples where useful;
 - Server, Database, Website, Domain, TLS, Licence, Application and related
   infrastructure specialist examples;
 - Mobile App/API/Bot/Email-system examples;
@@ -73,7 +78,7 @@ development seed command.
 
 ### Structured Infrastructure transition
 
-The platform now has `InfrastructureResource`, Provider and relationship
+The platform has `InfrastructureResource`, Provider and relationship
 foundations plus explicit specialist reconciliation.
 
 Development data for older specialist records remains useful because the
@@ -84,18 +89,28 @@ legacy row look reconciled.
 Where a seeder creates structured resources/relationships directly, it must obey
 the same ownership and cross-Client validation as normal application code.
 
-### Credential data
+### Credential Vault data
+
+The typed Vault is an implemented part of the platform. Development Credentials
+should exercise the same services/contracts as normal Vault records:
+
+- Client/Internal ownership;
+- typed CredentialType/template schema;
+- encrypted secret payloads;
+- Active-first lifecycle;
+- Infrastructure resource links where useful;
+- legacy reconciliation examples only when testing that migration path.
 
 Fake credential secrets must be obvious placeholders such as
-`demo-password-not-a-real-secret` and should exercise the encrypted credential
-service where the current branch supports it.
-
-At the time of this documentation refresh, the full typed Credential Vault is
-still an unmerged feature slice. Seed data on `main` must therefore not pretend
-that every Vault template/action is already available.
+`demo-password-not-a-real-secret` and must use the encrypted credential service
+rather than legacy plaintext fields.
 
 Never copy real Microsoft Graph certificates/private keys, Client passwords,
 API tokens, SSH keys or production recovery codes into seeders/fixtures.
+
+Do not put fake secret values into AuditEvent metadata merely because the data
+is non-production; the development dataset should exercise the real security
+boundary.
 
 ---
 
@@ -115,6 +130,14 @@ through the authentication application.
 Use a local superuser when reviewing the complete cross-domain dataset. Use
 restricted staff users when reviewing capability/Client/Queue-scope behaviour;
 a restricted account correctly sees only part of the seeded data.
+
+For Vault permission review, include users with combinations such as:
+
+- metadata view without reveal/copy/download;
+- reveal permission;
+- copy permission;
+- download permission;
+- selected Client scope that excludes some Client Credentials.
 
 Create a local superuser when needed:
 
@@ -139,6 +162,10 @@ python manage.py loaddata apps/core/fixtures/development_reference.json
 The comprehensive seed commands create/update the reference data they need, so
 prefer `seed_all_development` for normal platform development.
 
+Typed Vault templates may also ensure their built-in CredentialType definitions
+through the Credential template service. Do not rely on fixture display names
+alone for stable field schemas.
+
 ---
 
 ## 5. Seeder expectations for new work
@@ -149,13 +176,14 @@ materially improves hands-on review.
 Examples for upcoming phases:
 
 - current + retired Infrastructure Resources and useful topology relationships;
-- Credential metadata/resource links using only fake encrypted values after the
-  Vault merges;
+- Vault Credential/resource links using only fake encrypted values;
 - unhealthy/healthy Monitoring checks and incidents once Monitoring exists;
-- nested Client/Internal KB folders/documents/resource links after the KB
-  redesign;
-- varied staff access/default Ticket Queue preferences for Users & Access and
-  Dashboard work;
+- authenticated Monitoring examples that reference fake Vault Credentials
+  rather than owning plaintext passwords/tokens;
+- nested Client/Internal KB folders/documents/resource/Credential links after
+  the KB redesign;
+- varied staff access/default Ticket Queue/Vault secret-action permissions for
+  Users & Access and Dashboard work;
 - commercial examples only once those models are explicitly designed.
 
 Seed data should make current-first views meaningful: include enough history to
@@ -172,7 +200,8 @@ test history filters without making all demo records inactive/closed.
   rather than bypassing them with unsafe direct inserts.
 - Keep Client/Internal ownership internally consistent.
 - Never use seeders to bypass permission/security design.
-- Never write plaintext production-style secrets merely because the environment
-  is development.
+- Never write secret values to legacy plaintext Credential columns merely
+  because the environment is development.
+- Never expose seeded secrets through normal Credential metadata APIs/search.
 - Seed data is for development/demos, not a substitute for focused unit/
   permission-boundary tests.
