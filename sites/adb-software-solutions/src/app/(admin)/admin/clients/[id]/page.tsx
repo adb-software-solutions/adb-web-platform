@@ -1,3 +1,4 @@
+import { CredentialVault } from "@/app/(admin)/admin/credentials/CredentialVault";
 import { ButtonLink, Container } from "@/components/ui";
 import { ClientWorkspace } from "./ClientWorkspace";
 
@@ -26,6 +27,9 @@ export default async function ClientPage({
                 </ButtonLink>
             </div>
             <ClientWorkspace clientId={clientId} />
+            <div className="mt-8 border-t border-slate-800 pt-8">
+                <CredentialVault initialClientId={clientId} compact />
+            </div>
         </Container>
     );
 }
