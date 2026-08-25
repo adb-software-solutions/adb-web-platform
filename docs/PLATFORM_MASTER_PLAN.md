@@ -273,7 +273,7 @@ use explicit permissions and audit events.
 
 ## 5. Implemented operational foundation
 
-The following are established architecture on `main`, not future-only ideas:
+The following are established platform architecture, not future-only ideas:
 
 - Django-backed identity/session/TOTP/WebAuthn and dedicated auth frontend;
 - Brand-aware CMS/public content isolation;
@@ -302,15 +302,16 @@ The following are established architecture on `main`, not future-only ideas:
   resource relationships;
 - explicit specialist legacy reconciliation and structured Infrastructure
   resource workspaces;
+- full typed Credential Vault with encrypted/versioned secrets, independent
+  reveal/copy/download permissions, Client/Infrastructure context and atomic
+  legacy-secret reconciliation;
 - deterministic development data and CI/container foundations.
-
-The Credential Vault's full CRUD/reveal/copy/download/resource-link workflow is
-currently being completed in a separate feature slice. Until that is merged,
-`main` retains the encrypted `StoredCredential` service foundation and older
-metadata UI.
 
 Knowledge Base, Users & Access, configurable Dashboard and mature Monitoring
 remain incomplete.
+
+Credential-specific security and lifecycle rules are authoritative in
+`CREDENTIAL_VAULT_ARCHITECTURE.md`.
 
 ---
 
@@ -391,6 +392,10 @@ repeatedly returning to global registers.
 It should include contextual create actions and useful summaries, especially
 current work, open communication and time by period.
 
+Active Client-owned Credentials already appear in Client context; the Command
+Centre pass should integrate that existing capability into the final navigation
+model rather than inventing another password view.
+
 ### Leads
 
 Lead operations are sales-pipeline focused:
@@ -446,7 +451,9 @@ The normal ADB deployment is:
 - certificate-based app-only authentication in production;
 - many configured Microsoft 365 Shared Mailboxes;
 - Exchange Online RBAC for Applications as the Microsoft-side boundary;
-- enabled database Mailbox rows as the narrower operational allow-list.
+- enabled database Mailbox rows as the narrower operational allow-list;
+- certificate/private-key material stored through the Credential Vault rather
+  than duplicate plaintext Graph configuration.
 
 For ADB's current tenant model, the preferred Exchange scope is dynamic by
 `RecipientTypeDetails -eq 'SharedMailbox'`. This means a new Shared Mailbox
@@ -458,8 +465,8 @@ configuration action: choose/enter the Shared Mailbox, Brand/purpose/default
 queue, verify it and enable it. The operator should not re-enter the tenant ID,
 client ID, certificate or create a new RBAC assignment for each mailbox.
 
-See `TICKETING_ARCHITECTURE.md` and
-`MICROSOFT_GRAPH_TICKETING_SETUP.md` for details.
+See `TICKETING_ARCHITECTURE.md`, `MICROSOFT_GRAPH_TICKETING_SETUP.md` and
+`CREDENTIAL_VAULT_ARCHITECTURE.md` for details.
 
 ---
 
@@ -489,14 +496,19 @@ The merged foundation includes:
 - current-first resource views;
 - specialist legacy identity bridges;
 - explicit operator-driven reconciliation;
-- Client-scoped/global structured resource workspaces.
+- Client-scoped/global structured resource workspaces;
+- contextual links to active Credentials.
 
 The next Infrastructure slices should build real specialist operational
 structures rather than expanding the legacy flat registers indefinitely.
 
 ### 9.2 Credential Vault
 
-The agreed Vault architecture includes:
+The Credential Vault is an implemented technical-operations subsystem, not a
+future placeholder. Its authoritative architecture is
+`CREDENTIAL_VAULT_ARCHITECTURE.md`.
+
+It provides:
 
 - typed credential templates;
 - Client/Internal ownership;
@@ -507,10 +519,14 @@ The agreed Vault architecture includes:
 - audit events that record field/context but never secret values;
 - links to one or more Infrastructure Resources with ownership validation;
 - Client and Infrastructure contextual views;
-- atomic reconciliation of legacy plaintext fields into encrypted payloads.
+- atomic reconciliation of legacy plaintext fields into encrypted payloads;
+- fail-closed behaviour when encryption configuration is unavailable.
 
 Secret values must never enter normal search, logs, URLs, analytics or audit
 metadata.
+
+Infrastructure, Monitoring, Graph, KB and later specialist records reference
+Credentials instead of duplicating secret material.
 
 ### 9.3 Monitoring
 
@@ -531,6 +547,9 @@ Checks produce history and incidents with failure/recovery semantics. Celery
 Beat/workers schedule execution through reusable services. Global and
 Client-scoped health dashboards should show current problems first.
 
+Checks requiring authentication reference Credentials through the Vault rather
+than storing their own plaintext usernames/tokens.
+
 ### 9.4 Knowledge Base
 
 The agreed KB direction is a Client/Internal documentation workspace with a
@@ -548,7 +567,8 @@ Target behaviour includes:
 - global and Client-context permission-aware search;
 - future portal visibility explicit and private by default.
 
-The KB must not become an alternative plaintext credential store.
+The KB must not become an alternative plaintext credential store. It links to
+Vault records when a runbook needs access context.
 
 ---
 
@@ -573,6 +593,9 @@ The backend permission/scope model already exists; this phase is primarily the
 safe operational administration experience plus any missing backend endpoints
 and boundary tests.
 
+Credential reveal/copy/download capabilities remain separately grantable and
+must be visible clearly in effective-access administration.
+
 ---
 
 ## 11. Dashboard / My Work
@@ -593,6 +616,9 @@ Target widget categories include:
 
 Widget visibility and data obey normal backend capability/scope policies.
 Layout/configuration should follow the staff user across browsers.
+
+Do not surface Credential secret values in Dashboard widgets; at most show safe
+metadata/health indicators when a user has the relevant metadata permission.
 
 ---
 
@@ -615,6 +641,8 @@ non-secret metadata from:
 - Infrastructure;
 - credential metadata only.
 
+Decrypted credential payloads are never indexed.
+
 PostgreSQL-backed search is acceptable initially. Dedicated search
 infrastructure is not justified until scale/quality requires it.
 
@@ -626,11 +654,17 @@ audit records rather than dumping every database change.
 
 Commercial events can join the Client activity timeline later.
 
+Credential activity may show safe events such as created/updated/archived or
+that a secret action occurred; it must never include the secret value.
+
 ### Notifications and SLA refinements
 
 Notifications, escalation/SLA behaviour and richer Calendar/Event integration
 remain later operational refinements. They should be designed after the core
 work surfaces are stable rather than embedded piecemeal into unrelated PRs.
+
+Credential expiry/rotation reminders can join this layer after the initial
+Vault is proven in real use.
 
 ---
 
@@ -660,6 +694,9 @@ models are **not yet agreed**. Do not invent them during unrelated work.
 The commercial layer should reuse existing Client, Lead, Project, Ticket and
 Time context rather than create duplicate customer/work models.
 
+Commercial-provider API keys/payment secrets use the Credential Vault rather
+than new plaintext secret columns.
+
 ---
 
 ## 14. Public websites and CMS
@@ -678,6 +715,9 @@ When public-site work becomes the primary phase:
 - public forms submit to the shared Django backend and identify Brand/source;
 - contact forms continue feeding the Lead + Ticket communication pipeline;
 - operational Project remains separate from public CaseStudy/Portfolio.
+
+Public applications must never receive Credential secret payloads simply
+because they share the backend repository.
 
 ---
 
@@ -698,23 +738,17 @@ Client ownership must never automatically expose:
 - private KB documents;
 - staff-only audit/security information.
 
+Credential Vault secret actions are staff-only unless a future explicit threat
+model and portal design says otherwise.
+
 ---
 
 ## 16. Current ordered build plan
 
-The order below reflects the latest decisions and supersedes earlier plans that
-kept Infrastructure/KB entirely deferred.
+The Credential Vault foundation is complete in the change set that carries this
+document. The next sustained implementation stage is typed Infrastructure.
 
-### Stage 1 — Finish the active Credential Vault slice
-
-- complete CI/hands-on validation;
-- merge typed secure Credential CRUD;
-- reveal/copy/download/audit;
-- Infrastructure links;
-- Client/Infrastructure contextual Credential views;
-- legacy plaintext reconciliation.
-
-### Stage 2 — Core typed Infrastructure
+### Stage 1 — Core typed Infrastructure
 
 Move beyond transitional legacy specialist records into the most useful
 strongly typed operational structures:
@@ -723,25 +757,28 @@ strongly typed operational structures:
 - Database instance/logical database structures;
 - logical Application + environment/source/dependency context;
 - Provider Account relationships;
-- safe resource create/edit/archive lifecycle.
+- safe resource create/edit/archive lifecycle;
+- Credential references rather than duplicate secret fields.
 
-### Stage 3 — Web Infrastructure
+### Stage 2 — Web Infrastructure
 
 - Websites/endpoints;
 - Domains;
 - DNS zones/records where useful;
 - TLS Certificates and expiry relationships;
-- registrar/DNS/CDN/WAF/provider context.
+- registrar/DNS/CDN/WAF/provider context;
+- Credential links for administrative/authentication material.
 
-### Stage 4 — Monitoring and technical dashboards
+### Stage 3 — Monitoring and technical dashboards
 
 - checks/results/incidents;
 - current health views;
 - uptime/response history;
 - expiring TLS/domain alerts;
-- global and Client-scoped technical dashboards.
+- global and Client-scoped technical dashboards;
+- Vault-backed authentication for monitored endpoints where required.
 
-### Stage 5 — Knowledge Base
+### Stage 4 — Knowledge Base
 
 - folder/section tree;
 - Markdown/controlled editor;
@@ -749,9 +786,10 @@ strongly typed operational structures:
 - immutable versions;
 - Client/Internal ownership;
 - Infrastructure/resource backlinks;
+- Credential links without secret duplication;
 - contextual and global search foundations.
 
-### Stage 6 — Specialist technical operations
+### Stage 5 — Specialist technical operations
 
 - Docker/container structures;
 - Kubernetes clusters/namespaces/workloads/services/ingresses/Helm/storage at a
@@ -761,7 +799,7 @@ strongly typed operational structures:
 - scheduled jobs/cron/systemd timers;
 - remaining specialist operations records.
 
-### Stage 7 — Client Command Centre integration pass
+### Stage 6 — Client Command Centre integration pass
 
 Bring the now-mature operational and technical domains together in the Client
 workspace:
@@ -775,37 +813,39 @@ workspace:
 Parts of this integration already exist and should continue to be added as
 individual domains mature rather than waiting for one giant rewrite.
 
-### Stage 8 — Users & Access
+### Stage 7 — Users & Access
 
 Complete safe custom staff administration for Groups, capabilities, Client
-scope, Ticket Queue scope and effective access.
+scope, Ticket Queue scope, Credential secret-action capabilities and effective
+access.
 
-### Stage 9 — Dashboard / My Work
+### Stage 8 — Dashboard / My Work
 
 Add the configurable, permission-aware, server-persisted widget system and
 make the personal Dashboard a useful cross-domain starting point.
 
-### Stage 10 — Unified operational polish
+### Stage 9 — Unified operational polish
 
 - global/Client search;
 - topology/navigation polish;
 - Client/resource Activity;
 - audit/security UX;
 - notifications;
+- Credential expiry/rotation health/reminders;
 - SLA/escalation refinements;
 - richer Calendar/Event behaviour where justified.
 
-### Stage 11 — Commercial and analytics
+### Stage 10 — Commercial and analytics
 
 Build the agreed products/services, recurring-services, quotes/proposals,
 contracts, invoicing, Stripe/payment tracking and profitability/LTV/source
 analytics layer.
 
-### Stage 12 — Public websites as primary focus
+### Stage 11 — Public websites as primary focus
 
 Complete the three Brand websites against stable platform contracts.
 
-### Stage 13 — Client portal
+### Stage 12 — Client portal
 
 Add explicit, narrowly scoped Client-facing access only after the internal and
 commercial models are mature enough to expose safely.
@@ -821,7 +861,8 @@ living only in chat history.
 - least privilege by default;
 - backend-enforced authorisation and object scope;
 - no secrets in Git, ordinary logs, URLs, analytics or audit metadata;
-- secret fields opt-in through explicit actions only;
+- secret fields opt-in through explicit Vault actions only;
+- credential storage fails closed if encryption configuration is unavailable;
 - CSRF protection for cookie-authenticated state changes;
 - secure production cookies/CORS/trusted origins;
 - validated return/redirect URLs;
@@ -833,6 +874,9 @@ living only in chat history.
 - permission-boundary tests are mandatory for restricted APIs;
 - Celery orchestrates asynchronous work but reusable domain logic belongs in
   services rather than only in tasks.
+
+Credential-specific rules, including encryption-key rotation and browser secret
+handling, are defined in `CREDENTIAL_VAULT_ARCHITECTURE.md`.
 
 ---
 
@@ -848,7 +892,9 @@ Do not:
 - force Tasks to belong to Projects;
 - merge operational Projects with public Case Studies;
 - return credential secrets in normal list/detail/search APIs;
-- duplicate plaintext secrets on Infrastructure models;
+- duplicate plaintext secrets on Infrastructure, Monitoring, Graph, KB or
+  commercial models;
+- persist revealed credential secrets in browser storage/routes/analytics;
 - implement authorisation only in React;
 - give all staff superuser access;
 - hard-code each Shared Mailbox as bespoke Graph configuration;
@@ -869,8 +915,9 @@ Do not:
 > `/admin` workspace in one Next.js application; operational resources are
 > Client-owned or Internal; current/actionable work is the default; Client is
 > the command-centre context; communications unify into Tickets; and technical
-> operations converge on structured Infrastructure, encrypted Credentials,
-> Monitoring and linked Knowledge rather than disconnected CRUD registers.**
+> operations converge on structured Infrastructure, an encrypted Credential
+> Vault, Monitoring and linked Knowledge rather than disconnected CRUD
+> registers.**
 
 Major future architectural decisions should be checked against this statement
 and the canonical documentation set.
