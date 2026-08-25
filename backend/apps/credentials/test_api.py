@@ -166,6 +166,25 @@ class CredentialVaultApiTests(TestCase):
         self.assertNotIn("never-in-metadata", str(result.model_dump()))
         self.assertNotIn("also-encrypted", str(result.model_dump()))
 
+    def test_detail_describes_untyped_encrypted_legacy_fields(self) -> None:
+        user = self._user("legacy-detail@example.test", ("view_storedcredential",))
+        legacy_type = CredentialType.objects.create(name="Legacy API credential")
+        self.internal.credential_type = legacy_type
+        self.internal.save(update_fields=["credential_type", "updated_at"])
+
+        with override_settings(CREDENTIAL_ENCRYPTION_KEYS=[self.encryption_key]):
+            store_credential_secrets(self.internal, {"api_key": "encrypted-legacy-key"})
+            result = cast(
+                CredentialDetailOut,
+                get_credential(self._request(user), self.internal.id),
+            )
+
+        api_key_field = next(field for field in result.fields if field.key == "api_key")
+        self.assertEqual(api_key_field.label, "API key")
+        self.assertEqual(api_key_field.storage, "secret")
+        self.assertEqual(api_key_field.kind, "password")
+        self.assertNotIn("encrypted-legacy-key", str(result.model_dump()))
+
     def test_create_encrypts_secret_values_and_links_resources(self) -> None:
         user = self._user(
             "create@example.test",
