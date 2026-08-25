@@ -31,10 +31,7 @@ from apps.credentials.ninja.views import (
     reveal_credential,
     update_credential,
 )
-from apps.credentials.secrets import (
-    load_credential_secrets_for_service,
-    store_credential_secrets,
-)
+from apps.credentials.secrets import load_credential_secrets_for_service, store_credential_secrets
 from apps.infrastructure.models import InfrastructureResource
 from authentication.models import User
 
@@ -225,9 +222,7 @@ class CredentialVaultApiTests(TestCase):
             ownership_type="client",
             client_id=self.client_a.id,
             values={"password": "secret"},
-            resource_links=[
-                CredentialResourceLinkIn(resource_id=self.client_b_resource.id)
-            ],
+            resource_links=[CredentialResourceLinkIn(resource_id=self.client_b_resource.id)],
         )
 
         with override_settings(CREDENTIAL_ENCRYPTION_KEYS=[self.encryption_key]):
