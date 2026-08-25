@@ -3,21 +3,23 @@
 ## Purpose
 
 This document is the implementation companion to `PLATFORM_MASTER_PLAN.md`.
-It records what is actually present on `main`, what is implemented only in an
-unmerged feature branch, and what remains in the agreed build sequence.
+It records what is implemented by the platform at this point in the build and
+what remains in the agreed sequence.
 
 Snapshot for this refresh:
 
 - date: **2026-08-25**;
-- `main`: `2b09629a3b2faf90f8de883c08aedf072e29db2e`;
-- active feature slice: Credential Vault on `feat/credential-vault`.
+- base before the Credential Vault slice: `main` at the merged platform-docs
+  refresh;
+- this document is updated in the same change set as the full Credential Vault,
+  so the Vault capabilities below describe the post-merge platform state.
 
-A feature implemented only in an unmerged branch is not marked as implemented
-on `main` below.
+Credential-specific security and operational rules are defined in
+`CREDENTIAL_VAULT_ARCHITECTURE.md`.
 
 ## 1. Repository/application foundation
 
-### Implemented on `main`
+### Implemented
 
 - [x] One shared Django backend is the business-data/auth/scope authority.
 - [x] Django Ninja is the API layer.
@@ -59,7 +61,7 @@ on `main` below.
 
 ## 3. Clients and Contacts
 
-### Implemented on `main`
+### Implemented
 
 - [x] Client create/edit lifecycle management.
 - [x] Active/Inactive/Archived Client lifecycle.
@@ -75,8 +77,8 @@ on `main` below.
 - [x] Client workspace exposes current Projects and keeps archived projects out
       of the default view while retaining completed project history.
 - [x] Client/Contact email identity participates in Ticket sender resolution.
-- [x] Client workspace has foundations for Projects/Tickets and newer
-      Infrastructure integration.
+- [x] Client workspace has foundations for Projects/Tickets, Infrastructure and
+      active Client-owned Credentials.
 
 ### Next Client Command Centre work
 
@@ -92,7 +94,7 @@ on `main` below.
 
 ## 4. CRM / Leads
 
-### Implemented on `main`
+### Implemented
 
 - [x] Lead create/edit/detail/workspace.
 - [x] Lead ownership/assignment.
@@ -121,7 +123,7 @@ on `main` below.
 
 ## 5. Projects
 
-### Implemented on `main`
+### Implemented
 
 - [x] Client/Internal Project ownership.
 - [x] create/edit/status/archive lifecycle.
@@ -151,7 +153,7 @@ on `main` below.
 
 ## 6. Tasks / ADB work management
 
-### Implemented on `main`
+### Implemented
 
 - [x] Tasks may be standalone Internal, Client-owned or Project-owned.
 - [x] My Tasks is the default global Task experience.
@@ -186,7 +188,7 @@ on `main` below.
 
 ## 7. Calendar / planning
 
-### Implemented on `main`
+### Implemented
 
 - [x] permission-aware Calendar API/workspace foundation.
 - [x] dated Task and Project work can be shown on the Calendar.
@@ -203,7 +205,7 @@ on `main` below.
 
 ## 8. Time Tracking
 
-### Implemented on `main`
+### Implemented
 
 - [x] manual Time Entries.
 - [x] Client/Internal ownership with Internal time forced non-billable.
@@ -234,7 +236,7 @@ on `main` below.
 
 ## 9. Ticketing and communications
 
-### Implemented on `main`
+### Implemented
 
 - [x] TicketQueue, Ticket, TicketMessage, TicketNote and TicketAttachment.
 - [x] Client + Ticket Queue capability/scope enforcement.
@@ -282,6 +284,8 @@ on `main` below.
       boundary.
 - [x] enabled database Mailbox rows are the narrower operational allow-list.
 - [x] licensed user mailboxes are not intended Ticket sources.
+- [x] Graph private-key/certificate material can be administered through the
+      encrypted Credential Vault instead of legacy plaintext secret fields.
 
 ### Current ADB default
 
@@ -292,11 +296,12 @@ on `main` below.
       certificate; the operator configures/verifies the mailbox in ADB rather
       than re-entering Microsoft app credentials.
 
-See `MICROSOFT_GRAPH_TICKETING_SETUP.md` for the runbook.
+See `MICROSOFT_GRAPH_TICKETING_SETUP.md` and
+`CREDENTIAL_VAULT_ARCHITECTURE.md`.
 
 ## 11. Infrastructure
 
-### Implemented on `main`
+### Implemented
 
 - [x] `InfrastructureResource` common identity.
 - [x] Client/Internal ownership.
@@ -316,6 +321,7 @@ See `MICROSOFT_GRAPH_TICKETING_SETUP.md` for the runbook.
 - [x] structured resource drawer/full-page workspaces.
 - [x] relationship create/delete management with backend validation.
 - [x] Client-context Infrastructure workspace.
+- [x] Infrastructure Resource workspaces surface linked active Credentials.
 
 ### Next technical slices
 
@@ -330,28 +336,31 @@ See `MICROSOFT_GRAPH_TICKETING_SETUP.md` for the runbook.
 
 ## 12. Credential Vault
 
-### Implemented on `main`
+### Implemented
 
-- [x] StoredCredential model and Client/Internal ownership foundation.
-- [x] encrypted secret payload service.
-- [x] environment-managed MultiFernet key ring.
-- [x] metadata register foundation.
-- [x] separate service/user secret paths and audit foundations.
-
-### Implemented in the active feature branch, not yet on `main`
-
-- [ ] typed credential templates for passwords, SSH, DB, API/OAuth, service
+- [x] StoredCredential Client/Internal ownership.
+- [x] typed credential templates for passwords, SSH, DB, API/OAuth, service
       accounts, certificates, licences, recovery/encryption/custom secrets.
-- [ ] Active/Inactive/Archived lifecycle and Active-first operational views.
-- [ ] permission-aware secure CRUD.
-- [ ] separate reveal/copy/download operations and audit paths.
-- [ ] safe browser handling for revealed secrets.
-- [ ] Infrastructure resource links with Client-boundary validation.
-- [ ] Client and Infrastructure contextual Credential registers.
-- [ ] atomic legacy plaintext -> encrypted payload reconciliation.
-- [ ] expiry/rotation metadata.
+- [x] encrypted, versioned secret payload service.
+- [x] environment-managed ordered MultiFernet key ring.
+- [x] Active/Inactive/Archived lifecycle and Active-first operational views.
+- [x] searchable non-secret metadata, expiry and rotation metadata.
+- [x] permission-aware secure CRUD.
+- [x] separate reveal/copy/download operations and audit paths.
+- [x] ordinary API responses contain metadata/secret-field presence only, not
+      secret values.
+- [x] safe browser handling for explicitly revealed secrets without persistence
+      to localStorage/sessionStorage/routes/normal caches.
+- [x] Infrastructure resource links with Client-boundary validation.
+- [x] Client and Infrastructure contextual Credential registers.
+- [x] atomic legacy plaintext -> encrypted payload reconciliation.
+- [x] migrated legacy secret fields remain usable even where an old credential
+      type had no modern field schema.
+- [x] encryption fails closed when the key ring is unavailable/invalid.
 
-These items should become `[x]` only after the Credential Vault feature merges.
+The authoritative design, key-rotation procedure, permission model, audit
+requirements and browser-handling rules are in
+`CREDENTIAL_VAULT_ARCHITECTURE.md`.
 
 ### Later Vault work
 
@@ -360,10 +369,12 @@ These items should become `[x]` only after the Credential Vault feature merges.
 - [ ] scheduled expiry/rotation reminders and health reporting.
 - [ ] bulk key-rotation tooling/reporting.
 - [ ] richer template administration only if actually needed.
+- [ ] consider step-up/break-glass behaviour only if the threat model justifies
+      it.
 
 ## 13. Knowledge Base
 
-### Implemented on `main`
+### Implemented foundation
 
 - [x] existing KB model/register foundation.
 - [x] Client/Internal ownership and permission foundations.
@@ -383,13 +394,14 @@ These items should become `[x]` only after the Credential Vault feature merges.
 - [ ] global and Client-context permission-aware search.
 - [ ] future portal visibility explicit and private by default.
 
-The KB redesign follows the current technical Infrastructure/Monitoring run.
+The KB redesign follows the current Infrastructure/Monitoring run. Sensitive
+values remain in Credentials and are referenced, not copied into KB content.
 
 ## 14. Monitoring
 
 ### Current state
 
-There is not yet a mature Monitoring subsystem on `main`.
+There is not yet a mature Monitoring subsystem.
 
 ### Agreed target
 
@@ -430,7 +442,7 @@ Routine staff administration must not depend on Django superuser access.
 
 ## 16. Dashboard / My Work
 
-### Implemented on `main`
+### Implemented foundation
 
 - [x] initial fixed operational dashboard/API foundation.
 
@@ -453,7 +465,7 @@ Routine staff administration must not depend on Django superuser access.
 
 - [ ] unified permission-aware global search.
 - [ ] Client-context search across mature domains.
-- [ ] metadata-only Credential search.
+- [ ] metadata-only Credential search; decrypted secrets must never be indexed.
 - [ ] Client/resource Activity timeline.
 - [ ] topology/navigation polish across Infrastructure/KB/Credentials.
 - [ ] notification preferences and agent notifications.
@@ -509,20 +521,19 @@ Security/fix/integration work may still happen opportunistically.
 
 ## 21. Current ordered implementation sequence
 
-1. **Finish and merge Credential Vault.**
-2. **Core typed Infrastructure** — Server/network/Database/Application
+1. **Core typed Infrastructure** — Server/network/Database/Application
    structures and safe specialist CRUD.
-3. **Web Infrastructure** — Website/Domain/DNS/TLS/provider context.
-4. **Monitoring + technical dashboards.**
-5. **Knowledge Base redesign + resource links/search foundations.**
-6. **Docker/Kubernetes + storage/backups/services/scheduled jobs.**
-7. **Client Command Centre integration pass.**
-8. **Users & Access custom operations UI.**
-9. **Dashboard / My Work configurable widgets.**
-10. **Unified search/topology/activity/audit/notifications/SLA/Calendar polish.**
-11. **Commercial + analytics layer.**
-12. **Public websites as primary focus.**
-13. **Client portal.**
+2. **Web Infrastructure** — Website/Domain/DNS/TLS/provider context.
+3. **Monitoring + technical dashboards.**
+4. **Knowledge Base redesign + resource links/search foundations.**
+5. **Docker/Kubernetes + storage/backups/services/scheduled jobs.**
+6. **Client Command Centre integration pass.**
+7. **Users & Access custom operations UI.**
+8. **Dashboard / My Work configurable widgets.**
+9. **Unified search/topology/activity/audit/notifications/SLA/Calendar polish.**
+10. **Commercial + analytics layer.**
+11. **Public websites as primary focus.**
+12. **Client portal.**
 
 Small dependency-driven slices may move, but major order changes should update
 `PLATFORM_MASTER_PLAN.md` and this checklist.
