@@ -309,6 +309,13 @@ See `MICROSOFT_GRAPH_TICKETING_SETUP.md` and
 - [x] resource tags.
 - [x] `ServiceProvider`.
 - [x] resource-backed `ProviderAccount`.
+- [x] operational Service Provider catalogue with server-side search/category/
+      active filtering and permissioned creation/update.
+- [x] scoped Provider Account create/edit/archive flows that atomically create
+      the shared resource identity and preserve immutable ownership boundaries.
+- [x] Provider Account workspaces expose safe account/tenant/region/support/
+      billing metadata and connect to Relationships, Credentials and activity
+      through the shared Infrastructure Resource.
 - [x] typed `ResourceRelationship` topology.
 - [x] ownership and cross-Client relationship validation.
 - [x] permission-aware global/Client resource collections and details.

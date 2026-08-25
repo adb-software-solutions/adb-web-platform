@@ -74,6 +74,11 @@ const inventoryLinks = [
         "/admin/infrastructure/tech-stack",
         "Technology and version inventory by website.",
     ],
+    [
+        "Providers",
+        "/admin/infrastructure/providers",
+        "Service catalogue and scoped provider accounts.",
+    ],
 ] as const;
 
 const additionalSystems = [

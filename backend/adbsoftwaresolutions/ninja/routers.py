@@ -19,6 +19,7 @@ from apps.crm.ninja.email_views import lead_email_router
 from apps.crm.ninja.overview_views import lead_overview_router
 from apps.infrastructure.ninja.admin_views import infrastructure_admin_router
 from apps.infrastructure.ninja.extended_views import infrastructure_extended_router
+from apps.infrastructure.ninja.provider_views import provider_router
 from apps.infrastructure.ninja.reconciliation_views import infrastructure_reconciliation_router
 from apps.infrastructure.ninja.resource_views import infrastructure_resource_router
 from apps.tasks.ninja.admin_views import tasks_admin_router
@@ -88,6 +89,7 @@ admin_router.add_router("", ticketing_settings_router)
 admin_router.add_router("", vendor_settings_router)
 admin_router.add_router("", infrastructure_admin_router)
 admin_router.add_router("", infrastructure_extended_router)
+admin_router.add_router("", provider_router)
 admin_router.add_router("", infrastructure_resource_router)
 admin_router.add_router("", infrastructure_reconciliation_router)
 admin_router.add_router("", credential_router)

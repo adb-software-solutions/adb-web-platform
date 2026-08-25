@@ -134,9 +134,23 @@ class LegacyResourceReferenceOut(Schema):
     fields: list[SpecialistFieldOut]
 
 
+class ProviderAccountSpecialistOut(Schema):
+    provider_id: int
+    provider_name: str
+    provider_category: str
+    account_identifier: str
+    tenant_id: str
+    project_id: str
+    portal_url: str
+    default_region: str
+    support_plan: str
+    billing_reference: str
+
+
 class InfrastructureResourceDetailOut(InfrastructureResourceSummaryOut):
     description: str
     is_portal_visible: bool
     relationships: list[InfrastructureRelationshipOut]
     legacy_reference: LegacyResourceReferenceOut | None
+    provider_account: ProviderAccountSpecialistOut | None
     created_at: datetime

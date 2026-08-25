@@ -491,7 +491,9 @@ The merged foundation includes:
 - Client/Internal resource ownership;
 - lifecycle/environment/criticality;
 - tags;
-- Service Providers and resource-backed Provider Accounts;
+- Service Providers and resource-backed Provider Accounts, including an
+  operational scoped catalogue/account workspace with safe create/edit/archive
+  lifecycle;
 - typed relationships;
 - current-first resource views;
 - specialist legacy identity bridges;

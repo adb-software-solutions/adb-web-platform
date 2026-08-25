@@ -234,6 +234,13 @@ Passwords, API tokens, client secrets and private keys never belong directly on
 ProviderAccount. They are stored in the Credential Vault and linked to the
 Provider Account resource.
 
+The operational Provider workspace implements server-side catalogue/account
+search and filtering, current-first account lifecycle, scoped Client/Internal
+creation, safe metadata editing and explicit archive actions. Provider Account
+ownership is immutable after creation so an edit cannot silently invalidate
+Credential/resource ownership boundaries. Account credentials remain explicit
+Vault links visible through the shared resource workspace.
+
 ---
 
 ## 8. Legacy specialist reconciliation
@@ -528,7 +535,10 @@ The technical foundation now provides:
 - `InfrastructureResource`;
 - tags;
 - `ServiceProvider`;
-- resource-backed `ProviderAccount`;
+- resource-backed `ProviderAccount` with scoped create/edit/archive APIs and
+  operational workspace;
+- permissioned searchable Service Provider catalogue and current-first Provider
+  Account register;
 - `ResourceRelationship`;
 - ownership/cross-Client validation;
 - current-first global/Client resource collections;

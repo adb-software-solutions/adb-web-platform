@@ -130,6 +130,12 @@ const navigation: NavigationGroup[] = [
                 icon: CloudIcon,
                 permissions: ["infrastructure.view_application"],
             },
+            {
+                label: "Providers",
+                href: "/admin/infrastructure/providers",
+                icon: BuildingOffice2Icon,
+                permissions: ["infrastructure.view_provideraccount"],
+            },
         ],
     },
     {

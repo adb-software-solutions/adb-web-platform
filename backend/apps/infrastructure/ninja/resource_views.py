@@ -9,7 +9,7 @@ from ninja import Router
 
 from apps.core.ownership import OwnershipType
 from apps.infrastructure.legacy_resource_snapshot import legacy_resource_snapshot
-from apps.infrastructure.models import InfrastructureResource, ResourceRelationship
+from apps.infrastructure.models import InfrastructureResource, ProviderAccount, ResourceRelationship
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
 from authentication.ninja.schemas import ProblemDetail
 
@@ -24,6 +24,7 @@ from .resource_schemas import (
     InfrastructureResourceSummaryOut,
     InfrastructureTagOut,
     LegacyResourceReferenceOut,
+    ProviderAccountSpecialistOut,
     ResourceEnvironmentFilter,
     ResourceLifecycleFilter,
     ResourceOwnershipFilter,
@@ -427,6 +428,11 @@ def get_infrastructure_resource(
         return _resource_not_found()
 
     specialist = legacy_resource_snapshot(resource)
+    provider_account = (
+        ProviderAccount.objects.select_related("provider").filter(resource=resource).first()
+        if resource.resource_type == InfrastructureResource.ResourceType.PROVIDER_ACCOUNT
+        else None
+    )
     summary = _resource_summary(resource)
     return InfrastructureResourceDetailOut(
         **summary.model_dump(),
@@ -450,6 +456,22 @@ def get_infrastructure_resource(
                 ],
             )
             if specialist
+            else None
+        ),
+        provider_account=(
+            ProviderAccountSpecialistOut(
+                provider_id=provider_account.provider_id,
+                provider_name=provider_account.provider.name,
+                provider_category=provider_account.provider.category,
+                account_identifier=provider_account.account_identifier,
+                tenant_id=provider_account.tenant_id,
+                project_id=provider_account.project_id,
+                portal_url=provider_account.portal_url,
+                default_region=provider_account.default_region,
+                support_plan=provider_account.support_plan,
+                billing_reference=provider_account.billing_reference,
+            )
+            if provider_account
             else None
         ),
         created_at=resource.created_at,

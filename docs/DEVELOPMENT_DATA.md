@@ -67,6 +67,8 @@ At normal scale, the development dataset covers realistic examples across:
 - Server, Database, Website, Domain, TLS, Licence, Application and related
   infrastructure specialist examples;
 - Mobile App/API/Bot/Email-system examples;
+- clearly marked Service Provider catalogue entries and Internal/Client-owned
+  Provider Accounts containing safe identifiers, regions and support metadata;
 - Ticket Queues, configured demo Mailboxes, Tickets, Messages, Notes and
   attachment/scan-state examples;
 - Brand-aware Blog/FAQ/Testimonial/Case Study content;
@@ -88,6 +90,9 @@ legacy row look reconciled.
 
 Where a seeder creates structured resources/relationships directly, it must obey
 the same ownership and cross-Client validation as normal application code.
+The Provider Account seed deliberately contains no password, token, API key or
+private-key fields; add fake encrypted Vault links separately when exercising
+credential workflows.
 
 ### Credential Vault data
 

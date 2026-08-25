@@ -9,12 +9,17 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 from django.utils import timezone
 
+from apps.clients.models import Client
+from apps.core.ownership import OwnershipType
 from apps.infrastructure.models import (
     API,
     Bot,
     Domain,
     EmailSystem,
+    InfrastructureResource,
     MobileApp,
+    ProviderAccount,
+    ServiceProvider,
     SSLCertificate,
     Website,
     WebsiteTechStack,
@@ -48,6 +53,7 @@ class Command(BaseCommand):
         with transaction.atomic():
             if options["reset"]:
                 self._reset()
+            self._seed_providers()
             self._seed_website_technology(websites)
             self._seed_ssl(domains, rng)
             self._seed_mobile_apps(scale)
@@ -61,11 +67,114 @@ class Command(BaseCommand):
 
     def _reset(self) -> None:
         WebsiteTechStack.objects.filter(website__name__startswith=DEMO_PREFIX).delete()
+        InfrastructureResource.objects.filter(
+            name__startswith=DEMO_PREFIX,
+            resource_type=InfrastructureResource.ResourceType.PROVIDER_ACCOUNT,
+        ).delete()
+        ServiceProvider.objects.filter(name__startswith=DEMO_PREFIX).delete()
         SSLCertificate.objects.filter(domain__domain_name__startswith="demo-").delete()
         MobileApp.objects.filter(name__startswith=DEMO_PREFIX).delete()
         API.objects.filter(name__startswith=DEMO_PREFIX).delete()
         Bot.objects.filter(name__startswith=DEMO_PREFIX).delete()
         EmailSystem.objects.filter(notes__startswith=DEMO_PREFIX).delete()
+
+    def _seed_providers(self) -> None:
+        provider_specs = (
+            (
+                "DigitalOcean",
+                ServiceProvider.Category.CLOUD,
+                "https://www.digitalocean.com",
+                "https://cloud.digitalocean.com/support",
+                "https://status.digitalocean.com",
+                "https://docs.digitalocean.com",
+            ),
+            (
+                "Cloudflare",
+                ServiceProvider.Category.CDN,
+                "https://www.cloudflare.com",
+                "https://dash.cloudflare.com",
+                "https://www.cloudflarestatus.com",
+                "https://developers.cloudflare.com",
+            ),
+            (
+                "GitHub",
+                ServiceProvider.Category.SOURCE_CONTROL,
+                "https://github.com",
+                "https://support.github.com",
+                "https://www.githubstatus.com",
+                "https://docs.github.com",
+            ),
+            (
+                "Microsoft 365",
+                ServiceProvider.Category.SAAS,
+                "https://www.microsoft.com/microsoft-365",
+                "https://admin.microsoft.com",
+                "https://status.cloud.microsoft",
+                "https://learn.microsoft.com/microsoft-365",
+            ),
+        )
+        providers: list[ServiceProvider] = []
+        for index, (name, category, website, support, status, docs) in enumerate(
+            provider_specs, start=1
+        ):
+            provider, _ = ServiceProvider.objects.update_or_create(
+                slug=f"demo-provider-{index}",
+                defaults={
+                    "name": f"{DEMO_PREFIX} {name}",
+                    "category": category,
+                    "website_url": website,
+                    "support_url": support,
+                    "status_page_url": status,
+                    "documentation_url": docs,
+                    "notes": "Generated development provider catalogue entry.",
+                    "is_active": True,
+                },
+            )
+            providers.append(provider)
+
+        clients = list(Client.objects.filter(status="active").order_by("id")[:2])
+        account_specs: list[tuple[str, ServiceProvider, str, Client | None, str, str]] = [
+            ("ADB DigitalOcean", providers[0], OwnershipType.INTERNAL, None, "ADB-DO-DEMO", "lon1"),
+            ("ADB GitHub", providers[2], OwnershipType.INTERNAL, None, "adb-demo", "global"),
+        ]
+        for index, client in enumerate(clients, start=1):
+            account_specs.append(
+                (
+                    f"{client} Cloudflare",
+                    providers[1],
+                    OwnershipType.CLIENT,
+                    client,
+                    f"CF-DEMO-{index:03d}",
+                    "global",
+                )
+            )
+
+        for name, provider, ownership_type, account_client, identifier, region in account_specs:
+            resource, _ = InfrastructureResource.objects.update_or_create(
+                name=f"{DEMO_PREFIX} {name}",
+                resource_type=InfrastructureResource.ResourceType.PROVIDER_ACCOUNT,
+                defaults={
+                    "ownership_type": ownership_type,
+                    "client": account_client,
+                    "lifecycle_status": InfrastructureResource.LifecycleStatus.ACTIVE,
+                    "environment": InfrastructureResource.Environment.SHARED,
+                    "criticality": InfrastructureResource.Criticality.HIGH,
+                    "description": "Generated provider account with safe metadata only.",
+                    "is_portal_visible": False,
+                },
+            )
+            ProviderAccount.objects.update_or_create(
+                resource=resource,
+                defaults={
+                    "provider": provider,
+                    "account_identifier": identifier,
+                    "tenant_id": f"tenant-{identifier.lower()}",
+                    "portal_url": provider.support_url or provider.website_url,
+                    "default_region": region,
+                    "support_plan": "Development demo plan",
+                    "billing_reference": f"DEMO-{resource.id:04d}",
+                },
+            )
 
     def _seed_website_technology(self, websites: list[Website]) -> None:
         technologies = [
