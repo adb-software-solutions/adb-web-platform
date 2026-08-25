@@ -37,7 +37,9 @@
                 "ms-vscode.vscode-json",
                 "redhat.vscode-yaml",
                 "redhat.vscode-xml",
-                "unifiedjs.vscode-mdx"
+                "unifiedjs.vscode-mdx",
+                "openai.chatgpt",
+                "anthropic.claude-code"
             ],
             "settings": {
                 "python.defaultInterpreterPath": "/opt/venv/bin/python",
@@ -93,6 +95,9 @@
     },
     "mounts": [
         "source=app-bash-history,target=/root/.history,type=volume",
+        "source=adbwebplatform-codex-config,target=/root/.codex,type=volume",
+        "source=adbwebplatform-claude-config,target=/root/.claude,type=volume",
+        "source=adbwebplatform-github-cli-config,target=/root/.config/gh,type=volume",
         "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
         "source=${localEnv:HOME},target=/host-home,type=bind,consistency=cached",
         "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,consistency=cached,readonly"
