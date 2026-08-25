@@ -73,8 +73,8 @@ export function CredentialWorkspace({
         try {
             setIsLoading(true);
             setError(null);
-            setCredential((await fetchAPI(CredentialVaultAPI.get(credentialId))) as CredentialDetail);
             setRevealed({});
+            setCredential((await fetchAPI(CredentialVaultAPI.get(credentialId))) as CredentialDetail);
         } catch (loadError) {
             setError(loadError instanceof Error ? loadError.message : "Unable to load this credential.");
         } finally {
