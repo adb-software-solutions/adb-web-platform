@@ -2,494 +2,536 @@
 
 ## Purpose
 
-The ticketing system is the primary communications hub for the ADB Business Platform. It must ingest support and enquiry traffic from multiple sources, associate it with the correct ADB brand and operational queue, resolve known clients, contacts and vendors, preserve complete message threads and attachments, and expose the surrounding client context to authorised staff.
+Ticketing is the canonical communications hub for the ADB Business Platform.
+It unifies Microsoft 365 email, public website contact submissions and future
+portal/API communication into the same operational thread model.
 
-The implementation builds on the useful behaviour in the existing Stacked Finds support system without copying its single-mailbox assumptions or tightly coupling ingestion logic to Celery tasks.
+The system is not only an email archive. It is a current-first work queue with
+Client/Contact/Vendor context, assignment, priority, internal notes, time
+tracking, governed attachments and deterministic routing.
 
-## Core principles
+---
 
-- A Ticket is the operational thread. Individual emails, contact-form submissions and replies are Ticket Messages.
-- Brand, Client, Vendor and Queue are separate concepts.
-- A ticket may be client-owned, vendor-associated or unassociated while sender resolution/classification is pending.
-- A client ticket may identify a specific primary Client Contact while retaining all participants on individual messages.
-- Microsoft Graph connections and mailboxes are database-backed configuration, not hard-coded Django settings.
-- Microsoft Graph application authentication is connection-level infrastructure and must not be repeated for each mailbox.
-- ADB operational ticket mailboxes are Microsoft 365 Shared Mailboxes; licensed user mailboxes are not ticketing sources.
-- Multiple Microsoft tenants/connections and an arbitrary number of configured Shared Mailboxes must remain supportable.
-- Ingestion is idempotent. Provider message IDs and internet Message-ID values must prevent duplicate imports.
-- Normalisation, classification, routing and attachment scanning are explicit pipeline stages rather than a single polling function.
-- Vendor identification is database-backed operational policy. It must be configurable without a code deployment.
-- Malware scanning is a deployment policy. The platform must support running without a scanner and later switching to a central ClamAV service without changing the ticket data model.
-- Backend permissions and object scopes remain authoritative.
-- Sensitive attachment and credential operations are separately permissioned and audit logged.
+## 1. Product principles
 
-## Primary models
+- A **Ticket** is the operational conversation/thread.
+- A **TicketMessage** is one inbound or outbound customer/external message.
+- A **TicketNote** is staff-only internal discussion.
+- Brand, Client, Contact, Vendor, Mailbox and Queue are separate concepts.
+- Known Client/Contact resolution happens before Vendor classification.
+- Unknown senders are valid operational Tickets, not automatically spam.
+- Microsoft Graph connection/application authentication is configured once per
+  tenant/application, not once per Shared Mailbox.
+- Operational mailboxes are Microsoft 365 Shared Mailboxes.
+- Database Mailbox records determine which technically accessible mailboxes the
+  ADB application actually synchronises.
+- Ingestion and delivery are idempotent/retry-safe where possible.
+- Threading never relies on subject text alone.
+- Classification/routing is deterministic and explainable first; AI is not a
+  dependency for core ticketing.
+- Attachments are untrusted input and pass through quarantine/policy controls.
+- Capability + Queue scope + Client scope are enforced by Django.
+- The default UI shows actionable work; resolved/closed history stays available
+  explicitly.
+
+---
+
+## 2. Core models
 
 ### MicrosoftGraphConnection
 
-Represents an application/tenant-level Microsoft Graph connection.
+Represents an application/tenant-level Graph integration.
 
-Key fields:
+Key concerns:
 
-- name
-- tenant_id
-- client_id
-- authentication_method
-- certificate credential/reference
-- enabled
-- last_verified_at
-- last_error
-- created_at / updated_at
+- tenant ID;
+- application/client ID;
+- authentication method;
+- encrypted certificate/client-secret credential reference;
+- enabled/verification/error state;
+- timestamps.
 
-Certificate/private-key material uses the platform credential/storage architecture rather than being returned through ordinary APIs. Normal ticketing settings present the connection as platform infrastructure rather than asking an operator to enter application or certificate details when adding each mailbox.
+Certificate/private-key material belongs in the encrypted credential service,
+not ordinary Graph settings responses.
+
+For the normal ADB tenant, one enabled Graph connection is reused by every
+configured Ticketing Shared Mailbox.
 
 ### Mailbox
 
-Represents one mailbox consumed by the platform. For the ADB Microsoft 365 tenant, operational ticket mailboxes are Shared Mailboxes.
+Represents one Shared Mailbox used operationally by Ticketing.
 
-Key fields:
+Key concerns:
 
-- graph_connection
-- email_address
-- display_name
-- brand
-- mailbox purpose
-- default_queue
-- enabled
-- Graph delta link
-- last_synced_at
-- last_successful_sync_at
-- last_error
-- created_at / updated_at
+- Graph connection;
+- email address/display name;
+- Brand;
+- purpose;
+- default Ticket Queue;
+- enabled state;
+- persisted Graph delta/sync state;
+- success/error timestamps.
 
-Examples include `support@adbwebdesigns.co.uk`, `support@adbsoftwaresolutions.co.uk`, `support@adbtechnology.co.uk` and accounts mailboxes.
-
-The Mailbox table is the application-level allow-list for ticket ingestion. A Shared Mailbox being accessible to the Graph application does not make it a ticket source until it is explicitly configured and enabled here.
+The Mailbox table is an **application allow-list**. A mailbox being reachable by
+the Entra/Exchange application does not make it a Ticket source until it is
+configured and enabled in ADB.
 
 ### TicketQueue
 
-Operational queue used for routing and staff access.
+Represents operational routing and one of the major object-scope boundaries.
 
-Key fields:
+Typical queues include support/sales/accounts/operations and a cross-brand
+`Vendors & Services` queue where appropriate.
 
-- name
-- key
-- brand (nullable where a genuinely cross-brand queue is useful)
-- purpose
-- default_priority
-- enabled
-- ordering
+Queue access is scopeable independently from Client access.
 
-Queue access integrates with the platform permission/scope model so staff can be granted access to only specific queues where required. The initial vendor implementation includes a global `Vendors & Services` queue so third-party operational mail does not clutter customer-facing queues.
+### Vendor / VendorSenderRule
 
-### Vendor
+Vendor records represent retained third-party/service correspondence.
+Sender rules are data-backed matching/routing policy.
 
-Represents an external provider or service whose correspondence should be retained in ticketing but normally routed away from customer queues.
+Rules support exact address/domain matching, target Queue, optional priority,
+enabled/order/notes and can be changed without a deployment.
 
-Key fields:
-
-- name
-- website_url
-- notes
-- enabled
-- created_at / updated_at
-
-Examples include GitHub, DigitalOcean, PayPal, Microsoft, Elegant Themes, Google, Wordfence and LastPass. These examples are initial database data rather than a permanent hard-coded allow-list.
-
-### VendorSenderRule
-
-Defines an explicit sender rule used to identify and route vendor/service mail.
-
-Key fields:
-
-- vendor
-- match_type (`email` or `domain`)
-- match_value
-- target_queue (nullable)
-- priority override (optional)
-- enabled
-- ordering
-- notes
-- created_at / updated_at
-
-Exact-address rules take precedence over domain rules. Domain rules match subdomains, so a rule for `github.com` also covers mail from a subdomain of `github.com`. A rule may route an unusually important sender to Operations or a higher priority rather than the normal Vendors & Services queue.
-
-Rules are deliberately retained and can be disabled rather than requiring deletion. This keeps routing policy visible and auditable.
+Vendor mail remains a normal Ticket. A match routes/contextualises it; it does
+not discard it as spam.
 
 ### Ticket
 
-Key fields:
+The current Ticket identity carries operational context such as:
 
-- reference / human-readable ticket number
-- brand
-- queue
-- client (nullable)
-- primary_contact (nullable)
-- vendor (nullable)
-- subject
-- status
-- priority
-- classification
-- source
-- assigned_to
-- created_at
-- updated_at
-- first_response_at
-- last_message_at
-- resolved_at
-- closed_at
+- human-readable reference;
+- Brand;
+- Queue;
+- Client/primary Contact when known;
+- Vendor when matched;
+- subject;
+- status/priority/classification/source;
+- assignment;
+- lifecycle/response timestamps.
 
-A known Client/Contact relationship takes precedence over a vendor sender rule. This prevents a genuine customer address from being silently treated as vendor traffic merely because it happens to use a domain that is also configured for a provider.
-
-Future relationships may include Project and other operational resources, but these are not required for the initial ticket foundation.
-
-### TicketParticipant
-
-Optional explicit representation of people/addresses involved in a thread where necessary for richer threading and CC behaviour.
+Future Project/Task/Infrastructure links may be added only where there is a real
+workflow; they are not required for the Ticket identity itself.
 
 ### TicketMessage
 
-Stores one inbound or outbound message.
+Stores one inbound/outbound message with:
 
-Key fields:
+- direction;
+- sender/recipient data;
+- matched Contact;
+- subject/body representations;
+- provider and provider-message ID;
+- internet Message-ID/In-Reply-To/References;
+- delivery state/errors;
+- external sent/received time;
+- staff creator for authored messages.
 
-- ticket
-- direction
-- sender_name
-- sender_address
-- to / cc / bcc recipients
-- matched_contact (nullable)
-- subject
-- body_html
-- body_text
-- body_text_normalised
-- provider
-- provider_message_id
-- internet_message_id
-- in_reply_to
-- references
-- sent_or_received_at
-- delivery_status
-- delivery_error
-- created_by for staff-authored messages
-- created_at
-
-Provider identifiers are indexed where appropriate.
-
-### TicketAttachment
-
-Key fields:
-
-- message
-- original_filename
-- safe/stored filename or storage key
-- declared_content_type
-- detected_content_type
-- size
-- sha256
-- scan_status
-- scan_engine
-- scan_result
-- quarantined_at
-- scanned_at
-- safe_at
-- created_at
-
-Attachment storage and malware gating are separate concerns. Files always pass through the platform's attachment policy/quarantine layer even when malware scanning is disabled.
+Provider identifiers and internet threading headers remain critical for
+idempotency and safe thread matching.
 
 ### TicketNote
 
-Internal staff-only note separate from customer-visible messages.
+Internal staff-only note attached to a Ticket.
 
-Key fields:
+The operations UI renders Notes **chronologically inside the conversation
+feed**, visually distinct from inbound/outbound messages. Notes are not cramped
+into a disconnected side panel.
 
-- ticket
-- author
-- body
-- created_at
-- updated_at
+### TicketAttachment
 
-## Ingestion pipeline
+Stores governed attachment metadata such as:
 
-All sources feed the same internal ingestion service.
+- original/safe filename;
+- declared/detected MIME type;
+- size;
+- SHA-256;
+- storage/quarantine identity;
+- scan status/engine/result;
+- quarantine/safe/scanned timestamps.
+
+Download policy is enforced separately from message visibility.
+
+---
+
+## 3. Unified ingestion pipeline
+
+All sources feed a canonical ingestion service:
 
 ```text
 Incoming payload
     -> source adapter
     -> canonical message
-    -> body/header normalisation
-    -> attachment quarantine
-    -> spam/abuse evaluation
-    -> sender/client/contact/vendor resolution
-    -> message classification
-    -> brand/queue/priority routing
-    -> thread matching
-    -> ticket/message persistence
-    -> attachment scanning when enabled
-    -> downstream notifications/workflows
+    -> normalise body/headers
+    -> attachment quarantine/policy
+    -> abuse/spam evaluation
+    -> resolve Client/Contact/Vendor
+    -> classify
+    -> route Brand/Queue/Priority
+    -> match/create Ticket thread
+    -> persist Ticket/Message
+    -> scan attachments when enabled
+    -> downstream workflows/notifications
 ```
 
-### Source adapters
+Source adapters translate provider-specific data; they do not own routing
+policy.
 
 Initial sources:
 
-- Microsoft Graph mailboxes
-- public website contact forms
+- Microsoft Graph Shared Mailboxes;
+- public website contact forms.
 
-Future-compatible sources:
+Future-compatible sources may include:
 
-- API/webhook ingestion
-- monitoring/infrastructure integrations
-- client portal submissions
+- Client portal;
+- API/webhook submission;
+- monitoring/infrastructure integrations where a Ticket is the right
+  operational escalation object.
 
-Adapters only translate provider-specific payloads into a canonical ingestion object. They do not contain routing policy.
+---
 
-## Microsoft Graph ingestion
+## 4. Microsoft Graph model
 
-Prefer Graph delta queries/subscriptions where practical rather than permanently polling only unread Inbox messages. The persistence model retains provider sync state so ingestion can resume safely after restarts.
+The normal ADB configuration is:
 
-The Graph integration supports:
-
-- multiple configured Shared Mailboxes;
-- reading messages and headers;
-- downloading file attachments;
-- preserving internet Message-ID, In-Reply-To and References values;
-- sending replies from the mailbox associated with the ticket;
-- CC/BCC where supported by the UI;
-- provider errors and retry state;
-- idempotent ingestion;
-- processed/archive behaviour that does not rely solely on marking messages read.
-
-### ADB Microsoft 365 deployment model
-
-The normal ADB deployment uses one tenant/application-level Graph connection with certificate-based application authentication configured once. Mailboxes added to ticketing reuse that connection; adding a mailbox must not require re-entering a certificate, client ID, tenant ID or interactive Microsoft login.
-
-Exchange Online provides the outer security boundary for application mailbox access. Use Exchange Online RBAC for Applications with one dynamic management scope whose recipient restriction matches Microsoft 365 Shared Mailboxes, conceptually:
-
-```powershell
-New-ManagementScope `
-  -Name "ADB Ticketing Shared Mailboxes" `
-  -RecipientRestrictionFilter "RecipientTypeDetails -eq 'SharedMailbox'"
+```text
+one Microsoft 365 tenant
+    + one Entra application
+    + one certificate credential
+    + one MicrosoftGraphConnection
+    + many configured Shared Mailboxes
 ```
 
-The required Exchange application mail roles are assigned to that scope once. Because the scope is property-based, a newly-created Shared Mailbox enters the scope automatically without creating another RBAC rule. Licensed `UserMailbox` recipients do not match this scope and are therefore outside the ticketing application's intended Exchange resource boundary.
+### Exchange boundary
 
-Do not combine this resource-scoped Exchange permission model with an equivalent unscoped Microsoft Entra mail grant in a way that restores organisation-wide mailbox access. Exchange RBAC for Applications and Entra application grants are additive, so deployment configuration must preserve the scoped boundary.
+Production uses Exchange Online RBAC for Applications as the Microsoft-side
+resource boundary.
 
-The application then applies a narrower operational selection: Celery only synchronises enabled `Mailbox` records stored in the ADB database. The Graph application being technically allowed to access all Shared Mailboxes is not permission to enumerate or ingest every Shared Mailbox automatically.
+For ADB's agreed current setup, the preferred management scope matches all
+Shared Mailboxes dynamically:
 
-For a deployment with exactly one enabled Graph connection, mailbox creation automatically uses it. If multiple Microsoft 365 tenant connections are configured in future, the admin UI may ask which connection owns the Shared Mailbox.
+```powershell
+RecipientTypeDetails -eq 'SharedMailbox'
+```
 
-## Thread matching
+This intentionally means:
 
-Use several signals in priority order rather than relying on one subject token:
+- a newly created Shared Mailbox enters the Exchange resource scope
+  automatically;
+- no new RBAC assignment/rule is required for each mailbox;
+- licensed `UserMailbox` recipients stay outside the intended Ticketing scope;
+- ADB still chooses which Shared Mailboxes to ingest through enabled database
+  `Mailbox` records.
 
-1. explicit platform ticket reference embedded in outbound subjects/headers;
-2. internet Message-ID / In-Reply-To / References relationships;
-3. known provider conversation identifiers where reliable;
-4. conservative fallback matching only where safe.
+A more restrictive tagged/custom-attribute scope remains a valid alternative
+if the tenant later contains Shared Mailboxes that the Ticketing application
+must not be technically able to access.
 
-Never merge unrelated conversations based only on a similar subject.
+Do not combine scoped Exchange permissions with equivalent broad Entra Mail
+application grants in a way that restores organisation-wide access. Those
+grants are additive.
 
-## Body normalisation and signature removal
+### Adding a Shared Mailbox
 
-The existing Stacked Finds implementation demonstrates useful quoted-reply stripping. The ADB platform moves this into a reusable normalisation service.
+The normal ADB operator flow should be application configuration, not Microsoft
+application setup:
 
-Store both original sanitised HTML/plain representations and a normalised display/search body where appropriate.
+1. create the Shared Mailbox in Microsoft 365;
+2. add/verify it in ADB;
+3. choose Brand/purpose/default Queue;
+4. enable it.
 
-Normalisation handles common reply markers and quoted history from Outlook, Gmail and other common clients without destroying genuinely new content. Signature removal remains conservative; retaining a small amount of signature text is preferable to deleting customer content.
+The operator should not re-enter the tenant ID, application ID, certificate or
+create another Exchange role assignment for each mailbox.
 
-HTML must be sanitised before rendering in the admin UI.
+If multiple Graph tenant connections are supported in active use later, the UI
+may need to ask which connection owns the mailbox.
 
-## Sender, client, contact and vendor resolution
+See `MICROSOFT_GRAPH_TICKETING_SETUP.md` for the deployment runbook.
 
-Normalise email addresses and attempt matching against active Client Contacts first, then other known client addresses.
+---
 
-When a contact is matched:
+## 5. Graph synchronisation and outbound delivery
 
-- associate the message with that contact;
-- associate the ticket with the contact's client where unambiguous;
-- expose the ticket on both the Client workspace and the Client Contact workspace.
+Graph integration supports:
 
-Only after client resolution fails should explicit Vendor sender rules be evaluated. Exact sender-address rules win over domain rules. Domain rules support subdomains and identify the associated `Vendor` record, target queue and optional priority override.
+- multiple configured Shared Mailboxes;
+- persisted delta sync state;
+- reading messages/headers;
+- downloading file attachments;
+- preserving internet threading headers;
+- outbound replies/new messages from the configured mailbox;
+- provider delivery/error state;
+- retries/backoff;
+- duplicate-ingestion protection;
+- worker locking/idempotency.
 
-Vendor messages remain normal auditable Tickets. They are not discarded, hidden or converted to spam merely because a sender rule matched. An operator can therefore find and move a message if a sender was classified as a vendor incorrectly.
+Celery handles mailbox sync and outbound delivery. Reusable Graph/message
+business logic belongs in services so it can be tested and reused outside task
+functions.
 
-Unknown senders remain valid tickets and may later be associated manually or through classification/routing rules.
+One remaining resilience refinement is the rare ambiguous-send case where
+Microsoft may accept a send but the worker loses the provider response before
+persisting success. This should be hardened without weakening duplicate-send
+protection.
 
-## Classification and routing
+---
 
-Spam detection and business routing are different concerns.
+## 6. Thread matching
 
-Current classifications include:
+Use high-confidence signals in priority order:
 
-- client_support
-- sales
-- accounts
-- vendor
-- automated_system
-- monitoring
-- newsletter_marketing
-- probable_spam
-- unknown
+1. explicit ADB Ticket reference in outbound subject/header context;
+2. internet Message-ID / In-Reply-To / References;
+3. reliable provider conversation identifiers;
+4. conservative fallback logic only where safe.
 
-The initial implementation combines deterministic rules and transparent scoring. Classification reasons are logged so operators can understand why a message was routed.
+Never merge unrelated communication based only on a similar subject.
+
+Inbound imports and retries must remain idempotent by provider/internet
+identifiers.
+
+---
+
+## 7. Body normalisation and rendering
+
+Store safe original HTML/plain representations plus normalised text where
+useful for display/search.
+
+Normalisation may remove quoted reply history/signature noise conservatively,
+but retaining some signature content is preferable to deleting genuine new
+customer content.
+
+HTML must be sanitised before rendering.
+
+---
+
+## 8. Client, Contact and Vendor resolution
+
+Normalise sender identity and try Client/Contact matching before Vendor rules.
+
+When a ClientContact matches:
+
+- associate the message with that Contact;
+- associate the Ticket with its Client where unambiguous;
+- expose the Ticket in Client and Contact context.
+
+Only after Client resolution fails should VendorSenderRule be evaluated.
+
+Unknown senders remain valid Tickets and can later be associated manually if
+needed.
+
+---
+
+## 9. Classification and routing
+
+Spam/abuse detection and business routing are separate concerns.
+
+Classification may include concepts such as:
+
+- client support;
+- sales;
+- accounts;
+- vendor;
+- automated system;
+- monitoring;
+- newsletter/marketing;
+- probable spam;
+- unknown.
 
 Routing inputs include:
 
-- mailbox/default queue;
-- assigned brand;
-- sender/client/contact match;
-- database-backed vendor sender rules;
+- source Mailbox/default Queue;
+- Brand;
+- Client/Contact match;
+- Vendor sender rules;
 - recipient alias;
-- subject/body rules;
+- deterministic subject/body rules;
 - spam score;
-- future learned classification.
+- later learned classification if justified.
 
-Vendor/service correspondence is routed to the rule's explicit target queue where configured, otherwise to a matching brand vendor queue, then the global `Vendors & Services` queue. An exact sender rule can intentionally send a security/billing/operations address elsewhere with a different priority. Vendor newsletters and automated notifications are retained away from urgent customer queues rather than indiscriminately marked as spam.
+Routing should remain explainable enough that an operator can understand why a
+Ticket landed where it did.
 
-## Attachment security
+---
 
-Attachments are untrusted input even when malware scanning is temporarily disabled.
+## 10. Attachment security
 
-The always-on attachment safety layer:
+Attachments are untrusted even when malware scanning is disabled.
 
-1. enforces configured size limits;
-2. normalises/sanitises filenames and never trusts path input;
-3. calculates SHA-256;
-4. detects content type from bytes as well as provider metadata;
-5. stores accepted content in controlled quarantine storage;
-6. records policy-blocked files without exposing their content;
-7. applies the separate ticket-attachment capability and ticket/client/queue scope checks before download.
+Always-on policy includes:
 
-ClamAV is the preferred initial self-hosted malware scanner, but the scanning service exposes an interface so another engine can be substituted later. `clamd` may be local to the deployment or a central private service reachable by Celery workers through `TICKETING_CLAMAV_HOST` and `TICKETING_CLAMAV_PORT`.
+1. size limits;
+2. safe filename/path handling;
+3. SHA-256;
+4. MIME/content detection;
+5. controlled quarantine storage;
+6. recording blocked content without exposing it;
+7. permission/scope checks before download.
 
-Malware scanning is controlled by `TICKETING_MALWARE_SCANNING_ENABLED` and is disabled by default for the initial rollout:
+ClamAV is the preferred initial scanner and may run locally or centrally.
 
-- **disabled:** `pending` or previous `scan_failed` attachments that passed the always-on attachment policy may be downloaded by authorised staff;
-- **enabled:** only attachments with a clean `safe` verdict are downloadable; pending/failed scans remain unavailable;
-- **infected or policy-blocked:** never downloadable in either mode.
+When scanning is disabled, policy-safe pending/previously failed content may be
+downloadable according to the configured policy. When scanning is enabled,
+only a clean/safe verdict is downloadable. Infected or policy-blocked content
+is never downloadable.
 
-When scanning is enabled, new attachments are queued for ClamAV immediately. Celery Beat also dispatches pending/failed attachments for scanning so content received while scanning was disabled is picked up after the feature is enabled. This means switching the environment flag on immediately makes unscanned content unavailable until it is processed, rather than trusting historic pending files.
+Enabling scanning must cause historic pending content to become gated until it
+is processed rather than implicitly trusting it.
 
-Scanner connection failures, timeouts and indeterminate replies fail closed while scanning is enabled and are retried with backoff.
+---
 
-## Permissions
+## 11. Operational Ticket work queue
 
-Ticketing introduces both capability and scope permissions.
+The main `/admin/tickets` page is a **work queue**, separate from generic Ticket
+collection APIs used by Client/Contact/history panels.
 
-Capabilities distinguish at least:
+Established top-level focus:
 
-- view tickets
-- create tickets
-- change tickets
-- reply to tickets
-- add internal notes
-- assign tickets
-- close/reopen tickets
-- view/download ticket attachments permitted by the active malware policy
-- configure queues
-- configure mailboxes/Graph connections
-- configure vendors and sender rules
+### Work
 
-Scopes support restricting staff to permitted clients and permitted ticket queues. A user must satisfy both applicable capability and scope checks.
+- **My Tickets** — default;
+- **Unassigned**;
+- **All Active**;
+- enabled **Queue** views.
 
-## Admin UX
+### History
 
-### Ticket list
+- **Resolved**;
+- **Closed**;
+- **All Tickets**.
 
-The main Ticket workspace is server-side paginated from its first implementation.
+Waiting on Customer is intentionally lower-priority/quieter than work waiting
+on ADB.
 
-Filters include or may expand to include:
+Ticket focus supports server-side sorting including operational priority,
+updated time, priority, creation and subject.
 
-- queue
-- brand
-- status
-- priority
-- assigned staff member
-- client
-- classification
-- mailbox/source
-- date range
-- free-text search, including vendor names
+Rows open the shared record drawer where appropriate while full detail routes
+remain available.
 
-Useful views may include My Tickets, Unassigned, Customer Replied, Waiting for Customer, Urgent, Spam/Quarantine, Vendors & Services and queue-specific views.
+### Per-user default Queues
 
-### Ticket detail
+`StaffAccessProfile.default_ticket_queues` stores the user's normal Queue focus:
 
-The ticket screen is message/thread focused with an adjacent contextual workspace containing authorised client/vendor information.
+- no stored selection -> all accessible enabled Queues;
+- explicit subset -> use that subset in default work views;
+- selecting all accessible Queues normalises back to the empty/all state.
 
-Target contextual access:
+This is a preference only and cannot expand Queue access.
 
-- Client summary and contacts
-- matched Vendor/service identity
-- Client Knowledge Base
-- Client Infrastructure
-- Client Credentials (subject to separate credential permissions)
-- Client Projects
-- related Tasks/Time where relevant
+---
 
-The ticket view never bypasses existing access-control checks simply because the ticket references a client.
+## 12. Ticket workspace
 
-### Vendor routing settings
+The Ticket workspace is conversation-first and exposes operational controls
+without forcing navigation to unrelated screens.
 
-The platform Settings workspace lists Vendors and sender rules. Operators can add new vendors and exact-address/domain rules without a code deployment, choose an explicit queue and priority where required, and disable a vendor or individual rule without deleting historical tickets.
+Established behaviour includes:
 
-### Client and contact workspaces
+- status/priority/Queue/assignment actions;
+- inbound/outbound message chronology;
+- chronological internal Notes as visually distinct staff-only cards;
+- Note composer beneath the conversation;
+- customer reply controls;
+- governed attachment handling;
+- Client/Contact/Vendor context;
+- live Time timer and contextual Time history.
 
-Client detail pages expose all visible tickets associated with that client.
+As Infrastructure/KB mature, Ticket context may surface relevant technical
+resources/runbooks through the same permission policies.
 
-Individual Client Contact pages expose tickets/messages involving that contact.
+---
 
-## Website contact forms
+## 13. Lead email and CRM integration
 
-Public contact forms on each brand website submit into the same ingestion pipeline, supplying the brand and form/source metadata explicitly.
+Lead communication must stay inside the unified Ticket model.
 
-Contact-form ingestion supports anti-abuse controls independently of mailbox spam scoring and retains IP/user-agent metadata only where needed and in accordance with the platform's privacy policy.
+Sending email from a Lead:
 
-## Background processing
+1. selects a configured Shared Mailbox available for the Lead's Brand/context;
+2. creates/continues an outbound Sales Ticket conversation;
+3. creates the outbound TicketMessage in queued delivery state;
+4. sends through Celery/Graph;
+5. appears in the Lead communication history;
+6. remains part of the Ticket history if the Lead is converted to a Client.
 
-Celery handles work that should not block API requests, including:
+There is no parallel `mailto:` sales-email path because that would bypass
+tracking/threading/history.
 
-- mailbox synchronisation;
+Inbound Lead matching and outbound Lead email both use sender/recipient email
+relationships so the conversation is retained during conversion.
+
+---
+
+## 14. Website contact forms
+
+Public Brand contact forms submit to the shared backend with Brand/source
+context and feed the same Lead + Ticket ingestion path.
+
+The public capture path may have its own anti-abuse controls, but it must not
+create a disconnected enquiries inbox.
+
+Lead capture should remain resilient if downstream Ticket routing temporarily
+fails according to the established ingestion contract.
+
+---
+
+## 15. Permissions
+
+Ticket operations use capability + Ticket Queue scope + Client scope where
+applicable.
+
+Capabilities distinguish actions such as:
+
+- view;
+- create/change;
+- reply;
+- add internal note;
+- assign;
+- close/reopen;
+- governed attachment download;
+- configure Queues/Mailboxes/Graph;
+- configure Vendor routing.
+
+The main focus views, Queue preferences, record drawers, Client/Contact panels
+and Time controls all use the same backend policy rather than bypassing it.
+
+See `PERMISSIONS_AND_ACCESS_MODEL.md`.
+
+---
+
+## 16. Background processing
+
+Celery handles work that should not block requests, including:
+
+- mailbox sync;
 - attachment retrieval;
-- malware scanning when enabled;
-- backfilling pending/failed scans when malware scanning is enabled;
-- outbound email delivery;
-- retries/backoff;
-- classification/routing jobs where asynchronous processing is appropriate;
-- notifications.
+- malware scanning/backfill;
+- outbound delivery;
+- retry/backoff;
+- suitable asynchronous classification/routing;
+- later notifications.
 
-Critical ingestion operations are idempotent so Celery retries cannot duplicate tickets/messages.
+Critical operations remain idempotent so retries do not duplicate Tickets,
+Messages or sends.
 
-## Development data
+---
 
-Development data covers:
+## 17. Future refinements
 
-- multiple ticket queues across brands plus cross-brand operational queues;
-- multiple configured demo mailboxes without real secrets;
-- tickets linked to different clients and contacts;
-- unknown/vendor/spam examples;
-- initial Vendor records and sender-domain rules;
-- varied statuses/priorities/classifications;
-- multi-message inbound/outbound threads;
-- internal notes;
-- attachment metadata with safe fake files and scan states.
+The Ticket domain is operationally usable. Future work should be driven by real
+usage and surrounding platform maturity rather than another foundational
+rewrite.
 
-No live Microsoft credentials or real customer email content belong in fixtures.
+Likely later refinements:
 
-## Initial implementation order
+- ambiguous Graph-send resilience;
+- richer search/automation;
+- explicit Task/Project/Infrastructure/KB links where workflows justify them;
+- notifications/preferences;
+- SLA/escalation behaviour;
+- Client portal communication through the same Ticket thread model.
 
-1. TicketQueue, Ticket, TicketMessage, TicketNote and TicketAttachment models plus permissions.
-2. Paginated ticket list/detail APIs and seeded development data.
-3. Admin ticket list and thread UI.
-4. Client and Client Contact ticket relationships/workspaces.
-5. MicrosoftGraphConnection and Mailbox configuration models/settings UI.
-6. Graph adapter and idempotent inbound sync.
-7. reusable body normalisation/thread matching services.
-8. outbound replies and attachment handling.
-9. quarantine and optional malware scanning.
-10. classification/routing/vendor/spam rules.
-11. website contact-form ingestion.
-
-The initial vertical slice now implements this sequence. Follow-up work should refine operational rules and deployment configuration rather than expanding this foundation PR indefinitely.
+Do not create a second communications system for any of these features.

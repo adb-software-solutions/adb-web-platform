@@ -2,298 +2,556 @@
 
 ## Purpose
 
-This document records the foundation-phase review of existing Django models against the canonical architecture in `PLATFORM_MASTER_PLAN.md`.
+This document records the current domain-model decisions for the ADB Business
+Platform. It replaces the older foundation-phase audit that described several
+now-implemented domains as future amendments.
 
-Each model is classified as one of:
+The classifications used here are:
 
-- **Keep** — concept and shape are broadly suitable.
-- **Amend** — concept is correct but fields/relationships/behaviour need work.
-- **Rename/Reframe** — useful data concept, but its name or purpose needs clarification.
-- **Remove** — legacy/template residue not part of the ADB platform.
-- **Defer** — concept remains valid but detailed design should wait for its implementation phase.
+- **Keep** — current concept and ownership are suitable.
+- **Keep / extend** — current model is established; add capability in focused
+  slices without redesigning its identity.
+- **Transitional** — retained safely while a newer structured model becomes the
+  operational identity.
+- **Defer** — valid future domain, but detailed modelling is intentionally not
+  agreed yet.
 
-This is an architectural audit, not permission to implement every amendment immediately.
+Do not treat this audit as permission to implement every future field at once.
 
-## Authentication
+## 1. Cross-domain modelling rules
 
-### User — Amend
+### Client/Internal ownership — Keep
 
-Keep the custom UUID/email-based User model and Django `PermissionsMixin`.
+Operational records that may belong to customers or ADB use explicit
+Client/Internal ownership semantics:
 
-Required amendments/decisions:
+```text
+client-owned -> a real Client
+internal     -> ADB itself, no Client
+```
 
-- retain Django Group/Permission primitives for capability permissions;
-- remove unrelated legacy fields, including the eBay-account email flag;
-- do not add client-portal-specific fields directly until the portal identity relationship is designed;
-- current verification/password-reset fields are acceptable for now but token lifecycle/security should continue to be reviewed;
-- eventually expose effective staff permissions/scopes through the admin current-user/bootstrap contract.
+Do not create a fake ADB/Internal Client.
 
-### CustomGroup — Keep for now
+Null Client alone must not silently imply Internal where the domain requires an
+explicit ownership type/validation.
 
-This is currently a proxy over Django Group rather than a separate role model. That is compatible with the permissions architecture. Do not create an independent role database unless a concrete need emerges.
+### Brand — Keep
+
+`apps.core.Brand` is the public/commercial communication identity for:
+
+- ADB Software Solutions;
+- ADB Web Designs;
+- ADB Technology.
+
+Brand is independent from operational ownership and Client access scope.
+
+### AuditEvent — Keep / extend
+
+Append-only audit records remain the foundation for security-sensitive and
+materially privileged actions.
+
+Audit metadata must be curated. Never put passwords, tokens, private keys,
+secret payloads, message bodies or other sensitive material into audit
+metadata merely because an action touched them.
+
+## 2. Authentication and staff identity
+
+### User — Keep
+
+Keep the custom UUID/email-based Django User and `PermissionsMixin` identity
+model.
+
+Django remains the identity/session authority for staff and later Client portal
+users.
+
+Do not add a second identity system to Next.js. Portal relationships should be
+designed through ClientContact later rather than adding ad-hoc customer fields
+to User now.
+
+### Django Group / CustomGroup — Keep
+
+Django Group remains the capability-role bundle. A custom proxy/convenience
+layer does not imply a parallel role engine.
 
 ### Passkey / TOTP / recovery / session models — Keep
 
-These represent real authentication/security capabilities. Continue hardening and testing rather than replacing them.
+These are established authentication/security domains. Continue hardening and
+regression testing rather than replacing them.
 
-## Platform core
+## 3. Access control
 
-### Brand — New / Keep
+### StaffAccessProfile — Keep / extend carefully
 
-A first-class `apps.core.Brand` model is now the shared identity for public ADB brands.
+StaffAccessProfile is the staff object-scope/preferences anchor.
 
-Stable seed slugs:
+Established concerns include:
 
-- `adb-software-solutions`;
-- `adb-web-designs`;
-- `adb-technology`.
+- all Clients versus selected Clients;
+- all Ticket Queues versus selected Ticket Queues;
+- server-backed default Ticket Queue preferences.
 
-Brand is deliberately independent of Client ownership.
+An empty stored default-queue selection means all accessible enabled queues;
+an explicit subset narrows the user's normal Ticket work views.
 
-### AuditEvent — New / Keep
+Do not turn StaffAccessProfile into a generic dumping ground for every user
+setting. Future Dashboard configuration may use its own appropriate model.
 
-Append-only audit foundation for security-sensitive and important operational actions. Metadata must be curated and must never contain secrets.
+### ClientAccessGrant — Keep
 
-## Clients
+Selected Client scope for staff who do not have `all_clients`.
 
-### Client — Amend
+Client scope applies transitively to Client-owned operational domains through
+reusable policy/services.
 
-The concept is central and must remain the root of each customer's operational context.
+### TicketQueueAccessGrant — Keep
 
-Current issues:
+Selected Ticket Queue scope for staff who do not have `all_ticket_queues`.
 
-- `name` plus `company` is ambiguous for a company/client record;
-- a single email/phone on Client overlaps with ClientContact;
-- address is unstructured enough for now but may need billing/company address semantics later;
-- no explicit business metadata such as legal/display name distinction;
-- no permission-scope integration yet.
+Queue scope remains independent from Client scope.
 
-Direction:
+## 4. Clients and Contacts
 
-- treat Client as organisation/account;
-- keep active/inactive/archive lifecycle;
-- contacts own individual email identities;
-- do not create an "Internal" fake Client;
-- future billing/portal/commercial fields should be added only when required.
+### Client — Keep / extend
 
-### ClientContact — Amend
+Client is the account/organisation and the primary operational context.
 
-This becomes the key identity-matching object for incoming email and future client portals.
+Established behaviour includes:
 
-Required future fields/capabilities:
+- Active/Inactive/Archived lifecycle;
+- custom operations CRUD;
+- active-first global overview;
+- server-side stats/filtering/pagination;
+- scoped Client workspace.
 
-- first/last or display name strategy;
-- unique/normalised email identity appropriate for matching;
-- primary contact flag;
-- billing contact flag;
-- technical contact flag;
-- active/archive state;
-- future optional relationship to a portal User;
-- potential support/contact preferences later.
+Future commercial fields should be added by the commercial phase rather than
+pre-loading Client with invoice/accounting concepts now.
 
-### Project — Amend
+### ClientContact — Keep / extend
 
-Keep as the operational project/work record for internal or client work.
+ClientContact is the person/email identity inside a Client.
 
-Current project requires a Client. Target architecture must also support internal projects without inventing a fake Client.
+Established behaviour includes:
 
-Required future changes:
+- active/inactive lifecycle;
+- primary, billing and technical flags;
+- Contact workspace;
+- Ticket/message context;
+- email matching for inbound communication.
 
-- explicit client-owned versus internal scope;
-- optional Client when internal;
-- billing type/currency where useful;
-- project members/ownership later;
-- tasks linked optionally, not required;
-- tickets may optionally link to projects.
+Future portal identities should link to ClientContact.
 
-This model is completely separate from public portfolio/case-study content.
-
-### TimeEntry — Amend
-
-Keep time tracking but review whether every entry must belong to a Project. Initial business workflows primarily expect project time, but future internal/general time may justify optional project/client scope.
-
-Add user/staff ownership of time entries when the operational API is implemented.
-
-### ProjectNote — Amend
-
-Keep internal project notes. Add author/audit metadata when project collaboration is implemented.
-
-## CRM
+## 5. CRM
 
 ### LeadSource — Keep
 
-Configurable source taxonomy is useful. It should eventually support deterministic defaults and perhaps machine-readable slugs.
+Configurable lead-source taxonomy remains useful for current CRM and later
+source-conversion/revenue analytics.
+
+Prefer stable machine-readable identity where automation/reporting requires it.
 
 ### LeadStatus — Keep
 
-Configurable sales-pipeline status remains useful. Add machine-readable semantics if automation requires them.
+LeadStatus remains configurable pipeline state with explicit outcome semantics:
 
-### Lead — Amend
+- `open`;
+- `won`;
+- `lost`.
 
-Keep exclusively for the sales lifecycle; do not turn this into the support ticket model.
+Do not infer outcome solely from display-name text in new code.
 
-The originating Brand relationship has now been added.
+### Lead — Keep / extend
 
-Future amendments:
+Lead remains the sales lifecycle record, not a support Ticket.
 
-- conversion relationship/state to Client;
-- links to ticket/conversation records;
-- assignee/owner;
-- estimated value/currency where useful;
-- richer source metadata without storing entire inbound emails in `message`.
+Established behaviour includes:
 
-## Tasks
+- Brand/source;
+- owner/assignee;
+- operational focus views;
+- communication history through Tickets;
+- outbound Lead email through the Ticket/Graph layer;
+- transactional conversion to Client + primary Contact while retaining
+  communication history.
 
-### TaskStatus — Keep
+Future commercial value/follow-up/source-revenue fields should be introduced
+when the commercial/analytics contracts are designed.
 
-Useful configurable workflow concept.
+## 6. Projects and work management
 
-### TaskList — Amend
+### Project — Keep / extend
 
-Keep optional organisational lists, but a task must not be forced into a list.
+Project is the operational delivery/work record and supports:
 
-Lists may later be internal, client-specific or project-specific depending on actual UX needs.
+- Client-owned Projects;
+- Internal Projects;
+- lifecycle/current-history views;
+- dates and current commercial-estimate metadata;
+- Task/Task List/Time integration;
+- work-first List/Board/Timeline/Overview/Time workspaces.
 
-### Task — Amend substantially
+Operational Project is separate from public CaseStudy/Portfolio.
 
-The current model is only a skeleton.
+Future Project milestones/participants should be added only where the current
+Task/date/assignment model does not meet the workflow.
 
-Target requirements:
+### TaskList — Keep
 
-- task list optional;
-- project optional;
-- client optional;
-- future ticket optional;
-- completely standalone/internal task valid;
-- assignee(s) or clear single-assignee model;
-- due date/time strategy;
-- recurring rule/schedule;
-- completion state/history;
-- creator and audit metadata;
-- scope validation so client/project combinations cannot conflict.
+Task Lists are optional organisational/workflow containers and may be
+Client/Internal/Project scoped according to their established ownership
+validation.
 
-Monthly recurring invoice reminders are a canonical example of a valid task with no Project.
+A Task does not need a Task List.
 
-## Credentials
+### Task Section/workflow column — Keep
 
-### CredentialType — Keep
+Ordered Sections are first-class List/Board workflow columns. Preserve
+server-authoritative ordering/ownership checks.
 
-Useful configurable metadata taxonomy.
+### Task — Keep / extend
 
-### StoredCredential — Amend urgently before production use
+Task is now a mature work-management model, not a skeleton.
 
-The existing model stores secret fields in plaintext and explicitly contains encryption TODOs. It is not production-ready as a credential vault.
+Established requirements include:
 
-Required before any real secrets are stored:
+- standalone Internal Task valid;
+- Client Task valid;
+- Project Task valid;
+- Task List optional;
+- single assignee model as implemented;
+- priority/status/start/due dates;
+- completion/reopen;
+- recurrence;
+- creator/audit context;
+- ownership/project/list consistency validation.
 
-- encrypted-at-rest secret payload with deliberate key management;
-- client/internal ownership;
-- metadata/secret separation;
-- no secret values in list/search APIs;
-- explicit `reveal` permission separate from normal view permission;
-- reveal audit event;
-- related infrastructure/application references;
-- rotation/expiry metadata where useful;
-- safe export/copy behaviour;
-- tests proving secret non-disclosure.
+A future Ticket relationship must be introduced with an actual workflow rather
+than simply adding a nullable FK because one might be useful.
 
-Do not populate this table with production credentials until the security work is complete.
+### Subtask relationship — Keep
 
-## Knowledge base
+Subtasks inherit and validate the surrounding work context. Preserve this
+rather than allowing child Tasks to cross Client/Internal/Project boundaries.
 
-### KnowledgeBaseSection — Amend
+### TaskDependency — Keep
 
-Keep organisational sections, but define whether sections are global templates, per-client/internal containers, or both. Avoid forcing every client to recreate identical structural categories manually if reusable templates are useful.
+Explicit blocking dependencies are established. Preserve cycle detection and
+ownership/work-context validation.
 
-### KnowledgeBaseDocument — Amend
+### TaskComment — Keep
 
-Core concept remains correct.
+TaskComment is human discussion attached to a Task.
 
-Required future changes:
+Audit metadata around comment actions must not copy comment bodies into
+AuditEvent metadata.
 
-- client/internal ownership;
-- author/editor metadata;
+## 7. Time Tracking
+
+### TimeEntry — Keep / extend
+
+TimeEntry supports manual and timer-recorded work across:
+
+- Internal;
+- direct Client;
+- Project;
+- Task;
+- Ticket contexts.
+
+Internal time is non-billable by rule. Context relationships must remain
+consistent with ownership.
+
+Future invoice linkage should be additive; invoicing is not a prerequisite for
+recording Time.
+
+### RunningTimer — Keep
+
+RunningTimer is the backend-authoritative active timer state.
+
+Keep the one-active-timer-per-user constraint unless a future explicit product
+decision changes it. Browser tabs are not authoritative timer state.
+
+## 8. Ticketing and communications
+
+### MicrosoftGraphConnection — Keep
+
+Represents one Microsoft tenant/application integration.
+
+Authentication belongs at connection level, not per Mailbox.
+
+### Mailbox — Keep / extend
+
+Represents one configured operational Shared Mailbox.
+
+It carries Brand/purpose/default Queue and Graph sync state. Enabled database
+Mailbox rows are the application-level operational allow-list.
+
+Do not model each Shared Mailbox as a separate Entra application/certificate.
+
+### TicketQueue — Keep
+
+Operational routing and staff-scope unit.
+
+Queue defaults/preferences are staff configuration, not a property of the
+TicketQueue itself.
+
+### Vendor / VendorSenderRule — Keep
+
+Database-backed operational sender policy. These records classify/route
+service/vendor mail without treating it as spam or requiring a code deploy.
+
+### Ticket — Keep / extend
+
+Ticket is the canonical communication thread.
+
+It may carry Brand, Queue, Client, Contact, Vendor, classification, assignment,
+priority/status and lifecycle timestamps.
+
+The default operational experience is current/actionable-first; resolved/closed
+history remains available.
+
+Future links to Tasks/Projects/KB/Infrastructure should be introduced through
+focused workflows when useful.
+
+### TicketMessage — Keep
+
+One inbound/outbound message. Provider/internet Message-ID/reference metadata
+remains important for idempotency and threading.
+
+### TicketNote — Keep
+
+Internal staff-only conversation item. The UI now renders Notes chronologically
+within the Ticket feed rather than as a cramped side-panel silo.
+
+### TicketAttachment — Keep
+
+Governed/quarantined attachment metadata. Malware policy and authorised
+download are separate from the Ticket message model.
+
+## 9. Credentials
+
+### CredentialType — Keep / evolve through typed templates
+
+Credential type/template metadata is useful, but the modern Vault defines
+stable field storage classes rather than relying on arbitrary plaintext model
+columns.
+
+### StoredCredential — Keep as the credential identity
+
+The older audit statement that StoredCredential is simply a plaintext vault is
+obsolete.
+
+`encrypted_secret_payload` plus the configured MultiFernet/key-ring service is
+the security foundation on `main`.
+
+The active Credential Vault slice expands this identity with:
+
+- typed credential templates;
+- Active/Inactive/Archived lifecycle;
+- safe searchable metadata;
+- secure create/edit/archive;
+- reveal/copy/download action separation;
+- resource links;
+- expiry/rotation metadata;
+- atomic legacy plaintext reconciliation.
+
+Until that feature is merged, main still contains legacy plaintext columns for
+compatibility. New production secret material must use the encrypted payload
+service, not those columns.
+
+The long-term cleanup is to remove reconciled legacy plaintext columns only
+after production migration is verified.
+
+### Credential-to-resource link — Agreed / in-flight
+
+Credentials link to one or more InfrastructureResource records with purpose and
+primary semantics.
+
+Client-owned Credentials may link only to resources owned by the same Client.
+Internal Credentials may legitimately link to Internal or Client resources
+where ADB operates shared provider/service access.
+
+## 10. Infrastructure
+
+### InfrastructureResource — Keep
+
+This is the common identity for structured technical resources.
+
+It owns cross-cutting:
+
+- Client/Internal ownership;
+- name/type;
+- lifecycle;
+- environment;
+- criticality;
+- tags;
+- creator/updater/archive timestamps;
+- safe future portal-visibility metadata.
+
+It does not replace specialist relational models with EAV/JSON.
+
+### ServiceProvider — Keep
+
+Provider identity belongs in data rather than hard-coded provider choice lists.
+
+### ProviderAccount — Keep
+
+Represents a real provider account/tenant/project and is itself backed by an
+InfrastructureResource so Credentials, KB, Monitoring and relationships can
+attach consistently.
+
+Secrets do not belong directly on ProviderAccount.
+
+### ResourceRelationship — Keep
+
+Cross-resource topology for directed relationships such as depends-on,
+hosted-on, managed-by, uses, routes-to and related-to.
+
+Preserve:
+
+- self-link prevention;
+- duplicate prevention;
+- Client-boundary validation;
+- permission-aware target selection.
+
+Strong specialist foreign keys remain preferable for known technical
+semantics; generic edges complement them rather than replace them.
+
+### Existing Server/Database/Website/Domain/etc. specialist models — Transitional
+
+The legacy specialist tables remain intact while the structured resource
+architecture is introduced.
+
+Each current specialist family may be bound to one InfrastructureResource by
+the typed one-to-one reconciliation bridge.
+
+Do not guess ownership for historical rows. Reconciliation remains explicit and
+permission-controlled.
+
+Safe specialist metadata can be projected during transition; secret-bearing
+legacy fields must not leak through the structured resource API.
+
+### Future typed specialist models/relationships — Keep / extend progressively
+
+The planned structured families include:
+
+- Server/compute/network;
+- Database instance/logical database;
+- Application/Application Environment/source context;
+- Website/endpoints;
+- Domain/DNS/TLS;
+- Docker/Kubernetes;
+- storage/backups;
+- system services/scheduled jobs;
+- licences/subscriptions/email systems and other useful operations records.
+
+Implement these progressively rather than redesigning every technical model in
+one migration.
+
+## 11. Knowledge Base
+
+### KnowledgeBaseSection / folder structure — Amend in KB redesign
+
+The existing section foundation is useful but the agreed product direction is a
+filesystem-like Client/Internal documentation hierarchy rather than a flat
+section register.
+
+The redesign should preserve deterministic ownership/scope and avoid forcing
+Clients to duplicate reusable structure where templates/shared patterns are
+useful.
+
+### KnowledgeBaseDocument — Keep / redesign workspace
+
+Document remains the central KB content identity.
+
+Future mature behaviour includes:
+
+- Client/Internal ownership;
+- Markdown/controlled rich-text content;
+- author/editor context;
 - tags/search metadata;
-- explicit future portal visibility defaulting to private;
-- attachments if needed;
-- better version creation service rather than manual version rows.
+- attachments;
+- Infrastructure/Ticket/Project/Credential links;
+- explicit future portal visibility, private by default.
 
-### DocumentVersion — Amend
+### DocumentVersion — Keep / strengthen service ownership
 
-Keep immutable historical versions. Add editor and timestamp context; ensure versions are generated by document update services, not trusted directly from arbitrary clients.
+Versions should be immutable history generated by document update services.
+Arbitrary clients should not be trusted to manufacture version history
+independently.
 
-## Infrastructure
+## 12. Monitoring — Defer detailed schema to the Monitoring slice
 
-The broad infrastructure inventory remains part of the platform. The individual models are useful but need a separate deeper implementation review before APIs/UI are expanded.
+Monitoring is agreed as a separate cross-cutting subsystem attached to
+InfrastructureResource.
 
-### Server — Amend
+The target includes Check, historical Result and Incident concepts rather than
+adding `is_up` fields to infrastructure specialists.
 
-Keep. Add client/internal scope, related credentials, ownership/access policy and modernise static provider/OS choices.
+Detailed schedule/result-retention/escalation models should be decided in the
+Monitoring implementation slice.
 
-### Database — Amend
+## 13. CMS/public content
 
-Keep. Add client/internal scope, credential references and clearer managed/self-hosted semantics.
+### Portfolio / CaseStudy — Keep concept, reframe naming when worthwhile
 
-### Website — Amend
+Public case-study content is separate from operational Project.
 
-Keep as an operational website/application component record, not public CMS content. Add client/internal scope and continue linking servers/databases/domains/credentials.
+A future rename is acceptable when its migration/API/UI value justifies the
+cost; do not merge the models.
 
-### WebsiteTechStack — Amend
+### Testimonial / BlogPost / taxonomy / FAQ — Keep
 
-Keep, but consider a reusable Technology catalogue later rather than free-text duplication if actual data volume warrants it.
+Brand-aware editorial content remains valid. Public APIs must continue to scope
+content/taxonomy by Brand and never leak cross-Brand content accidentally.
 
-### Domain — Amend
+## 14. Future commercial domains — Defer detailed models
 
-Keep. Add client/internal scope and renewal/registrar relationships where useful.
+Agreed future product areas include:
 
-### SSLCertificate — Amend
+- Product/Service catalogue;
+- recurring services;
+- Quote/Proposal;
+- Contract;
+- Invoice/Billing;
+- Stripe/Payment tracking;
+- profitability/LTV/source analytics.
 
-Keep where manual certificate tracking is useful. Automated Let's Encrypt certificates may eventually be derived/monitored rather than manually managed.
+The exact signing, accounting, tax, forecasting, retainer and SLA schemas are
+not agreed. Do not create speculative tables in advance of the commercial
+phase.
 
-### Licence and remaining asset/application models — Amend/Defer
+Reuse existing Client/Lead/Project/Ticket/Time identity when that phase begins.
 
-Keep the concepts described in the master plan. Review fields and relationships when the infrastructure workspace is implemented rather than aggressively redesigning all of them in this foundation PR.
+## 15. Future Client portal — Defer
 
-## CMS / website content
+Portal identity should use the existing authentication subsystem and link to
+ClientContact.
 
-### Portfolio — Rename/Reframe eventually
+Per-domain portal visibility must be explicit and private by default. Do not add
+implicit portal access merely because a record belongs to a Client.
 
-The data is public case-study content, not an operational Project. The model may eventually become `CaseStudy`, but a rename can wait until migration/API/UI impact is worth it.
+## 16. Migration discipline
 
-It is now brand-aware.
+- Never delete/rewrite historical migrations that have been applied.
+- Append new migrations.
+- Transitional specialist reconciliation must preserve existing Django
+  app/model/database identity.
+- Do not make specialist InfrastructureResource links mandatory until legacy
+  rows are deliberately reconciled.
+- Do not remove credential legacy plaintext columns until encrypted migration
+  has been verified.
+- Prefer reversible, explicit migrations where practical.
 
-### Testimonial — Keep / Amend
+## 17. Current model priorities
 
-Keep. Brand assignment is many-to-many because a testimonial may legitimately be reused across brands.
+The model work should now follow the product roadmap rather than the old
+foundation audit:
 
-### BlogPost — Keep / Amend
-
-Keep. Brand assignment is many-to-many to permit deliberate cross-brand publishing. Public APIs must always scope by requested brand.
-
-### BlogCategory / BlogTag — Keep / Amend
-
-Keep and make brand-aware. This allows each public brand to expose only relevant taxonomy while still permitting deliberate reuse.
-
-### FAQ / FAQCategory — Keep / Amend
-
-Keep and make brand-aware. Public APIs must not leak FAQ content or taxonomy across brands.
-
-## Ownership pattern
-
-Operational models need a consistent rule:
-
-- **client-owned**: references a real Client;
-- **internal**: explicitly marked/internal-scoped with no Client;
-- never infer internal ownership from an ambiguous null without validation;
-- never create a fake internal Client.
-
-The exact reusable implementation should be designed before changing every operational table. It may be an abstract model/constraint helper where this improves consistency without introducing generic polymorphic complexity.
-
-## Next audit actions
-
-1. Remove the legacy eBay User field with a migration.
-2. Complete the deeper infrastructure-model field review before infrastructure APIs are built.
-3. Design the client/internal ownership helper/validation pattern.
-4. Design ClientAccessGrant alongside the Clients API rather than as a generic content-type ACL.
-5. Harden StoredCredential before any production secrets are stored.
-6. Expand Task/Project models only when their operational APIs are implemented, preserving the requirements above.
+1. finish Credential Vault and legacy-secret reconciliation;
+2. mature typed Infrastructure specialists;
+3. add Monitoring models/services;
+4. redesign the KB hierarchy/editor/linking model;
+5. complete Users & Access administration contracts;
+6. add cross-domain Activity/Search models only where concrete requirements
+   justify persistence;
+7. add commercial models only in the commercial phase;
+8. add portal visibility/identity only in the portal phase.

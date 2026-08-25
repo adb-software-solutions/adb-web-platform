@@ -2,43 +2,72 @@
 
 ## Purpose
 
-This document defines the current authorisation architecture for the ADB Business Platform. It is canonical and should be read with `PLATFORM_MASTER_PLAN.md` and `CURRENT_STATE_AND_FOUNDATION_CHECKLIST.md`.
+This document defines the canonical authorisation model for the ADB Business
+Platform. It should be read with `PLATFORM_MASTER_PLAN.md`,
+`DOMAIN_MODEL_AUDIT.md` and `CURRENT_STATE_AND_FOUNDATION_CHECKLIST.md`.
 
-The platform contains sensitive Client, operational, infrastructure, communication and credential data. Access is therefore enforced by Django and consists of two separate questions:
+The platform contains sensitive Client, communication, infrastructure,
+credential and future commercial data. Access therefore answers two separate
+questions:
 
-1. **Capability** — may this user perform this type of action?
-2. **Scope** — which Clients, Ticket Queues or owned resources may that capability act on?
+1. **Capability** — may this identity perform this type of action?
+2. **Scope** — which Clients, Ticket Queues or owned resources may that
+   capability act on?
 
-Frontend visibility improves usability but is never an authorisation boundary.
+Frontend visibility is usability only. Django remains the security boundary.
+
+---
 
 ## 1. Core principles
 
-1. **Django is authoritative.** Every protected API query and mutation enforces permission server-side.
-2. **Capability and object scope are separate.** `tickets.view_ticket` does not mean every Ticket is visible.
-3. **Django Groups are role bundles, not a replacement for permissions.**
-4. **Least privilege is the default.** A normal staff user should not need superuser access.
-5. **Superusers bypass ordinary scope checks deliberately.** Sensitive actions should still be audited where applicable.
-6. **Sensitive operations have dedicated permissions.** Credential metadata access is distinct from secret reveal/copy.
-7. **Denied objects must not enter API responses.** Scope at queryset/service level rather than filtering only in React.
-8. **Indirect access paths obey the same scope.** Search, selectors, related-object panels, exports and contextual workspaces must not widen access.
-9. **Permission/scope changes are auditable.**
-10. **Client context enriches navigation; it never widens access.**
+1. **Django is authoritative.** Every protected query/mutation enforces access
+   server-side.
+2. **Capability and scope are separate.** `view_ticket` does not imply every
+   Ticket is visible.
+3. **Django Groups are role bundles.** Do not build a competing role engine.
+4. **Least privilege is the normal staff model.** Routine operators should not
+   require superuser.
+5. **Superuser bypass is deliberate, not the normal workflow.** Sensitive
+   operations should still audit where useful.
+6. **Sensitive actions have narrow permissions.** Credential metadata access is
+   distinct from reveal/copy/download.
+7. **Denied objects do not enter normal API results.** Scope before
+   serialisation.
+8. **Indirect paths obey the same scope.** Drawers, selectors, search,
+   dashboards, Calendar, Client workspaces, reports and exports do not widen
+   access.
+9. **Client context enriches navigation; it never grants access by itself.**
+10. **Access changes are auditable.**
+11. **Current-first views still scope normally.** A focused My/Active view is
+    not a shortcut around domain policy.
+12. **Server-backed preferences are not permissions.** Ticket Queue defaults
+    change what the user sees first, never what the user is authorised to see.
+
+---
 
 ## 2. Identity model
 
-The custom Django `User` model remains the platform identity type.
+The custom Django `User` remains the identity type.
 
-Current internal operations primarily use staff users. Future Client portal identities should continue through the same authentication system and link to ClientContact rather than introducing a second authentication authority.
+Internal operations primarily use active staff users. Future Client portal
+identities should continue through the same authentication system and link to
+ClientContact rather than introduce another identity authority.
 
-Django `is_active`, `is_staff`, `is_superuser`, Groups and Permissions remain the platform primitives. The custom operations UI should provide a usable Users & Access workspace over these concepts rather than making normal administration depend on Django admin.
+Django `is_active`, `is_staff`, `is_superuser`, Groups and Permissions remain
+platform primitives.
+
+The dedicated authentication/account frontend owns login and account-security
+UX, while the `/admin` Users & Access workspace will own authorised staff
+administration over the Django permission/scope model.
+
+---
 
 ## 3. Capability permissions
 
-Use Django's permission framework as the capability layer.
+Use Django model permissions where they accurately describe an action and
+narrow custom permissions for domain-specific/sensitive operations.
 
-Standard model permissions (`view`, `add`, `change`, `delete`) are preferred when they express the operation correctly. Domain-specific/sensitive operations use explicit custom permissions.
-
-Examples currently used or established by the architecture include:
+Examples established by current domains include concepts such as:
 
 ```text
 clients.view_client
@@ -49,69 +78,101 @@ clients.view_clientcontact
 crm.view_lead
 crm.change_lead
 
+projects.view_project
+projects.change_project
+
+tasks.view_task
+tasks.change_task
+
+time_tracking.view_timeentry
+
 ticketing.view_ticket
 ticketing.reply_ticket
 ticketing.assign_ticket
 ticketing.close_ticket
-ticketing.change_ticketqueue
+
+infrastructure.view_infrastructureresource
+infrastructure.change_infrastructureresource
+infrastructure.reconcile_legacy_infrastructure
 
 credentials.view_storedcredential
 credentials.add_storedcredential
 credentials.change_storedcredential
 credentials.reveal_storedcredential
-credentials.copy_secret
 
 access_control.manage_staff_access
 
 core.view_auditevent
 ```
 
-Exact model-generated codenames should follow Django's app/model naming. New custom operations must use narrow descriptive permissions rather than broad flags such as `can_manage_everything`.
+The Credential Vault feature adds/uses distinct secret-action permissions for
+copy and download in addition to reveal. Exact codenames must follow the model
+and migration currently present in the branch being implemented; do not invent
+broad aliases such as `can_manage_everything`.
 
-## 4. Roles / Groups
+---
 
-Django Groups are the role mechanism. `CustomGroup`, where used by the authentication/admin layer, remains a proxy/convenience over Django Group rather than a separate role database.
+## 4. Groups / role bundles
 
-Role templates may include concepts such as:
+Django Groups are the role mechanism. Human-friendly role templates may include
+Administrator, Operations, Support, Accounts or Read Only, but those names are
+convenience bundles only.
 
-- Administrator;
-- Operations;
-- Support;
-- Accounts;
-- Read Only.
+Effective access remains:
 
-These are convenience bundles only. Effective access is still the resulting Django permissions plus object scope.
+```text
+Django permissions
++ object scope
++ operation-specific validation
+```
 
-The future Users & Access UI should allow authorised administrators to manage Groups and effective capabilities without requiring direct Django-admin use for routine changes.
+A future Users & Access screen should make this understandable without hiding
+the actual effective capabilities.
 
-## 5. Implemented staff scope model
+---
 
-Object scope is implemented in `apps.access_control`.
+## 5. Staff object scope
+
+Object scope lives in `apps.access_control`.
 
 ### 5.1 StaffAccessProfile
 
-Each scoped staff user can have a `StaffAccessProfile` containing:
+A scoped staff user may have a `StaffAccessProfile` containing at least:
 
-- `all_clients` — the user may operate across every Client, provided the required capability permission also exists;
-- `all_ticket_queues` — the user may operate across every Ticket Queue, again only with the required capability.
+- `all_clients`;
+- `all_ticket_queues`;
+- `default_ticket_queues` for the user's normal Ticket work focus.
 
-A non-superuser without an access profile does not implicitly receive broad object access.
+A non-superuser without an appropriate profile does not silently receive broad
+object access.
+
+`default_ticket_queues` is a **preference**, not an authorisation grant:
+
+- an empty stored default selection means **all accessible enabled queues**;
+- an explicit subset means default Ticket focus views use that subset;
+- choosing all currently accessible queues normalises back to the empty/all
+  representation;
+- inaccessible/disabled queues are never made visible by the preference.
 
 ### 5.2 ClientAccessGrant
 
-When `all_clients` is false, `ClientAccessGrant` rows grant access to selected Clients.
+When `all_clients` is false, grants identify selected Clients.
 
-This scope applies transitively to Client-owned operational resources according to each domain's policy. An endpoint must not expose another Client's resource merely because the user has the model-level `view_*` permission.
+Client scope applies transitively to Client-owned operational resources through
+domain policies/services, including Projects, Tasks, Time, Infrastructure,
+Credentials, Knowledge and Client-matched Tickets where relevant.
 
 ### 5.3 TicketQueueAccessGrant
 
-When `all_ticket_queues` is false, `TicketQueueAccessGrant` rows grant access to selected Ticket Queues.
+When `all_ticket_queues` is false, grants identify selected Ticket Queues.
 
-Queue scope is independent of Client scope. Ticket visibility/action policy intersects the relevant capability, queue scope and Client scope rather than assuming any one of them grants total access.
+Queue scope is independent from Client scope. Ticket operations may require
+both.
 
-### 5.4 Reusable policy helpers
+### 5.4 Policy helpers
 
-`apps.access_control.policies` provides the established primitives:
+Reuse/extend central access-control policies rather than duplicating ad-hoc
+checks in every view. Existing primitives include concepts such as:
 
 ```python
 get_access_profile(user)
@@ -121,199 +182,298 @@ can_access_ticket_queue(user, queue)
 scope_ticket_queues_for_user(user, queryset)
 ```
 
-New domains should reuse/extend the policy layer rather than implementing ad-hoc scope checks inside every view.
+New resource domains should expose equivalent scoped services/querysets rather
+than rely on frontend filtering.
 
-## 6. Queryset and object scoping
+---
 
-Collection endpoints should restrict their queryset before serialisation.
+## 6. Queryset, detail and selector scoping
 
-Preferred pattern:
+Collection APIs scope before serialisation.
 
-```python
-queryset = scope_clients_for_user(request.user, Client.objects.all())
+Detail endpoints should query an already-scoped queryset/service so an
+inaccessible object normally behaves as unavailable/not found where that avoids
+leaking existence.
+
+The same rule applies to:
+
+- list and focus endpoints;
+- detail pages and record drawers;
+- Client/Project/Ticket/Infrastructure contextual panels;
+- autocomplete/relationship selectors;
+- search;
+- Dashboard widgets;
+- Calendar feeds;
+- Time reports;
+- exports;
+- user-triggered Celery operations;
+- future portal endpoints.
+
+A composite endpoint must not fetch globally and then assume its frontend will
+remove denied records.
+
+---
+
+## 7. Client/Internal-owned resources
+
+Projects, Tasks, Time, Knowledge, Credentials and Infrastructure support or are
+designed around explicit Client/Internal ownership.
+
+For a Client-owned record, a normal staff user needs:
+
+```text
+required domain capability
++ access to the owning Client
++ operation-specific validation
 ```
 
-Object detail endpoints should query from an already-scoped queryset or use an equivalent domain policy so inaccessible IDs do not leak existence through different response behaviour.
+Internal records have their own staff-only policy and do not use a fake Client.
 
-The same policy applies to:
+Cross-domain references must validate ownership consistency. For example, a
+Client A Task cannot silently move into Client B Project context.
 
-- list endpoints;
-- detail endpoints;
-- relationship tabs/panels;
-- search;
-- autocomplete/selectors;
-- dashboard widgets;
-- Calendar feeds;
-- reports/exports;
-- Celery-triggered actions initiated by a user;
-- future Client portal endpoints.
+---
 
-## 7. Ticket access
+## 8. Ticket access
 
-Ticketing is implemented and has its own detailed access policy/tests.
-
-Conceptually, a non-superuser Ticket operation requires:
+A normal Ticket operation conceptually requires:
 
 ```text
 active authenticated staff user
-    + required ticket capability
-    + permitted Ticket Queue
-    + permitted Client when Ticket is client-owned/matched
-    + any operation-specific checks
++ required Ticket capability
++ permitted Ticket Queue
++ permitted Client where a Client is attached
++ operation-specific checks
 ```
 
-Unknown/prospect/vendor/global Tickets can require queue permission even when no Client is attached.
+Unknown/prospect/vendor/global Tickets can rely on Queue scope even without a
+Client.
 
-Ticket assignment also validates that the target assignee can access the relevant Ticket context rather than merely allowing assignment to any staff account.
+Assignment must validate that the target assignee can access the relevant
+Ticket context.
 
-Resolve/close/reopen operations use the explicit close capability where required; ordinary status/priority/queue changes use their established operation policy.
+The main My/Unassigned/All Active/Queue focus API applies the same access policy
+as generic Ticket collections. Waiting on Customer being visually quieter does
+not alter permissions.
 
-See `TICKETING_ARCHITECTURE.md` for the full Ticket domain.
+The per-user default Queue preference narrows normal focus only; it cannot
+expand Queue scope.
 
-## 8. Internal versus Client-owned resources
+---
 
-Knowledge Base documents, Credentials and Infrastructure records can be Client-owned or Internal.
+## 9. Infrastructure access
 
-A capability to view one of these resource types does not imply access to all Client-owned records. Domain services must combine:
+`InfrastructureResource` follows capability + ownership scope.
 
-- capability permission;
-- ownership type;
-- Client scope when client-owned;
-- any additional sensitive-operation permission.
+Authorised staff can access Internal resources according to Infrastructure
+capability. Client-owned resources additionally require access to the owning
+Client.
 
-Internal resources must have an explicit policy. Do not represent Internal ADB data through a fake Client record.
+This policy applies to:
 
-## 9. Credential permissions
+- global and Client resource collections;
+- detail/drawer workspaces;
+- relationship target options;
+- relationship create/delete;
+- specialist projections;
+- legacy reconciliation;
+- future Monitoring/KB/Credential contextual panels.
 
-Credentials are a separate security boundary.
+The `reconcile_legacy_infrastructure` capability is intentionally separate from
+ordinary resource view/change. Reconciliation also validates the operator's
+Client scope and never guesses ownership.
 
-The model/service architecture distinguishes at least:
+Resource relationships must not bridge two different Client owners directly.
+Internal ADB resources may legitimately relate to Client resources without
+making the Internal resource Client-visible in a future portal.
 
-- view credential metadata;
-- create credential;
-- change metadata/secret;
-- delete/archive according to lifecycle policy;
-- reveal secret;
-- copy secret.
+---
 
-List/search APIs must never include secret material.
+## 10. Credential permissions and secret boundary
 
-`StoredCredential.encrypted_secret_payload` is the encrypted-at-rest secret store. New production secret values must not be placed in the legacy plaintext credential fields.
+Credentials are a stronger security boundary than ordinary infrastructure
+metadata.
 
-User-triggered secret reveal/copy goes through the credential secret service, validates the corresponding permission and records an audit event containing field names/context but never secret values.
+At minimum distinguish:
 
-Integration workers may decrypt service credentials through the explicit service-level path when required for their configured operation; that is not equivalent to granting a human user reveal permission.
+- view metadata;
+- create;
+- change metadata/secret values;
+- archive/delete lifecycle action;
+- reveal;
+- copy one secret field;
+- download one secret field/file.
 
-## 10. Audit requirements
+The full copy/download action set is part of the active Credential Vault
+feature slice and becomes canonical main-branch behaviour only after merge.
 
-Audit events should cover security-sensitive or materially privileged operations, including:
+Rules that apply regardless:
 
-- credential reveal/copy;
-- staff permission/Group changes;
-- Client/Ticket Queue scope changes;
-- account/security changes where appropriate;
-- other sensitive operational actions introduced by future domains.
+- ordinary list/detail/search responses never return secret values;
+- Client-owned credential metadata requires Client scope;
+- secret actions require the additional secret-action capability;
+- Infrastructure link targets are themselves scoped before ownership
+  validation;
+- service/integration decryption is a separate backend service path and is not
+  equivalent to giving a human reveal permission;
+- secret values never enter AuditEvent metadata, logs, URLs or analytics.
 
-Audit metadata must be curated. Do not record passwords, tokens, private keys, API keys, message attachment bodies or other secrets merely because they were part of an operation.
+A role may intentionally be allowed to view credential metadata without being
+allowed to reveal/copy/download secrets.
 
-## 11. Frontend effective access
+---
 
-The operations frontend should use backend-provided effective permission/scope data to drive navigation, actions and selectors.
+## 11. Time, work-management and Calendar access
 
-This is an optimisation and UX contract only. A stale/tampered frontend cannot grant access because every API operation must independently enforce capability and scope.
+### Tasks and Projects
 
-As the Users & Access workspace is completed, it should expose effective access in human-readable form, including:
+My Tasks means **viewable Tasks assigned to the current user**, not all
+assignments pulled globally and filtered in React.
 
-- Groups/role bundles;
-- direct/effective permissions;
-- all/selected Client scope;
-- all/selected Ticket Queue scope;
-- active/staff/superuser state where authorised to view it.
+Project List/Board/Timeline, Task List views, dependency selectors and quick
+capture must preserve Client/Internal/Project ownership validation.
+
+### Time
+
+Recording Time is distinct from viewing/reporting Time where the permission
+model requires it. A user-triggered timer may only attach to contexts the user
+is authorised to use.
+
+The server is authoritative for active timer state.
+
+### Calendar
+
+Calendar is a composite view over already-authorised work. It never receives a
+special broad Calendar permission that bypasses Task/Project scope unless an
+explicit future architecture deliberately introduces such a capability.
+
+---
 
 ## 12. Users & Access administration
 
-The operations navigation already reserves a Users & Access area, but its custom route/workspace still needs completion.
+The backend access model exists; the custom Users & Access operational
+experience remains to be completed.
 
-Only users with explicit staff-access/permission administration capabilities may change another user's permissions or scope.
+Only identities with explicit access-administration capability may change
+another staff user's permissions or scope.
 
-The implementation must support:
+The workspace must support:
 
 - staff list/detail;
-- activate/deactivate/invite/create according to the identity workflow;
+- create/invite/activate/deactivate according to identity policy;
 - Group membership;
 - capability permissions;
-- `StaffAccessProfile` flags;
-- `ClientAccessGrant` management;
-- `TicketQueueAccessGrant` management;
+- all/selected Client scope;
+- all/selected Ticket Queue scope;
 - clear effective-access display;
-- audit events for changes;
-- tests for allowed and denied administration paths.
+- audit events for access changes;
+- allowed and denied path tests.
 
-Routine administration should not require giving the operator Django superuser access.
+Routine administration must not require granting the operator superuser.
 
-## 13. Dashboard, Calendar and cross-domain views
+---
 
-A composite surface never receives broader access merely because it combines multiple domains.
+## 13. Dashboard, Search and Client Command Centre
 
-For example:
+Composite operational surfaces independently scope each domain.
 
-- a Ticket Queue dashboard widget uses the same Ticket/Queue scope as the Ticket list;
-- My Tasks only contains Tasks the user can view;
-- Calendar entries are derived from already-authorised Task/Project/Event data;
-- Client workspace sections independently scope Tickets, Projects, Tasks, Time, KB, Credentials and Infrastructure;
-- search results independently enforce the relevant domain permission and Client/Internal scope.
+Examples:
 
-Prefer shared scoped query/services over duplicating filters in each composite endpoint.
+- a Ticket Queue widget uses Ticket/Queue/Client policy;
+- My Tasks uses Task policy;
+- Monitoring incidents use Infrastructure/Monitoring policy;
+- Client Command Centre sections independently scope Projects, Tasks, Tickets,
+  Time, Infrastructure, Credentials and Knowledge;
+- global search asks each participating domain for already-authorised results;
+- credential search indexes/returns metadata only.
 
-## 14. API failure behaviour
+A Client page referencing a record does not make that record visible to a user
+who lacks its domain capability.
 
-Use normal Django Ninja/API error contracts consistently.
+---
 
-Guidelines:
+## 14. Audit requirements
 
-- unauthenticated requests should fail according to the established authentication contract;
-- authenticated users lacking a capability should receive the established forbidden response;
-- inaccessible object IDs should generally behave like unavailable/not-found records where that avoids leaking existence;
-- never return a secret and then rely on frontend masking;
-- never include a denied object in a list and rely on the client to remove it.
+Audit materially privileged/security-sensitive operations, including:
 
-## 15. Tests required for restricted domains
+- credential reveal/copy/download;
+- credential legacy-secret reconciliation;
+- Infrastructure legacy reconciliation;
+- staff Group/capability changes;
+- Client/Ticket Queue scope changes;
+- account/security changes where appropriate;
+- future privileged portal/commercial actions where justified.
 
-Every protected domain should include tests for both positive and negative paths.
+Audit metadata should answer who/what/when/context without copying sensitive
+payload content.
 
-At minimum cover:
+---
 
-- superuser access;
+## 15. API failure behaviour
+
+Use normal Django Ninja/API contracts consistently:
+
+- unauthenticated -> established authentication failure;
+- missing capability -> established forbidden response;
+- inaccessible scoped object -> normally unavailable/not found where useful to
+  avoid existence leakage;
+- invalid cross-owner relationship -> explicit validation failure;
+- missing secret-action capability -> forbidden;
+- never return denied/secret data and rely on UI masking.
+
+---
+
+## 16. Required permission-boundary testing
+
+For restricted domains, cover the relevant combinations of:
+
+- superuser;
 - staff with capability + global scope;
-- staff with capability + selected scope;
-- staff with capability but wrong Client/Queue;
+- staff with capability + selected correct scope;
+- staff with capability + wrong Client/Queue;
 - staff with scope but missing capability;
-- staff with no access profile where scope is required;
-- unauthenticated users;
-- sensitive credential reveal/copy separation;
-- related-object/context/search endpoints;
-- permission administration where implemented.
+- staff with no required access profile;
+- non-staff identity where Internal staff-only data is involved;
+- unauthenticated identity;
+- sensitive credential action separation;
+- selectors/related-object/drawer/search/composite endpoints;
+- access administration allowed/denied paths.
 
-Repository lint/type/test rules must not be weakened to make authorisation work pass.
+Do not weaken lint/type/tests to make access work pass.
 
-## 16. Future Client portal
+---
 
-Future Client portal users should use the existing identity subsystem and be linked to ClientContact.
+## 17. Future Client portal
 
-Portal access must be explicit and narrower than internal staff access. Client ownership alone must never make internal KB, Credentials, Infrastructure, Ticket notes or other sensitive records portal-visible.
+Portal identities should use the existing authentication subsystem and link to
+ClientContact.
 
-Portal visibility should be a deliberate per-domain state/policy added when the portal phase is designed.
+Portal visibility must be explicit and narrower than staff access. Client
+ownership alone must never automatically expose:
 
-## 17. Non-goals / prohibited shortcuts
+- Internal Infrastructure;
+- credential secrets;
+- private Knowledge documents;
+- Ticket internal Notes;
+- staff-only Activity/Audit/Security data.
+
+Portal visibility rules belong to the later portal phase rather than being
+implied now.
+
+---
+
+## 18. Prohibited shortcuts
 
 Do not:
 
 - authorise only in React;
-- grant all staff superuser because the team is currently small;
-- create a parallel custom role engine when Django permissions/Groups suffice;
-- treat Brand as an access scope substitute for Client ownership;
-- treat Client access as automatically granting credential reveal;
-- load all records and filter denied ones only after serialisation;
-- allow search/dashboard/calendar endpoints to bypass normal policies;
-- include secrets in audit metadata;
+- give all staff superuser because ADB is currently small;
+- create a competing generic role/ACL engine without a concrete need;
+- treat Brand as Client scope;
+- treat Client access as credential reveal permission;
+- let Ticket default Queue preferences grant Queue access;
+- load all records then remove denied ones client-side;
+- allow Dashboard/Search/Calendar/drawers to bypass normal policies;
+- expose Internal data through an Internal-to-Client Infrastructure relation;
+- put secrets into audit metadata;
 - make future portal visibility implicit.
