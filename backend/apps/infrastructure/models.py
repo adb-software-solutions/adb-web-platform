@@ -39,6 +39,13 @@ from .resource_models import (
     ResourceRelationship,
     ServiceProvider,
 )
+from .specialist_models import (
+    IPAddress,
+    Network,
+    NetworkInterface,
+    ServerProfile,
+    Subnet,
+)
 
 __all__ = [
     "API",
@@ -53,19 +60,24 @@ __all__ = [
     "DomainResourceIdentity",
     "EmailSystem",
     "EmailSystemResourceIdentity",
+    "IPAddress",
     "InfrastructureResource",
     "InfrastructureTag",
     "Licence",
     "LicenceResourceIdentity",
     "MobileApp",
     "MobileAppResourceIdentity",
+    "Network",
+    "NetworkInterface",
     "ProviderAccount",
     "ResourceRelationship",
     "SSLCertificate",
     "SSLCertificateResourceIdentity",
     "Server",
+    "ServerProfile",
     "ServerResourceIdentity",
     "ServiceProvider",
+    "Subnet",
     "Website",
     "WebsiteResourceIdentity",
     "WebsiteTechStack",
