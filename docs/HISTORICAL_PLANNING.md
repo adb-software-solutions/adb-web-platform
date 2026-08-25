@@ -14,8 +14,9 @@ are **historical references, not the current specification**.
 The platform has moved substantially since those plans were written: multiple
 ADB Brands are first-class, the ADB Software Solutions public/admin frontend
 has been consolidated, Ticketing/Graph is implemented, work management is now
-Asana-style, Infrastructure has a structured resource graph, and the secure
-Credential Vault is the active technical feature slice.
+Asana-style, Infrastructure has a structured resource graph, and Credentials
+are managed through the encrypted typed Vault documented in
+`CREDENTIAL_VAULT_ARCHITECTURE.md`.
 
 ---
 
@@ -27,7 +28,8 @@ Use this order when documents disagree:
 2. `docs/PERMISSIONS_AND_ACCESS_MODEL.md` — authorisation and scope.
 3. `docs/DOMAIN_MODEL_AUDIT.md` — current domain/model decisions.
 4. `docs/CURRENT_STATE_AND_FOUNDATION_CHECKLIST.md` — implementation snapshot.
-5. relevant current domain architecture/runbook documents.
+5. current domain architecture/runbook documents, including
+   `docs/CREDENTIAL_VAULT_ARCHITECTURE.md`.
 6. historical root-level planning documents.
 
 A later explicit architectural decision may update the canonical set, but an
@@ -52,6 +54,7 @@ Do not revive the following older assumptions without a new explicit decision:
 - internal ADB work should be represented by a fake Client;
 - Tasks are basic project-only checklist items;
 - Credentials are ordinary plaintext fields;
+- secret values should live directly on Infrastructure/Graph/KB records;
 - technical Infrastructure is a collection of unrelated flat asset tables;
 - each Microsoft 365 Ticket mailbox needs its own app/certificate/RBAC setup;
 - all historical/inactive/closed records should dominate the default register
@@ -102,8 +105,9 @@ not fully represent:
 - structured `InfrastructureResource` identity, Providers and typed
   relationships;
 - explicit legacy Infrastructure reconciliation instead of guessed ownership;
-- encrypted Credential payload/key-ring architecture and the modern Vault
-  feature direction;
+- full typed Credential Vault with encrypted versioned secrets, independent
+  reveal/copy/download permissions, resource links, key rotation and atomic
+  legacy-secret reconciliation;
 - planned Monitoring as checks/results/incidents attached to resources;
 - redesigned linked Knowledge Base direction;
 - later commercial analytics including profitability, Client lifetime value,
@@ -126,10 +130,12 @@ Before implementing an extracted idea:
 
 1. check whether the relevant domain already exists differently on `main`;
 2. check `PLATFORM_MASTER_PLAN.md` and `CURRENT_STATE_AND_FOUNDATION_CHECKLIST.md`;
-3. apply current Client/Internal ownership and access policy;
-4. apply the current-first/workspace/drawer UX doctrine;
-5. do not duplicate a newer canonical model/service;
-6. update canonical documentation if the extracted idea becomes a new explicit
+3. check `CREDENTIAL_VAULT_ARCHITECTURE.md` before adding anything that stores,
+   reveals, copies, downloads or references secret material;
+4. apply current Client/Internal ownership and access policy;
+5. apply the current-first/workspace/drawer UX doctrine;
+6. do not duplicate a newer canonical model/service;
+7. update canonical documentation if the extracted idea becomes a new explicit
    decision.
 
 Chat history can help explain why a decision changed, but the repository docs
