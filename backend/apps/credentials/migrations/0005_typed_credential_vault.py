@@ -185,11 +185,7 @@ def seed_credential_types(
         base = slugify(credential_type.name) or f"credential-type-{credential_type.id}"
         candidate = base[:100]
         suffix = 2
-        while (
-            CredentialType.objects.filter(slug=candidate)
-            .exclude(pk=credential_type.pk)
-            .exists()
-        ):
+        while CredentialType.objects.filter(slug=candidate).exclude(pk=credential_type.pk).exists():
             suffix_text = f"-{suffix}"
             candidate = f"{base[: 100 - len(suffix_text)]}{suffix_text}"
             suffix += 1
