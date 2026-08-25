@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from cryptography.fernet import Fernet
 from django.contrib.auth.models import Permission
 from django.core.exceptions import PermissionDenied
@@ -13,6 +15,7 @@ from apps.credentials.secrets import (
     download_credential_secret,
     load_credential_secrets_for_service,
     merge_credential_secrets,
+    migrate_legacy_plaintext_secrets,
     reveal_credential_secrets,
     rotate_credential_encryption,
     store_credential_secrets,
@@ -192,3 +195,42 @@ class CredentialSecretTests(TestCase):
         event = AuditEvent.objects.get(action="credentials.secret_downloaded")
         self.assertEqual(event.metadata, {"secret_fields": ["private_key"]})
         self.assertNotIn("private-key-data", str(event.metadata))
+
+    def test_legacy_migration_refreshes_and_locks_the_current_row(self) -> None:
+        user = self._grant(self._user("migrate@example.test"), "change_storedcredential")
+        self.credential.password = "legacy-password"
+        self.credential.save(update_fields=["password", "updated_at"])
+        stale_credential = StoredCredential.objects.get(pk=self.credential.pk)
+
+        current_credential = StoredCredential.objects.get(pk=self.credential.pk)
+        with override_settings(CREDENTIAL_ENCRYPTION_KEYS=[self.primary_key]):
+            store_credential_secrets(current_credential, {"notes": "current-encrypted-note"})
+            migrated = migrate_legacy_plaintext_secrets(stale_credential, actor=user)
+
+            current_credential.refresh_from_db()
+            self.assertEqual(
+                load_credential_secrets_for_service(current_credential),
+                {
+                    "notes": "current-encrypted-note",
+                    "password": "legacy-password",
+                },
+            )
+
+        self.assertEqual(migrated, ["password"])
+        self.assertEqual(current_credential.password, "")
+
+    def test_legacy_migration_rolls_back_when_audit_fails(self) -> None:
+        user = self._grant(self._user("rollback@example.test"), "change_storedcredential")
+        self.credential.password = "legacy-password"
+        self.credential.save(update_fields=["password", "updated_at"])
+
+        with (
+            override_settings(CREDENTIAL_ENCRYPTION_KEYS=[self.primary_key]),
+            patch.object(AuditEvent, "record", side_effect=RuntimeError("audit unavailable")),
+            self.assertRaisesMessage(RuntimeError, "audit unavailable"),
+        ):
+            migrate_legacy_plaintext_secrets(self.credential, actor=user)
+
+        self.credential.refresh_from_db()
+        self.assertEqual(self.credential.password, "legacy-password")
+        self.assertEqual(self.credential.encrypted_secret_payload, "")

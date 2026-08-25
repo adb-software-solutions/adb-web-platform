@@ -193,6 +193,7 @@ def migrate_legacy_plaintext_secrets(
     ):
         raise PermissionDenied("You do not have permission to migrate credential secrets.")
 
+    credential = StoredCredential.objects.select_for_update().get(pk=credential.pk)
     legacy = {
         field: str(getattr(credential, field))
         for field in LEGACY_PLAINTEXT_FIELDS
