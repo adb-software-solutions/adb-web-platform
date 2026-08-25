@@ -47,6 +47,14 @@ class CredentialVaultModelTests(TestCase):
         self.assertEqual(private_key["storage"], "secret")
         self.assertTrue(private_key["required"])
 
+    def test_legacy_type_creation_generates_unique_slug(self) -> None:
+        first = CredentialType.objects.create(name="Legacy portal login")
+        second = CredentialType.objects.create(name="API key")
+
+        self.assertEqual(first.slug, "legacy-portal-login")
+        self.assertTrue(second.slug.startswith("api-key-"))
+        self.assertNotEqual(second.slug, CredentialType.objects.get(name="API key or token").slug)
+
     def test_internal_credential_can_link_to_internal_and_client_resources(self) -> None:
         credential = StoredCredential.objects.create(
             ownership_type=OwnershipType.INTERNAL,
