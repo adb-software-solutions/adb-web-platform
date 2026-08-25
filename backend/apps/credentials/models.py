@@ -5,6 +5,7 @@ from typing import Any
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.text import slugify
 
 from apps.core.ownership import OwnershipType, ownership_constraint, validate_ownership
 
@@ -23,6 +24,26 @@ class CredentialType(models.Model):
 
     class Meta:
         ordering = ["sort_order", "name"]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if not self.slug:
+            base = (slugify(self.name) or "credential-type")[:100]
+            candidate = base
+            suffix = 2
+            queryset = type(self).objects.all()
+            if self.pk:
+                queryset = queryset.exclude(pk=self.pk)
+            while queryset.filter(slug=candidate).exists():
+                suffix_text = f"-{suffix}"
+                candidate = f"{base[: 100 - len(suffix_text)]}{suffix_text}"
+                suffix += 1
+            self.slug = candidate
+
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                kwargs["update_fields"] = list(dict.fromkeys([*update_fields, "slug"]))
+
+        super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return self.name
