@@ -1,427 +1,550 @@
 # Current State and Operational Roadmap
 
-This document is the implementation companion to:
+## Purpose
 
-- `docs/PLATFORM_MASTER_PLAN.md` — canonical product/architecture plan;
-- `docs/PERMISSIONS_AND_ACCESS_MODEL.md` — capability and scope rules;
-- `docs/DOMAIN_MODEL_AUDIT.md` — model audit decisions;
-- `docs/TICKETING_ARCHITECTURE.md` — ticketing/communications architecture;
-- `docs/MICROSOFT_GRAPH_TICKETING_SETUP.md` — Microsoft 365/Graph deployment runbook.
+This document is the implementation companion to `PLATFORM_MASTER_PLAN.md`.
+It records what is actually present on `main`, what is implemented only in an
+unmerged feature branch, and what remains in the agreed build sequence.
 
-It records what is actually implemented and, importantly, what is still missing before the public websites become the primary development focus.
+Snapshot for this refresh:
 
-## 1. Current repository topology
+- date: **2026-08-25**;
+- `main`: `2b09629a3b2faf90f8de883c08aedf072e29db2e`;
+- active feature slice: Credential Vault on `feat/credential-vault`.
 
-```text
-backend/
-packages/
-sites/
-    adb-software-solutions/
-    adb-web-designs/
-    adb-technology/
-    auth-adb-software-solutions/
-```
+A feature implemented only in an unmerged branch is not marked as implemented
+on `main` below.
 
-`sites/adb-software-solutions/` is the combined ADB Software Solutions application. Its authenticated operations workspace lives under `/admin`; there is no separate admin application/deployment.
+## 1. Repository/application foundation
 
-The authentication/account application remains separate at `sites/auth-adb-software-solutions/`.
+### Implemented on `main`
 
-## 2. Foundation status
+- [x] One shared Django backend is the business-data/auth/scope authority.
+- [x] Django Ninja is the API layer.
+- [x] PostgreSQL/Redis/Celery foundations are established.
+- [x] ADB Software Solutions, ADB Web Designs and ADB Technology are
+      first-class Brands.
+- [x] ADB Software Solutions public + `/admin` routes share one Next.js app.
+- [x] Authentication/account security is a separate Next.js application.
+- [x] Django session/TOTP/WebAuthn/passkey flows remain authoritative.
+- [x] Tailwind CSS is the frontend styling standard.
+- [x] The operations workspace is dark-only and workflow-oriented.
+- [x] Brand-aware CMS/public content isolation exists.
+- [x] append-only AuditEvent foundation exists.
+- [x] deterministic development seeding and repository CI/devcontainer tooling
+      exist.
 
-### Completed architecture/foundation
+## 2. Platform-wide operational UX rules
 
-- [x] Shared Django backend is the business-data and authorisation authority.
-- [x] Django Ninja is the established API layer.
-- [x] ADB Software Solutions, Web Designs and Technology are first-class Brands.
-- [x] Client/Internal ownership conventions are established.
-- [x] Capability permissions and Client access scopes exist.
-- [x] Append-only AuditEvent foundation exists.
-- [x] CMS content is Brand-aware and public content is isolated by Brand.
-- [x] Authentication frontend has been migrated to Next.js while preserving Django sessions/TOTP/WebAuthn.
-- [x] ADB Software Solutions public/admin topology has been unified into one Next.js app with `/admin`.
-- [x] Internal operations shell, navigation and reusable data-table/state primitives exist.
-- [x] Deterministic development seed data exists.
-- [x] Celery worker/beat and Redis orchestration are available.
-- [x] Devcontainer CI builds on AMD64 and ARM64.
+### Implemented direction
 
-### Documentation/configuration work in progress
+- [x] Active/current/actionable records are the default in the major operational
+      areas already refined.
+- [x] history is retained behind explicit filters/views rather than deleted.
+- [x] shared right-side Task/Record drawer patterns preserve list/workspace
+      context.
+- [x] full-page deep links remain available for refresh/bookmark/complex work.
+- [x] data-heavy operational pages use server-side pagination/filtering/sorting
+      and statistics where implemented.
+- [x] Client/Internal ownership is a first-class platform rule.
+- [x] Django capability + scope remains authoritative regardless of frontend
+      visibility.
 
-- [x] Replace stale separate-admin architecture in canonical plans.
-- [x] Record the expanded operational roadmap before public-site focus.
-- [x] Mark obsolete root planning docs as superseded.
-- [x] Add a full Microsoft Graph / Exchange RBAC deployment runbook.
-- [ ] Keep the runbook updated if Graph credential/storage or mailbox UI changes.
+### Apply consistently to future work
 
-## 3. Ticketing and communications
+- [ ] keep KB, Monitoring, commercial records and later portal/admin surfaces
+      current-first where that domain has meaningful lifecycle/history.
+- [ ] persist cross-device user preferences server-side rather than defaulting
+      to browser-only storage.
 
-The ticketing foundation is implemented end-to-end and is no longer a future-only phase.
+## 3. Clients and Contacts
 
-### Implemented
+### Implemented on `main`
 
-- [x] TicketQueue, Ticket, TicketMessage, TicketNote and TicketAttachment domains.
-- [x] queue/client permission scoping.
-- [x] paginated/filterable Ticket APIs and list/detail workspace.
-- [x] assignment, status, priority and queue operations.
-- [x] internal notes and customer replies.
-- [x] Client and Contact Ticket context.
-- [x] MicrosoftGraphConnection and Mailbox configuration.
-- [x] encrypted integration credential support.
-- [x] certificate/client-secret app-only Graph authentication.
-- [x] Shared Mailbox verification before save.
-- [x] Graph delta sync, persisted cursors and worker locking.
-- [x] inbound message normalisation/thread matching.
-- [x] outbound Graph replies with Celery retries/duplicate-send controls.
-- [x] website contact-form Lead -> canonical Ticket ingestion.
-- [x] deterministic classification/routing and probable-spam quarantine behaviour.
-- [x] database-backed Vendor + VendorSenderRule routing.
-- [x] attachment quarantine, filename/size/hash/MIME policy.
-- [x] optional ClamAV malware scanning with central-scanner support.
-- [x] attachment download policy exposed to the UI.
+- [x] Client create/edit lifecycle management.
+- [x] Active/Inactive/Archived Client lifecycle.
+- [x] global Client overview defaults to Active Clients.
+- [x] Client overview statistics, filtering and server-side pagination.
+- [x] Client records can open in a right-side record drawer.
+- [x] ClientContact create/edit/deactivate.
+- [x] Primary/Billing/Technical contact semantics.
+- [x] Client workspace shows active contacts by default with explicit inactive
+      history.
+- [x] Contact routes open a Contact workspace rather than only an edit form.
+- [x] Contact workspace exposes Contact-specific Tickets.
+- [x] Client workspace exposes current Projects and keeps archived projects out
+      of the default view while retaining completed project history.
+- [x] Client/Contact email identity participates in Ticket sender resolution.
+- [x] Client workspace has foundations for Projects/Tickets and newer
+      Infrastructure integration.
 
-### Follow-up ticket refinements
+### Next Client Command Centre work
 
-These are not prerequisites for starting other operational modules, but remain useful follow-up work:
+- [ ] consolidate Overview/Contacts/Projects/Tasks/Tickets/Time/Infrastructure/
+      Credentials/Knowledge into one coherent Client navigation model.
+- [ ] surface current work/open communication/technical state first within each
+      section.
+- [ ] add Client period summaries, especially tracked/billable Time.
+- [ ] add permission-aware contextual create actions.
+- [ ] add useful Client Activity/history.
+- [ ] add commercial history later without turning Client into a giant
+      unstructured page.
 
-- [ ] harden ambiguous Graph-send idempotency for the rare case where Graph accepts a send but the worker loses the response before persistence;
-- [ ] continue improving operational ticket search/filter/automation as real usage identifies needs;
-- [ ] add richer links from Tickets into Tasks/Time/KB/Infrastructure as those modules mature;
-- [ ] add notification preferences/agent notifications when the broader notification system is designed.
+## 4. CRM / Leads
 
-## 4. Clients and Contacts
+### Implemented on `main`
 
-### Implemented
+- [x] Lead create/edit/detail/workspace.
+- [x] Lead ownership/assignment.
+- [x] explicit `open` / `won` / `lost` outcome semantics on LeadStatus.
+- [x] default Lead view is My active/open Leads.
+- [x] Unassigned and All Active operational views.
+- [x] Won/Lost/All Leads history views.
+- [x] server-side Lead statistics, filtering and pagination.
+- [x] Lead records open in a right-side drawer.
+- [x] Lead edit can occur inside the drawer.
+- [x] website contact submissions create Leads and canonical Tickets.
+- [x] matching inbound/outbound Ticket communication appears on the Lead.
+- [x] Lead email sends through configured Microsoft 365 Shared Mailboxes using
+      the Ticket/Graph layer; there is no parallel `mailto:` workflow.
+- [x] Lead -> Client + primary Contact conversion retains related Ticket and
+      communication history.
 
-- [x] Client and ClientContact models.
-- [x] Client permission/scope policy foundation.
-- [x] Client list/register API/UI.
-- [x] Client detail workspace foundation.
-- [x] Client contacts/projects/tickets can be surfaced in context.
-- [x] Contact email matching participates in inbound Ticket resolution.
-- [x] create and edit Clients from the custom operations UI.
-- [x] archive/reactivate Clients through the account lifecycle status.
-- [x] create/edit/deactivate contacts.
-- [x] manage primary, billing and technical contact semantics.
+### Remaining/refinement
 
-### Missing for day-to-day use
+- [ ] stronger manual contact matching/deduplication where sender matching is
+      insufficient.
+- [ ] explicit manual conversation linkage only if real usage shows it is
+      needed.
+- [ ] add commercial value/follow-up metadata in the commercial/analytics phase
+      rather than speculatively duplicating future models now.
 
-- [ ] improve Client detail into the main operational hub.
-- [ ] add Client sections for Infrastructure, KB, Credentials, Tasks and Time.
-- [ ] add Client period summaries (especially time by week/month).
-- [ ] permission-aware quick actions from the Client workspace.
+## 5. Projects
 
-## 5. CRM / Leads
+### Implemented on `main`
 
-### Implemented
+- [x] Client/Internal Project ownership.
+- [x] create/edit/status/archive lifecycle.
+- [x] current global Project views default to Planning/Active/Paused.
+- [x] Completed/Archived/All are explicit history views.
+- [x] Project workspace is work-first rather than metadata-first.
+- [x] Work, Timeline, Overview and Time tabs.
+- [x] Project List/Board work surfaces.
+- [x] quick Task creation inside Project workflow columns.
+- [x] persistent card ordering and drag/drop.
+- [x] `No task list` handling for unorganised Project Tasks.
+- [x] inline Task completion/reopen controls.
+- [x] dependency-aware Project Timeline with Day/Week/Month zoom.
+- [x] dated Subtasks appear in the Project Timeline.
+- [x] dependency connector arrows and blocked/completed visual state.
+- [x] Project Time ledger with tracked/billable/non-billable totals and related
+      work context.
 
-- [x] Lead domain foundation and Brand/source concepts.
-- [x] Lead list/register foundation.
-- [x] website contact form creates a Lead.
-- [x] new Contact Form Leads feed the canonical Ticket ingestion path.
-- [x] Lead/ticket creation is idempotent and public lead capture fails open if ticket routing fails.
-- [x] Lead detail workspace.
-- [x] create Lead manually.
-- [x] edit Lead.
-- [x] owner/assignee workflows with dedicated capability permission.
-- [x] matching Ticket/email history visible from the Lead.
-- [x] Lead -> Client/primary Contact conversion while retaining Lead and Ticket/communication history.
+### Remaining/refinement
 
-### Missing
+- [ ] first-class Project milestones where the current Task/date model is not
+      sufficient.
+- [ ] Project participants/ownership only if real collaboration workflows need
+      more than existing assignment/context.
+- [ ] richer contextual Tickets/KB/Infrastructure links as those domains
+      mature.
 
-- [ ] archive/close Lead lifecycle beyond normal pipeline status changes.
-- [ ] practical pipeline/list/filter views.
-- [ ] explicit manual ticket/email linking for Leads when sender matching is insufficient.
-- [ ] contact deduplication/matching workflows.
-- [ ] optional value/currency/follow-up metadata where useful.
+## 6. Tasks / ADB work management
 
-## 6. Projects
+### Implemented on `main`
 
-### Implemented
-
-- [x] operational Project model separated from public Portfolio/CaseStudy.
-- [x] Project register/list foundation.
-- [x] Client/Internal ownership and scoped visibility.
-- [x] Project detail workspace.
-- [x] create Project.
-- [x] edit Project.
-- [x] archive/change status through the Project lifecycle status.
-- [x] Client/Internal project workflows.
-- [x] start/end dates and budget/hourly-rate metadata.
-- [x] permission-aware related Task counts/open-task summary.
-- [x] permission-aware related Time-entry count and tracked/billable-hour summary.
-- [x] ownership changes are blocked when linked Tasks, Task Lists or Time entries would become inconsistent.
-- [x] Project workspaces expose real Task Lists, Sections and Tasks rather than summary counts alone.
-- [x] Project Task workspace supports List, Board and Timeline views.
-- [x] Project Task Board moves are permission-aware and preserve ownership/project boundaries.
-- [x] Project-originated Task creation preserves Project ownership/context.
-- [x] Project-originated Time Tracking preserves Project context.
-
-### Missing
-
-- [ ] milestones and project ownership/participants where useful.
-- [ ] richer embedded Time entry list/reporting inside the Project workspace.
-- [ ] related Tickets/KB/Infrastructure links.
-- [ ] inline project-centric timer controls without leaving the Project workspace.
-
-## 7. Tasks
-
-### Implemented
-
-- [x] Task model/domain foundation.
-- [x] standalone Client/Internal Tasks do not require Projects.
-- [x] paginated Task register/list with search, ownership and completion filtering.
-- [x] scoped create/edit/detail workflows.
-- [x] Project, Client and Task List context-aware creation.
-- [x] assignment, status, priority, start date and due date workflows.
-- [x] complete and reopen actions with capability enforcement.
-- [x] daily, weekly and monthly recurrence configuration.
-- [x] completing a recurring occurrence materialises the next Task while preserving occurrence history.
+- [x] Tasks may be standalone Internal, Client-owned or Project-owned.
+- [x] My Tasks is the default global Task experience.
+- [x] Today, Upcoming, Overdue, Completed and All Tasks focus views.
+- [x] server-authoritative counts for focus views.
+- [x] quick capture with Internal/Client/Project context and due-date shortcuts.
+- [x] quick-captured Tasks assign to the current user.
+- [x] shared Task drawer used across work-management surfaces.
+- [x] direct editing of title, description, assignee, priority, start/due dates.
+- [x] structural Planning & organisation fields available in the Task workspace.
 - [x] Client/Internal/Project Task Lists and ordered Sections.
-- [x] Task List List, Board and Timeline views.
-- [x] permission-aware Task drag/drop and ordering across Sections/Task Lists within valid ownership context.
+- [x] List/Board/Timeline Task List workspaces.
+- [x] Section rename/reorder.
+- [x] quick add inside Board/Sections.
+- [x] Task ordering/cross-section drag/drop inside valid ownership context.
 - [x] Subtasks with inherited work context.
-- [x] explicit blocking Dependencies.
-- [x] Task detail workspace with recurrence history and related work context.
-- [x] related Time panel and context-prefilled Time Tracking action.
-- [x] Project workspace Task integration.
+- [x] blocking dependencies and cycle detection.
+- [x] daily/weekly/monthly recurrence.
+- [x] completing a recurring occurrence materialises the next occurrence while
+      preserving history.
+- [x] Task comments/discussion.
+- [x] completion/reopen controls in My Tasks, Project and Task List surfaces.
+- [x] embedded live timer and Task time history.
 
-### Missing
+### Remaining/refinement
 
-- [ ] delete/archive Task according to lifecycle rules.
-- [ ] dedicated list modes: My Tasks, Today, Upcoming and Overdue.
-- [ ] richer register filters by Client, Project, assignee, status and priority.
-- [ ] future Ticket-linked Task creation/relationships where useful.
-- [ ] inline task-centric timer controls without leaving the Task workspace.
-- [ ] Calendar integration.
+- [ ] agree long-term delete/archive semantics for Tasks if needed beyond
+      completion/history.
+- [ ] explicit Ticket-linked Tasks only when the workflow is designed; do not
+      bolt it on as a loose nullable FK without UX.
+- [ ] notification/escalation behaviour later.
 
-## 8. Calendar / work planning
+## 7. Calendar / planning
 
-### Current status
+### Implemented on `main`
 
-There is no complete operations calendar yet.
+- [x] permission-aware Calendar API/workspace foundation.
+- [x] dated Task and Project work can be shown on the Calendar.
+- [x] Client/Project/source filtering foundations.
+- [x] Task links preserve Task-drawer context.
 
-### Required
+### Remaining/refinement
 
-- [ ] day/week/month calendar views.
-- [ ] aggregate Task due/start dates.
-- [ ] aggregate Project milestones/deadlines.
-- [ ] support recurring work once materialised.
-- [ ] filter by user, Client, Project and source type.
-- [ ] permission-aware event loading.
-- [ ] design a first-class Event/Meeting domain later without pretending every Task is an Event.
-- [ ] leave a clean integration path for external calendars if/when that becomes useful.
+- [ ] richer day/week operational planning where useful.
+- [ ] stronger first-class Project milestone support.
+- [ ] design a real Event/Meeting domain later rather than pretending Tasks are
+      Events.
+- [ ] external calendar integration only after an explicit design decision.
 
-## 9. Time tracking
+## 8. Time Tracking
 
-### Implemented
+### Implemented on `main`
 
-- [x] TimeEntry domain for manual and timer-recorded work.
+- [x] manual Time Entries.
 - [x] Client/Internal ownership with Internal time forced non-billable.
-- [x] direct Client association for valid non-project work.
-- [x] Project, Task and Ticket attribution with context-derived ownership.
-- [x] manual Time entry creation.
-- [x] persistent server-side RunningTimer model/lifecycle.
-- [x] one active RunningTimer per staff user.
-- [x] Start, Stop and Cancel timer actions.
-- [x] backend-calculated stopped-timer duration persisted as a durable TimeEntry.
-- [x] context-prefilled Time Tracking from Project, Task and Ticket workspaces.
-- [x] paginated Time history with tracked/billable/non-billable totals.
-- [x] period reporting with Client filtering and daily tracked/billable series.
-- [x] Project summary totals and Task/Ticket contextual Time panels.
-- [x] permission-aware recording UI separate from Time viewing/reporting capability.
+- [x] Project/Task/Ticket attribution and valid direct Client context.
+- [x] persistent server-side RunningTimer.
+- [x] one active timer per staff user.
+- [x] backend-calculated Start/Stop/Cancel lifecycle.
+- [x] Task live timer.
+- [x] Ticket live timer.
+- [x] contextual Time panels/history on Task/Ticket/Project surfaces.
+- [x] Time Tracking workspace starts with active timer and compact Start/Add
+      Manually controls.
+- [x] Time browsing is by Client/Project/Internal rather than a giant global
+      history table.
+- [x] period filters include This Week, Last Week, 30 Days, This Month, Last
+      Month and This Year.
+- [x] scoped entry/report APIs and tracked/billable/non-billable summaries.
+- [x] timer stop falls back to useful contextual descriptions when the user
+      leaves the description blank.
 
-### Missing
+### Remaining/refinement
 
-- [ ] edit Time entries.
-- [ ] delete Time entries subject to permissions/audit rules.
-- [ ] inline Start/Stop controls directly inside Project, Task and Ticket workspaces.
-- [ ] richer staff/user breakdowns and operational reporting where useful.
-- [ ] Client workspace Time reporting by week/month/custom range.
-- [ ] richer embedded Project Time history/reporting.
-- [ ] future billable/invoice linkage without making invoicing a current dependency.
+- [ ] edit/delete Time Entries with clear permission/audit policy.
+- [ ] richer staff breakdown/reporting where useful.
+- [ ] Client Command Centre period summaries.
+- [ ] future invoice/commercial linkage without making invoicing a current Time
+      dependency.
 
-## 10. Knowledge Base
+## 9. Ticketing and communications
 
-### Implemented
+### Implemented on `main`
 
-- [x] Knowledge Base model/register foundation.
-- [x] Client/Internal ownership foundation.
-- [x] permission/scoping foundation.
+- [x] TicketQueue, Ticket, TicketMessage, TicketNote and TicketAttachment.
+- [x] Client + Ticket Queue capability/scope enforcement.
+- [x] main Ticket page uses a dedicated operational focus API rather than the
+      generic history/scoped collection API.
+- [x] My Tickets is the default work queue.
+- [x] Unassigned and All Active views.
+- [x] Resolved/Closed/All Tickets history.
+- [x] enabled Queue navigation as a first-class sidebar concern.
+- [x] per-user default Ticket Queues stored on StaffAccessProfile.
+- [x] empty stored queue preference means all accessible enabled queues.
+- [x] Ticket sorting by operational priority, update time, priority, creation
+      and subject.
+- [x] Ticket records can open in the shared right-side drawer.
+- [x] Ticket detail retains full controls and live timer.
+- [x] Internal Notes are merged chronologically into the message conversation
+      as visibly distinct staff-only cards.
+- [x] Graph connection and Shared Mailbox configuration.
+- [x] certificate/client-secret app-only Graph support.
+- [x] Shared Mailbox verification.
+- [x] persisted delta sync/cursors and worker locking.
+- [x] inbound normalisation/thread matching/idempotency.
+- [x] outbound replies/new Lead email through Graph/Celery.
+- [x] website contact forms feed canonical Ticket ingestion.
+- [x] deterministic routing/classification.
+- [x] database-backed Vendor/service sender routing.
+- [x] attachment quarantine/policy plus optional ClamAV scanning.
 
-### Missing
+### Remaining/refinement
 
-- [ ] create/edit/archive/delete-policy workflow.
-- [ ] document detail/read experience.
-- [ ] categories/sections/tags.
-- [ ] controlled Markdown/rich-text editing.
-- [ ] attachments where justified.
-- [ ] author/editor metadata in UI.
-- [ ] version/change history.
-- [ ] Client-context navigation.
-- [ ] links to Tickets, Projects and Infrastructure.
-- [ ] global and Client-context search.
-- [ ] explicit future portal visibility, private by default.
+- [ ] harden the rare ambiguous-send case where Graph accepts mail but the
+      worker loses the provider response before local persistence.
+- [ ] notification/SLA/escalation behaviour later.
+- [ ] richer cross-links into Tasks/KB/Infrastructure as surrounding domains
+      mature.
 
-## 11. Credentials vault
+## 10. Microsoft 365 deployment model
 
-### Implemented
+### Established architecture
 
-- [x] StoredCredential model.
+- [x] one tenant/app-level MicrosoftGraphConnection can serve many Shared
+      Mailboxes.
+- [x] production prefers certificate-based app-only authentication.
+- [x] Exchange Online RBAC for Applications is the Microsoft-side mailbox
+      boundary.
+- [x] enabled database Mailbox rows are the narrower operational allow-list.
+- [x] licensed user mailboxes are not intended Ticket sources.
+
+### Current ADB default
+
+- [x] the preferred normal ADB Exchange management scope is dynamic across
+      `RecipientTypeDetails -eq 'SharedMailbox'` so newly created Shared
+      Mailboxes do not need a new RBAC rule/assignment.
+- [x] adding a new Ticket mailbox should reuse the existing Graph connection and
+      certificate; the operator configures/verifies the mailbox in ADB rather
+      than re-entering Microsoft app credentials.
+
+See `MICROSOFT_GRAPH_TICKETING_SETUP.md` for the runbook.
+
+## 11. Infrastructure
+
+### Implemented on `main`
+
+- [x] `InfrastructureResource` common identity.
 - [x] Client/Internal ownership.
-- [x] encrypted secret payload service using Fernet/MultiFernet.
-- [x] environment-managed encryption keys.
-- [x] separate view/reveal/copy capabilities.
-- [x] service-level decryption path for integrations such as Microsoft Graph.
-- [x] audit support for user secret reveal/copy.
-- [x] metadata register/list foundation.
+- [x] lifecycle/environment/criticality/current-first filtering.
+- [x] resource tags.
+- [x] `ServiceProvider`.
+- [x] resource-backed `ProviderAccount`.
+- [x] typed `ResourceRelationship` topology.
+- [x] ownership and cross-Client relationship validation.
+- [x] permission-aware global/Client resource collections and details.
+- [x] typed one-to-one legacy specialist identity bridges.
+- [x] explicit `reconcile_legacy_infrastructure` capability.
+- [x] operator-driven reconciliation with no guessed ownership.
+- [x] reconciliation workspace with Unlinked/Linked/All history.
+- [x] specialist safe metadata projection that excludes secret-bearing legacy
+      fields.
+- [x] structured resource drawer/full-page workspaces.
+- [x] relationship create/delete management with backend validation.
+- [x] Client-context Infrastructure workspace.
+
+### Next technical slices
+
+- [ ] safe create/edit/archive flows for mature structured specialists rather
+      than extending legacy registers indefinitely.
+- [ ] core Server/compute/network structures.
+- [ ] Database instance/logical database structures.
+- [ ] logical Application/Environment/source/dependency structures.
+- [ ] Website/Domain/DNS/TLS structures.
+- [ ] Monitoring checks/history/incidents.
+- [ ] Docker/Kubernetes and later specialist operations resources.
+
+## 12. Credential Vault
+
+### Implemented on `main`
+
+- [x] StoredCredential model and Client/Internal ownership foundation.
+- [x] encrypted secret payload service.
+- [x] environment-managed MultiFernet key ring.
+- [x] metadata register foundation.
+- [x] separate service/user secret paths and audit foundations.
+
+### Implemented in the active feature branch, not yet on `main`
+
+- [ ] typed credential templates for passwords, SSH, DB, API/OAuth, service
+      accounts, certificates, licences, recovery/encryption/custom secrets.
+- [ ] Active/Inactive/Archived lifecycle and Active-first operational views.
+- [ ] permission-aware secure CRUD.
+- [ ] separate reveal/copy/download operations and audit paths.
+- [ ] safe browser handling for revealed secrets.
+- [ ] Infrastructure resource links with Client-boundary validation.
+- [ ] Client and Infrastructure contextual Credential registers.
+- [ ] atomic legacy plaintext -> encrypted payload reconciliation.
+- [ ] expiry/rotation metadata.
+
+These items should become `[x]` only after the Credential Vault feature merges.
+
+### Later Vault work
+
+- [ ] remove reconciled legacy plaintext columns when production migration is
+      verified.
+- [ ] scheduled expiry/rotation reminders and health reporting.
+- [ ] bulk key-rotation tooling/reporting.
+- [ ] richer template administration only if actually needed.
+
+## 13. Knowledge Base
+
+### Implemented on `main`
+
+- [x] existing KB model/register foundation.
+- [x] Client/Internal ownership and permission foundations.
+- [x] version-history model foundation.
+
+### Agreed redesign / missing
+
+- [ ] filesystem-like folder/section tree.
+- [ ] proper document read/workspace experience.
+- [ ] Markdown or controlled rich-text editor.
+- [ ] immutable version creation through domain services.
+- [ ] author/editor context.
+- [ ] attachments where appropriate.
+- [ ] tags/search metadata.
+- [ ] Infrastructure/Project/Ticket/Credential links where operationally useful.
+- [ ] Client/resource contextual navigation.
+- [ ] global and Client-context permission-aware search.
+- [ ] future portal visibility explicit and private by default.
+
+The KB redesign follows the current technical Infrastructure/Monitoring run.
+
+## 14. Monitoring
+
+### Current state
+
+There is not yet a mature Monitoring subsystem on `main`.
+
+### Agreed target
+
+- [ ] MonitorCheck/domain model attached to structured resources.
+- [ ] ICMP, TCP, HTTP/HTTPS, content, TLS, DNS and domain-expiry checks.
+- [ ] schedules/timeouts/failure/recovery thresholds/severity.
+- [ ] historical results.
+- [ ] incidents representing failure -> recovery periods.
+- [ ] Celery Beat/worker execution through reusable monitoring services.
+- [ ] current-first global and Client technical health views.
+- [ ] uptime/response history and expiry dashboards.
+- [ ] Credential references for checks that require authentication.
+
+## 15. Users & Access
+
+### Backend foundation implemented
+
+- [x] Django Groups/Permissions capability model.
+- [x] StaffAccessProfile.
+- [x] all/selected Client scope.
+- [x] all/selected Ticket Queue scope.
+- [x] default Ticket Queue preference on StaffAccessProfile.
+- [x] reusable scope-policy helpers.
+
+### Missing custom operations experience
+
+- [ ] complete the Users & Access workspace/route.
+- [ ] staff list/detail.
+- [ ] create/invite/activate/deactivate according to identity policy.
+- [ ] Group/capability administration.
+- [ ] Client scope administration.
+- [ ] Ticket Queue scope administration.
+- [ ] clear effective-access display.
+- [ ] audit access changes.
+- [ ] complete permission-boundary tests around administration APIs.
+
+Routine staff administration must not depend on Django superuser access.
+
+## 16. Dashboard / My Work
+
+### Implemented on `main`
+
+- [x] initial fixed operational dashboard/API foundation.
 
 ### Missing
 
-- [ ] custom operations UI to create credentials securely.
-- [ ] edit metadata.
-- [ ] replace/rotate secret values.
-- [ ] reveal UX.
-- [ ] copy UX.
-- [ ] expiry/rotation reminders/metadata.
-- [ ] relationships to Infrastructure/Application records.
-- [ ] Client-context credential navigation.
-- [ ] search metadata only, never secret content.
-- [ ] remove/deprecate remaining legacy plaintext-field use before production credential migration.
-
-The Microsoft Graph bootstrap runbook currently documents a safe shell/service bootstrap path because full credential CRUD UI is not yet complete.
-
-## 12. Infrastructure inventory
-
-### Implemented
-
-- [x] structured model foundation covering Servers, Databases, Websites, Domains, SSL Certificates, Licences, Applications and related operational resource types.
-- [x] Infrastructure overview/register foundations.
-- [x] Client/Internal ownership conventions.
-
-### Missing
-
-- [ ] full create/edit/archive workflows across resource types.
-- [ ] useful detail workspaces.
-- [ ] relationships among Application, Website, API, Database, Server, Domain, Licence and Certificate records.
-- [ ] Credential links instead of duplicated secrets.
-- [ ] KB/document links.
-- [ ] Client-context Infrastructure views.
-- [ ] expiry/renewal operational views and dashboard widgets.
-- [ ] global/client search.
-
-## 13. Users and Access
-
-### Current problem
-
-The custom operations navigation includes Users & Access but the route currently resolves to 404. This is a priority operational defect/feature gap.
-
-### Required
-
-- [ ] create a working Users & Access route/workspace.
-- [ ] staff user list/detail.
-- [ ] create/invite/activate/deactivate according to the existing identity model.
-- [ ] Group/capability permission management.
-- [ ] Client scope management.
-- [ ] Ticket Queue scope management.
-- [ ] clear effective-permission display.
-- [ ] audit permission/scope changes.
-- [ ] backend permission-boundary tests.
-
-Routine staff administration must not require making users Django superusers.
-
-## 14. Dashboard
-
-### Implemented
-
-- [x] initial operational dashboard/API with fixed summary content.
-
-### Missing
-
-- [ ] configurable widget catalogue.
-- [ ] per-user persisted dashboard layout/configuration.
-- [ ] reorder/move/resize where practical.
-- [ ] widget permission filtering.
-- [ ] Ticket Queue widget configurable to a selected queue.
-- [ ] Assigned-to-me Ticket widget.
-- [ ] unassigned/overdue/open Ticket widgets.
+- [ ] permission-aware widget catalogue.
+- [ ] per-user server-persisted layout/configuration.
+- [ ] reorder/move/resize where useful.
+- [ ] My Tickets / selected Queue widgets.
 - [ ] My Tasks/Overdue/Upcoming widgets.
-- [ ] active timer/recent Time widgets.
-- [ ] Lead follow-up widgets.
-- [ ] Project milestone/status widgets.
-- [ ] Infrastructure expiry/renewal widgets.
-- [ ] calendar agenda widget.
+- [ ] active timer/recent Time.
+- [ ] Leads needing follow-up.
+- [ ] Project work/milestones.
+- [ ] Monitoring/Infrastructure incidents/expiry.
+- [ ] Calendar agenda.
 
-Widgets must query through normal scoped backend services/APIs rather than bypassing access rules.
+## 17. Search, Activity, notifications and SLA polish
 
-## 15. Client workspace completion target
+### Missing / later
 
-A Client should ultimately be one of the most useful pages in the entire platform.
+- [ ] unified permission-aware global search.
+- [ ] Client-context search across mature domains.
+- [ ] metadata-only Credential search.
+- [ ] Client/resource Activity timeline.
+- [ ] topology/navigation polish across Infrastructure/KB/Credentials.
+- [ ] notification preferences and agent notifications.
+- [ ] SLA/escalation behaviour once Ticket workflows are stable in real usage.
+- [ ] richer Calendar/Event integration.
 
-From a Client, authorised staff should be able to access:
+PostgreSQL search is acceptable initially; do not add dedicated search
+infrastructure without a real need.
 
-- [x] basic Client details.
-- [x] Contacts foundation.
-- [x] Tickets foundation.
-- [x] Projects foundation.
-- [ ] Leads/sales history where relevant.
-- [ ] Infrastructure.
-- [ ] Knowledge Base.
-- [ ] Credentials.
-- [ ] Tasks.
-- [ ] Time entries.
-- [ ] Time totals by week/month/custom period.
-- [ ] activity/history.
-- [ ] contextual create actions for Project/Task/Time/KB/Infrastructure/Credential where permission permits.
+## 18. Commercial and analytics layer
 
-Related data must remain permission-scoped. Client context enriches navigation; it does not widen access.
+### Agreed future scope, not implemented yet
 
-## 16. Public websites
+- [ ] products/services catalogue.
+- [ ] recurring services.
+- [ ] quotes/proposals.
+- [ ] contracts.
+- [ ] invoices/billing.
+- [ ] Stripe/payment tracking.
+- [ ] profitability reporting.
+- [ ] Client lifetime value.
+- [ ] time-versus-pay/revenue analysis.
+- [ ] Lead-source conversion and revenue attribution.
 
-The public-site CMS/content plumbing and contact-form ingestion foundations exist, but the public websites are **not the next main phase**.
+Detailed signing/accounting/tax/retainer/forecasting/SLA models are not yet
+agreed and should not be invented during unrelated implementation work.
 
-Primary public-site feature development is deferred until the internal operational platform has completed the core items in sections 4–15 sufficiently to run normal ADB work.
+## 19. Public websites
 
-Public-site fixes, security work and stable integration changes can still happen opportunistically.
+### Foundation implemented
 
-## 17. Ordered implementation sequence
+- [x] Brand-aware CMS/public API isolation.
+- [x] contact-form Brand/source ingestion into Lead + Ticket pipeline.
+- [x] separate public Next.js applications exist.
 
-This is the current intended sequence, subject to normal small adjustments as implementation reveals dependencies:
+### Primary build focus deferred
 
-1. **Stabilise the implemented operational core**
-    - keep Clients/Contacts, Leads, Projects, Tasks, Time Tracking and Ticketing contracts coherent;
-    - reconcile current-state documentation as slices land;
-    - keep CI/security/dependency health green.
-2. **Users & Access + Client workspace integration**
-    - repair the Users & Access 404 with usable capability/scope administration;
-    - expose Tasks, Time and other mature operational domains through the Client hub;
-    - add permission-aware Client quick actions and period summaries.
-3. **Knowledge Base + Credentials + Infrastructure**
-    - IT Glue-style CRUD/detail/search/relationships;
-    - secure vault reveal/copy/rotation;
-    - connect operational resources through Client context.
-4. **Calendar / work planning**
-    - aggregate Task dates and later Project milestones/events;
-    - add useful day/week/month planning views and filters.
-5. **Integrated operational refinements + configurable Dashboard**
-    - complete remaining cross-domain links and useful CRM/project refinements;
-    - add user-configurable, permission-aware dashboard widgets/layouts.
-6. **Public websites**
-    - complete the three brand sites against stable platform contracts.
-7. **Later commercial/client-facing features**
-    - portal, quotes, contracts, invoicing, Stripe/payments.
+- [ ] complete each Brand's public experience after the internal platform and
+      agreed commercial contracts are stable enough not to be repeatedly
+      redesigned underneath it.
 
-## 18. Definition of internal-platform readiness for public-site focus
+Security/fix/integration work may still happen opportunistically.
 
-The internal platform does not need every imaginable feature before public-site work, but it should meet this practical gate:
+## 20. Client portal
 
-- Clients and Contacts can be created/edited/managed in the custom UI;
-- Leads can be viewed/managed and their communication relationship is visible;
-- Projects and Tasks have usable detail/CRUD/workflow screens;
-- Users & Access works;
-- Knowledge Base/Credentials/Infrastructure have functional CRUD/detail workflows;
-- Time supports manual entries and start/stop timers with contextual links;
-- Calendar provides useful work planning;
-- Client workspace exposes the major related operational domains;
-- dashboard is materially useful and at least supports configurable/persisted widgets;
-- CI/security/dependency health is green.
+### Deferred
 
-At that point the internal platform is sufficiently coherent that the public sites can be built without repeatedly redesigning the operational contracts underneath them.
+- [ ] design explicit portal identity link to ClientContact.
+- [ ] design per-domain portal visibility.
+- [ ] expose only deliberately Client-visible Tickets/Projects/Documents/etc.
+- [ ] never expose Internal resources, credential secrets, Ticket Notes or
+      staff-only audit/security data implicitly.
+
+## 21. Current ordered implementation sequence
+
+1. **Finish and merge Credential Vault.**
+2. **Core typed Infrastructure** — Server/network/Database/Application
+   structures and safe specialist CRUD.
+3. **Web Infrastructure** — Website/Domain/DNS/TLS/provider context.
+4. **Monitoring + technical dashboards.**
+5. **Knowledge Base redesign + resource links/search foundations.**
+6. **Docker/Kubernetes + storage/backups/services/scheduled jobs.**
+7. **Client Command Centre integration pass.**
+8. **Users & Access custom operations UI.**
+9. **Dashboard / My Work configurable widgets.**
+10. **Unified search/topology/activity/audit/notifications/SLA/Calendar polish.**
+11. **Commercial + analytics layer.**
+12. **Public websites as primary focus.**
+13. **Client portal.**
+
+Small dependency-driven slices may move, but major order changes should update
+`PLATFORM_MASTER_PLAN.md` and this checklist.
+
+## 22. Internal-platform readiness gate
+
+Before the public websites become the main sustained focus, the platform should
+be capable of normal ADB operations without relying on several parallel tools:
+
+- Clients/Contacts managed through the custom UI;
+- Leads and tracked communication usable day to day;
+- Projects/Tasks/Time usable as ADB's work-management system;
+- Ticketing/Graph mail usable as the communication system;
+- Infrastructure/Credentials/Knowledge usable as the technical documentation
+  system;
+- Monitoring surfaces current technical health;
+- Client Command Centre exposes the major operational context;
+- Users & Access is safe and usable;
+- Dashboard/My Work is materially useful;
+- cross-domain search/navigation is coherent;
+- CI/security/dependency health remains green.
+
+The platform does not need every speculative future feature before that gate.
+Commercial functionality is its own later phase and the Client portal follows
+only when internal/commercial visibility rules are mature.

@@ -1,136 +1,171 @@
-# Infrastructure, Credentials and Knowledge Architecture
+# Infrastructure, Credentials, Knowledge and Monitoring Architecture
 
 ## Purpose
 
-This document defines the structured technical-operations architecture for the ADB Business Platform. It should be read with:
+This document defines the technical-operations architecture for the ADB
+Business Platform. Read it with:
 
 - `PLATFORM_MASTER_PLAN.md`;
 - `PERMISSIONS_AND_ACCESS_MODEL.md`;
 - `DOMAIN_MODEL_AUDIT.md`;
 - `CURRENT_STATE_AND_FOUNDATION_CHECKLIST.md`.
 
-The target is an IT Glue-style operational workspace for software development, web delivery, DevOps, Linux/system administration and technical support. It is not intended to be a generic asset table or a collection of disconnected CRUD registers.
+The target is an IT Glue-style workspace for software development, web
+delivery, DevOps, Linux/system administration and technical support.
 
-The key product requirement is contextual navigation. From a technical resource, authorised staff should be able to understand what it is, who owns it, what it depends on, what depends on it, how it is accessed, how it is monitored and where its documentation lives.
+It is **not** a generic asset table and it is not a set of disconnected CRUD
+registers. The product goal is contextual technical navigation: from a resource,
+an authorised operator should be able to understand what it is, who owns it,
+what it depends on, what depends on it, how it is accessed, how it is monitored
+and where its documentation lives.
 
-## 1. Core resource architecture
+---
 
-Structured technical records use a shared `InfrastructureResource` identity plus strongly typed specialist models.
+## 1. Structured resource architecture
+
+Technical records use a shared `InfrastructureResource` identity plus strongly
+typed specialist records.
+
+Conceptually:
 
 ```text
 InfrastructureResource
-├── Server
-├── Database instance
-├── Logical database
-├── Application
-├── Application environment
-├── Website
-├── Domain
-├── Kubernetes cluster
-├── Provider account
-└── other specialist resource types
+├── Server / compute
+├── Network resource
+├── Database instance / logical database
+├── Application / Application Environment
+├── Website / endpoint
+├── Domain / DNS / TLS
+├── Kubernetes / container resources
+├── Provider Account
+├── storage / backup / service / scheduled job
+└── other useful specialist families
 ```
 
-`InfrastructureResource` is the common identity/ownership/lifecycle layer. It does **not** replace specialist relational models with EAV, arbitrary JSON or a graph database.
+`InfrastructureResource` owns cross-cutting identity/ownership/lifecycle. It
+does not replace specialist relational models with EAV, arbitrary JSON or a
+graph database.
 
-Specialist models remain responsible for fields and invariants that belong to their technical domain. For example, a Server owns server-specific fields and a Kubernetes cluster owns Kubernetes-specific fields.
-
-The common resource identity exists so cross-cutting domains can link consistently to any technical resource, including:
+Specialist models keep fields/invariants that belong to their technical domain.
+The shared resource identity exists so cross-cutting systems can attach
+consistently:
 
 - Credentials;
 - Knowledge Base documents;
-- monitoring checks and incidents;
+- Monitoring checks/incidents;
 - tags;
-- audit/activity context;
+- Activity/audit context;
 - generic technical relationships;
-- future search and topology views.
+- search/topology/navigation.
+
+---
 
 ## 2. Ownership
 
-Every structured resource is deliberately one of:
+Every structured resource is deliberately:
 
 ```text
-client-owned -> real Client
+client-owned -> a real Client
 internal     -> ADB itself, Client is null
 ```
 
-Never create a fake Internal/ADB Client.
+Never create a fake ADB/Internal Client.
 
-Ownership validation must enforce:
+Validation must enforce:
 
 - client-owned resources require a Client;
-- internal resources must not reference a Client;
-- Client A resources must not be directly related to Client B resources;
-- Internal ADB resources may relate to Client resources where this represents a real shared dependency.
+- Internal resources do not reference a Client;
+- two resources owned by different Clients cannot have a direct generic
+  relationship;
+- Internal ADB resources may relate to Client resources where a genuine shared
+  dependency exists.
 
-A common legitimate relationship is:
-
-```text
-Client website -> hosted on -> Internal ADB server
-```
-
-or:
+Valid examples:
 
 ```text
-Client domain -> managed by -> Internal ADB Cloudflare account
+Client Website -> hosted_on -> Internal ADB Server
+Client Domain  -> managed_by -> Internal Cloudflare Provider Account
 ```
 
-Future client-portal access must never expose Internal resource details merely because an Internal resource is related to a Client resource.
+A future Client portal must not expose Internal resource details merely because
+an Internal resource relates to a Client resource.
+
+---
 
 ## 3. Capability and scope
 
-Infrastructure follows the established platform authorisation model:
+Infrastructure follows the platform rule:
 
 ```text
-capability permission + ownership scope
+Django capability + ownership scope
 ```
 
-Django permissions determine what a staff user may do. Client access grants determine which client-owned resources they may do it to.
+Authorised staff may access Internal resources according to Infrastructure
+capability. Client-owned resources additionally require access to the owning
+Client.
 
-Authorised staff may access Internal resources according to the domain capability. Client-owned resources additionally require access to the owning Client.
+This applies to:
 
-Infrastructure list, detail, search, relationship, selector and future monitoring endpoints must scope at queryset/service level before serialisation. Frontend filtering is never an authorisation boundary.
+- collections;
+- details/drawers;
+- Client-context Infrastructure views;
+- relationship selectors and mutations;
+- reconciliation;
+- specialist projections;
+- future Credentials/KB/Monitoring panels;
+- search/topology.
 
-Inaccessible resource IDs should normally behave as unavailable/not-found records where this avoids leaking existence.
+Denied records are removed at service/queryset level. Frontend filtering is not
+an access-control mechanism.
+
+---
 
 ## 4. `InfrastructureResource`
 
-The common resource record carries information that applies across specialist types:
+The shared resource record carries cross-cutting fields such as:
 
 - Client/Internal ownership;
-- resource name;
+- name;
 - resource type;
-- lifecycle status;
+- lifecycle;
 - environment;
 - criticality;
-- non-sensitive description;
-- future portal-visibility metadata, private by default;
+- safe description;
 - tags;
 - creator/updater metadata;
-- archive and creation/update timestamps.
+- archive/create/update timestamps;
+- future explicit portal-visibility metadata, private by default.
 
-Lifecycle states distinguish current operational resources from history. Normal operational views should default to current resources and keep retired/archived records out of the way unless explicitly requested.
+Normal operational views are **current-first**. Retired/Archived resources are
+history and should not dominate the default register or Client context.
 
-The shared resource type catalogue defines supported structured families without implying that every family must be implemented immediately.
+---
 
-## 5. Strongly typed specialist resources
+## 5. Strongly typed specialists
 
-The platform must prefer real relational fields and foreign keys for known technical semantics.
+Prefer explicit relational fields for known semantics.
 
 Examples:
 
-- a database installed on a Server uses a Server relationship/field rather than only a generic `hosted_on` edge;
-- an Application Environment belonging to an Application uses an explicit relational model;
-- a Kubernetes Namespace belongs explicitly to a Kubernetes Cluster;
-- a Website may explicitly reference an Application Environment.
+- a logical Database belongs to/uses a Database Instance through a real
+  relation;
+- a self-hosted Database Instance may run on a Server;
+- an Application Environment belongs to an Application;
+- a Website endpoint may reference an Application Environment;
+- a Kubernetes Namespace belongs to a Cluster;
+- a repository/source relationship should carry an explicit role when useful.
 
-Generic `ResourceRelationship` rows complement these known relationships. They do not replace good relational modelling.
+Generic `ResourceRelationship` edges complement these known relationships. They
+do not replace good specialist modelling.
 
-## 6. Resource relationships
+---
 
-`ResourceRelationship` provides the cross-domain topology/relationship graph without introducing a graph database.
+## 6. Generic resource relationships
 
-Initial relationship semantics include:
+`ResourceRelationship` supplies the cross-domain topology graph without a graph
+database.
+
+Relationship semantics include concepts such as:
 
 - `depends_on`;
 - `hosted_on`;
@@ -143,74 +178,161 @@ Initial relationship semantics include:
 - `contains`;
 - `related_to`.
 
-Relationships are directed, may have a human-readable label/notes and must not point a resource at itself.
+Relationships are directed, may carry human context, and must enforce:
 
-Different Client-owned resources cannot be directly related across Clients. Internal-to-Client relationships are valid because shared ADB infrastructure/provider accounts may genuinely serve Client resources.
+- no self-link;
+- no duplicate equivalent relationship;
+- target visibility;
+- Client ownership boundaries.
 
-The relationship graph should later power contextual sections and topology views such as:
+The graph should ultimately support useful contextual/topology views such as:
 
 ```text
 Website
-  -> Application environment
-  -> Server
-  -> Provider account
+  -> Application Environment
+  -> Application
+  -> Server/Provider Account
   -> Database
-  -> Domain/TLS
+  -> Domain/DNS/TLS
   -> Monitoring
   -> Credentials
-  -> Documentation
+  -> Knowledge/runbooks
 ```
 
-## 7. Providers and provider accounts
+---
+
+## 7. Providers and Provider Accounts
 
 Provider identity is data, not a hard-coded choice list.
 
-`ServiceProvider` represents organisations/services such as DigitalOcean, AWS, Microsoft, Cloudflare, GitHub, Hetzner, domain registrars and other vendors.
+`ServiceProvider` represents organisations/services such as DigitalOcean, AWS,
+Microsoft, Cloudflare, GitHub, Hetzner, registrars and other vendors.
 
-`ProviderAccount` represents the actual account/tenant/project ADB or a Client uses with that provider. A Provider Account is itself resource-backed so Credentials, documentation, monitoring and relationships can attach to it consistently.
+`ProviderAccount` represents the actual account/tenant/project used by ADB or a
+Client and is resource-backed so Credentials, Knowledge, Monitoring and
+relationships attach consistently.
 
-Provider-account metadata may include non-secret identifiers such as:
+Safe account metadata may include:
 
-- account/customer identifier;
-- tenant ID;
-- provider project ID;
+- account/customer ID;
+- tenant/project ID;
 - portal URL;
 - default region;
 - support plan;
-- billing reference.
+- billing/reference identifiers.
 
-Passwords, API keys, private keys, client secrets and tokens must never be stored directly on Provider Account.
+Passwords, API tokens, client secrets and private keys never belong directly on
+ProviderAccount.
 
-## 8. Credential integration
+---
 
-Credentials remain a separate security boundary.
+## 8. Legacy specialist reconciliation
 
-A future `CredentialResourceLink` (or equivalent explicit relationship model) will allow a Credential to be linked to one or more Infrastructure resources with a purpose/primary marker.
+The repository contains older flat specialist models including Server,
+Database, Website, Domain, SSLCertificate, Licence, Application, MobileApp, API,
+Bot and EmailSystem.
+
+These rows are preserved while the structured model becomes the operational
+identity.
+
+### Implemented transition model
+
+Every current legacy family has a typed one-to-one identity bridge to
+`InfrastructureResource`.
+
+The bridge enforces resource-type compatibility: a legacy Server reconciles
+only to a resource whose type is Server, a legacy Website only to Website, and
+so on.
+
+Reconciliation is explicit/operator-driven. The system does **not** guess
+Client/Internal ownership from historical data.
+
+The operator chooses/validates:
+
+- ownership type;
+- Client when Client-owned;
+- resource name;
+- lifecycle;
+- environment;
+- criticality.
+
+The dedicated `reconcile_legacy_infrastructure` permission protects this
+migration operation. Normal Client scope still applies.
+
+Each legacy row is reconciled only once.
+
+### Safe specialist projection
+
+During transition, structured resource detail may project safe specialist
+metadata from the legacy record.
+
+Secret-bearing legacy fields such as licence keys, passwords/API material and
+general sensitive notes must not leak through the structured resource API.
+
+The workspace retains provenance/back-links while the bridge remains useful.
+
+### Migration discipline
+
+1. preserve historical migrations;
+2. preserve legacy rows/model identity;
+3. do not guess ownership;
+4. add/keep typed identity bridges;
+5. make the structured resource the operational relationship anchor once
+   reconciled;
+6. introduce mature specialist CRUD progressively;
+7. retire duplicated legacy fields only after structured replacements are
+   migrated and verified.
+
+---
+
+## 9. Credential integration
+
+Credentials are a separate security boundary attached to resources rather than
+plaintext fields embedded in Infrastructure.
+
+### Agreed Vault relationship
+
+A Credential may link to one or more Infrastructure resources with purpose and
+primary semantics.
 
 Examples:
 
 ```text
-SSH credential -> Server
-Database login -> Logical database + Application environment
-Cloudflare API token -> Provider account + managed domains
-Kubeconfig -> Kubernetes cluster
+SSH Credential       -> Server
+Database Login       -> Database + Application Environment
+Cloudflare API Token -> Provider Account + managed Domains
+Kubeconfig            -> Kubernetes Cluster
+Certificate Keypair  -> TLS/Endpoint resource
 ```
 
-Credential metadata remains searchable; secret material does not.
+Client-owned Credentials may link only to resources owned by that same Client.
+Internal Credentials may link to Internal or Client resources where this
+represents a real shared ADB operational credential.
 
-Secret material includes passwords, private SSH keys, passphrases, API tokens, client secrets, recovery codes, service-account payloads, licence keys and sensitive credential notes.
+### Security rules
 
-The existing encrypted `StoredCredential.encrypted_secret_payload` and MultiFernet/key-rotation service remain the foundation. Human reveal/copy remains permission-separated and audited without writing secret values to AuditEvent metadata or logs.
+- ordinary APIs/search return metadata only;
+- secret values remain in the encrypted credential payload;
+- reveal/copy/download are explicit separately permissioned actions;
+- audit records field/context only, never the secret value;
+- Infrastructure must reference Credentials instead of duplicating plaintext
+  secrets.
 
-Infrastructure records must reference Credentials rather than duplicate plaintext secrets.
+At the time of this docs refresh, the full Credential Vault/resource-link UI is
+implemented in the active `feat/credential-vault` feature slice but is not yet
+merged into `main`. The encrypted StoredCredential service remains the
+main-branch foundation.
 
-## 9. Knowledge Base integration
+---
 
-Knowledge Base documentation and structured resources remain distinct but deeply linked.
+## 10. Knowledge Base integration
 
-The KB target is a filesystem-like Internal/Client folder tree with Markdown documents, immutable versions and secure attachments.
+Structured resources and Knowledge documents are distinct but deeply linked.
 
-Documents may link to resources with semantics such as:
+The agreed KB direction is a Client/Internal filesystem-like documentation tree
+with Markdown/controlled rich text, versions and secure attachments.
+
+A document/resource relationship may express semantics such as:
 
 - documentation;
 - runbook;
@@ -221,56 +343,95 @@ Documents may link to resources with semantics such as:
 - restore procedure;
 - configuration.
 
-A Server/Database/Application/Domain/etc. workspace should surface its linked documentation. A KB document should surface its related technical resources.
+A mature Resource workspace should surface linked documentation. A KB document
+should surface related resources.
 
-Documentation must not become an alternative plaintext credential store. Sensitive access data belongs in Credentials.
+The KB must not become an alternative plaintext password store. Sensitive
+access material belongs in Credentials.
 
-## 10. Target specialist resource families
+---
 
-The architecture is designed to support at least the following structured technical families progressively.
+## 11. Monitoring architecture
+
+Monitoring is a separate cross-cutting subsystem attached to Resources. It must
+not be represented by a single `is_up` field on Server or Website.
+
+Initial target check types:
+
+- ICMP/ping;
+- TCP port;
+- HTTP/HTTPS;
+- expected/forbidden text/regex;
+- TLS certificate validity/expiry;
+- DNS record checks;
+- domain registration expiry.
+
+Checks carry scheduling, timeout, failure/recovery thresholds and severity.
+Historical results record observations; Incidents represent meaningful
+failure-to-recovery periods.
+
+Celery Beat/workers execute due checks through reusable monitoring services.
+
+The Monitoring UI should follow the platform's current-first rule:
+
+- open incidents and unhealthy resources first;
+- healthy history available but not dominant;
+- global and Client-scoped health views;
+- uptime/response history;
+- expiring domain/TLS alerts.
+
+If a check needs authentication, it references an encrypted Credential.
+
+Detailed retention/escalation/notification schema should be decided in the
+Monitoring slice rather than guessed now.
+
+---
+
+## 12. Target specialist families
 
 ### Compute and networking
 
-- Servers/VMs/bare metal/container hosts;
-- network interfaces and IP addresses;
-- networks/VPCs/VLANs/VPNs/subnets;
-- network devices, firewalls and load balancers where justified.
+- Servers/VMs/bare-metal/container hosts;
+- network interfaces/IP addresses;
+- networks/VPCs/VLANs/subnets/VPNs;
+- firewall/load-balancer/network-device records where operationally useful.
 
 ### Applications and source
 
 - logical Applications;
-- Application Environments such as production/staging/development;
-- Source Repositories and their roles;
-- APIs, background services, bots, integrations and mobile apps;
-- technology/version catalogue relationships.
+- Application Environments (production/staging/development etc.);
+- Source Repositories and role/context;
+- APIs/background services/bots/integrations/mobile apps;
+- useful technology/version catalogue links.
 
 ### Databases
 
 - Database Instances/services;
 - managed versus self-hosted semantics;
 - Logical Databases;
-- server/provider/endpoints/TLS/HA/replication metadata;
-- linked Credentials rather than embedded passwords.
+- Server/Provider/endpoints/TLS/HA/replication metadata;
+- Credentials by reference.
 
-### Web and domains
+### Web, domains and TLS
 
-- Websites and Website Endpoints;
+- Websites/endpoints;
 - Domains;
-- DNS Zones and DNS Records;
-- TLS Certificates and certificate/domain relationships;
-- registrar/DNS/CDN/WAF provider accounts.
+- DNS Zones/Records where useful;
+- TLS Certificates;
+- registrar/DNS/CDN/WAF Provider Account relationships.
 
 ### Containers and Kubernetes
 
-- Docker/Podman/container stacks and services;
-- Kubernetes clusters;
-- namespaces;
+- Docker/Podman/container stacks/services;
+- Kubernetes Clusters;
+- Namespaces;
 - workloads;
-- services/ingresses;
+- Services/Ingresses;
 - Helm releases;
 - persistent storage links.
 
-The platform should document the useful operational shape of Kubernetes without manually reimplementing the entire Kubernetes API.
+Document the useful operational shape without manually cloning the Kubernetes
+API into Django.
 
 ### Operations
 
@@ -279,33 +440,13 @@ The platform should document the useful operational shape of Kubernetes without 
 - system services;
 - scheduled jobs/cron/systemd timers;
 - licences/subscriptions;
-- email systems and related service configuration.
+- email systems and other useful operational configuration.
 
-## 11. Monitoring architecture
+---
 
-Monitoring is a separate cross-cutting subsystem attached to resources. It must not be represented by a single `is_up` field on Server/Website.
+## 13. Resource workspace UX
 
-Target monitor types include:
-
-- ICMP/ping;
-- TCP port;
-- HTTP/HTTPS;
-- expected/forbidden HTML/text/regex checks;
-- TLS certificate validity/expiry;
-- DNS record checks;
-- domain registration expiry.
-
-Checks have scheduling, timeout, failure/recovery thresholds and severity. Results are stored historically and incidents represent periods of failure/recovery.
-
-Celery Beat/workers should execute due checks through reusable monitoring services.
-
-The resulting operations dashboard should support global and Client-scoped health views, uptime, response time, open incidents and expiring domains/certificates.
-
-Monitoring credentials, when required, must reference encrypted Credential objects.
-
-## 12. Resource workspace UX
-
-Every mature specialist resource should converge on a consistent workspace pattern:
+Mature resource workspaces should converge on a recognisable pattern:
 
 ```text
 Resource
@@ -313,105 +454,88 @@ Resource
 ├── Relationships
 ├── Credentials
 ├── Monitoring
-├── Documentation
+├── Knowledge / Documentation
 └── Activity
 ```
 
-Overview is specialist-specific. Other sections use the common resource identity.
+Overview remains specialist-specific. Cross-cutting sections use the shared
+resource identity.
 
-The user should not need to search unrelated global registers to understand a technical object.
+Normal clicks may open resources in the shared right-side Record drawer while
+full-page deep links remain available.
 
-Client workspaces should expose Client-scoped Infrastructure, Credentials, Knowledge and Monitoring sections using the same permission policies as the global modules.
+Client workspaces should expose Client-scoped Infrastructure/Credentials/KB/
+Monitoring through the same policies as the global modules.
 
-## 13. Search
+---
 
-Global and Client-context search should cover non-sensitive infrastructure metadata, including resource names, hostnames, IPs, domains, URLs, provider identifiers, technology metadata and tags.
+## 14. Search and topology
 
-Credential search indexes metadata only, never decrypted secret payloads.
+Global and Client-context search should cover useful non-secret metadata such
+as:
 
-PostgreSQL-backed search is acceptable initially. Dedicated search infrastructure is not required until scale/quality justifies it.
+- resource names;
+- hostnames/IPs;
+- domains/URLs;
+- provider identifiers;
+- technology metadata;
+- tags;
+- linked KB metadata;
+- credential metadata only.
 
-## 14. Legacy infrastructure migration
+PostgreSQL-backed search is acceptable initially. Dedicated search/graph
+infrastructure should not be introduced until scale/quality justifies it.
 
-The repository contains existing flat `Server`, `Database`, `Website`, `Domain`, `SSLCertificate`, `Licence`, `Application`, `MobileApp`, `API`, `Bot` and `EmailSystem` models.
+Search never indexes decrypted secrets and never bypasses normal scope.
 
-These records must be preserved while the structured architecture is introduced.
+---
 
-Migration rules:
+## 15. Current implemented boundary on `main`
 
-1. do not rewrite or delete historical migrations;
-2. introduce the shared resource layer alongside existing records first;
-3. do not guess Client/Internal ownership for legacy rows;
-4. add explicit specialist-to-resource links before making the shared identity mandatory;
-5. migrate/assign ownership through deterministic rules or explicit operator input;
-6. only make specialist resource identity mandatory after legacy rows have been reconciled;
-7. remove/deprecate duplicated legacy provider/secrets fields only after the new structured replacement is active and migrated.
-
-Moving legacy Python model definitions between modules must preserve their Django app/model identity and database schema.
-
-### 14.1 Transitional identity bridges
-
-Until the specialist models are redesigned around `InfrastructureResource` directly, each existing infrastructure family uses a typed one-to-one identity bridge. The bridge preserves the existing row unchanged while binding it to exactly one structured resource.
-
-The bridge validates that the resource type matches the specialist family. For example, a legacy Server can only reconcile to a resource whose type is `server`, and a legacy Website can only reconcile to `website`.
-
-Reconciliation is intentionally an operator action. The operator chooses:
-
-- Internal or Client ownership;
-- the Client when Client-owned;
-- resource name;
-- lifecycle state;
-- environment;
-- criticality.
-
-The system must not infer ownership merely from legacy relationships. Client selection is restricted by the operator's normal Client access scope.
-
-Reconciliation is protected by the dedicated `reconcile_legacy_infrastructure` capability. Each legacy row may be reconciled only once. The resulting structured resource records who performed the reconciliation and resource detail APIs retain a reference to the underlying specialist row.
-
-The reconciliation workspace defaults to records still requiring review and provides explicit Linked/All history views. This is a migration/transition tool, not the long-term create/edit experience for infrastructure.
-
-## 15. Current foundation boundary
-
-The implemented Infrastructure foundation now provides:
+The merged technical foundation provides:
 
 - `InfrastructureResource`;
-- reusable tags;
+- tags;
 - `ServiceProvider`;
 - resource-backed `ProviderAccount`;
-- typed `ResourceRelationship`;
-- ownership and cross-Client relationship validation;
-- permission-aware resource list/detail APIs;
-- normal operational defaults that exclude retired/archived history;
-- preservation of the existing infrastructure records without guessing ownership;
-- typed one-to-one identity bridges for every current legacy infrastructure family;
-- an explicit permission-aware reconciliation API and operator workspace;
-- specialist references from reconciled structured-resource detail.
+- `ResourceRelationship`;
+- ownership/cross-Client validation;
+- current-first global/Client resource collections;
+- scoped resource detail/drawer workspaces;
+- relationship target/options/create/delete APIs/UI;
+- typed identity bridges for every current legacy specialist family;
+- explicit permission-aware legacy reconciliation;
+- safe specialist projection/provenance.
 
-It intentionally does **not** yet implement:
+It does **not** yet provide on `main`:
 
-- final specialist Server/Database/Website/etc. create/edit workflows;
-- automatic legacy ownership conversion;
-- credential-resource links;
-- monitoring checks/results/incidents;
-- KB-resource links;
-- the mature Infrastructure resource workspace;
-- Kubernetes/Docker specialist models.
+- complete modern specialist Server/Database/Application/etc. CRUD;
+- mature Web/Domain/DNS/TLS specialist structures;
+- Monitoring checks/results/incidents;
+- redesigned KB folder/editor/resource links;
+- Docker/Kubernetes specialist structures;
+- final broad technical topology/search polish.
 
-Those belong to subsequent focused changes built on this foundation.
+The Credential Vault resource-link workflow is the active in-flight slice and
+should be considered merged only after its PR lands.
 
-## 16. Implementation sequence
+---
 
-The current technical-operations sequence is:
+## 16. Current technical-operations sequence
 
-1. shared resource/provider/relationship foundation;
-2. specialist resource identity links and explicit legacy reconciliation;
-3. Credential vault expansion and resource linking;
-4. core typed Server/network/Database/Application structures;
-5. Website/Domain/DNS/TLS structures;
-6. monitoring checks/history/incidents and health dashboards;
-7. Knowledge Base folder/editor/attachment/version work;
-8. KB/resource backlinks and contextual search;
-9. Docker/Kubernetes structured resources;
-10. storage/backups/system services/scheduled jobs and further specialist operations records.
+1. finish/merge Credential Vault + resource links/legacy-secret reconciliation;
+2. core Server/network/Database/Application specialist structures;
+3. Website/Domain/DNS/TLS specialist structures;
+4. Monitoring checks/history/incidents + technical dashboards;
+5. Knowledge Base folder/editor/version/attachment work;
+6. KB/resource backlinks + contextual search foundations;
+7. Docker/Kubernetes structures;
+8. storage/backups/system services/scheduled jobs and remaining specialist
+   operations records;
+9. unified topology/search/activity/audit polish.
 
-Each slice must keep Client/Internal ownership, permission scoping, audit boundaries and secret handling consistent with the rest of the platform.
+Client Command Centre integration should continue incrementally as these domains
+mature rather than waiting for one giant final integration PR.
+
+Every slice must preserve Client/Internal ownership, capability/scope, current-
+first UX, audit boundaries and secret handling.
