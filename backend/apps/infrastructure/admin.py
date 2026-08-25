@@ -7,15 +7,18 @@ from .models import (
     Database,
     Domain,
     EmailSystem,
+    IPAddress,
     Licence,
     MobileApp,
+    Network,
+    NetworkInterface,
     Server,
+    ServerProfile,
     SSLCertificate,
+    Subnet,
     Website,
     WebsiteTechStack,
 )
-
-# Register your models here.
 
 
 @admin.register(Server)
@@ -23,6 +26,62 @@ class ServerAdmin(admin.ModelAdmin):
     list_display = ("hostname", "provider", "os", "created_at")
     list_filter = ("provider", "os", "created_at")
     search_fields = ("hostname", "public_ip", "private_ip")
+
+
+@admin.register(ServerProfile)
+class ServerProfileAdmin(admin.ModelAdmin):
+    list_display = (
+        "hostname",
+        "resource",
+        "compute_type",
+        "os_family",
+        "provider_account",
+        "region",
+    )
+    list_filter = ("compute_type", "os_family", "region")
+    search_fields = (
+        "hostname",
+        "fqdn",
+        "resource__name",
+        "provider_resource_id",
+    )
+    raw_id_fields = ("resource", "provider_account")
+
+
+@admin.register(Network)
+class NetworkAdmin(admin.ModelAdmin):
+    list_display = (
+        "resource",
+        "network_type",
+        "cidr",
+        "provider_account",
+        "region",
+    )
+    list_filter = ("network_type", "region")
+    search_fields = ("resource__name", "cidr", "provider_network_id")
+    raw_id_fields = ("resource", "provider_account")
+
+
+@admin.register(Subnet)
+class SubnetAdmin(admin.ModelAdmin):
+    list_display = ("resource", "network", "cidr", "availability_zone", "vlan_id")
+    search_fields = ("resource__name", "network__resource__name", "cidr")
+    raw_id_fields = ("resource", "network")
+
+
+@admin.register(NetworkInterface)
+class NetworkInterfaceAdmin(admin.ModelAdmin):
+    list_display = ("server", "name", "network", "subnet", "mac_address")
+    search_fields = ("server__hostname", "name", "mac_address")
+    raw_id_fields = ("server", "network", "subnet")
+
+
+@admin.register(IPAddress)
+class IPAddressAdmin(admin.ModelAdmin):
+    list_display = ("address", "resource", "scope", "is_primary", "interface")
+    list_filter = ("scope", "is_primary")
+    search_fields = ("address", "resource__name", "ptr_record")
+    raw_id_fields = ("resource", "interface")
 
 
 @admin.register(Database)
