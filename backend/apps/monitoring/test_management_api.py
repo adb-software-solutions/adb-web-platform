@@ -96,9 +96,7 @@ class MonitoringManagementAPITests(TestCase):
             target="https://example.test/health",
         )
 
-        response = self.client.get(
-            f"/api/admin/monitoring/checks/{check.id}/configuration"
-        )
+        response = self.client.get(f"/api/admin/monitoring/checks/{check.id}/configuration")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["id"], check.id)

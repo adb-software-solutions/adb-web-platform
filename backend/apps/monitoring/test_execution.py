@@ -1,5 +1,6 @@
 import urllib.error
 from datetime import timedelta
+from email.message import Message
 from io import BytesIO
 from subprocess import CompletedProcess
 from unittest.mock import patch
@@ -82,7 +83,7 @@ class MonitorExecutionTests(TestCase):
             url=check.target,
             code=503,
             msg="Service Unavailable",
-            hdrs=None,
+            hdrs=Message(),
             fp=BytesIO(b"maintenance"),
         )
 
