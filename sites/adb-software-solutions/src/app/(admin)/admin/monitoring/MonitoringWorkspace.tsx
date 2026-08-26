@@ -10,6 +10,7 @@ import {
     EmptyState,
     StatCard,
 } from "@/components/ui";
+import { useAuth } from "@/contexts/AuthContext";
 import { AdminAPI } from "@/lib/api/endpoints";
 import { fetchAPI } from "@/lib/api/fetch";
 import {
@@ -79,6 +80,8 @@ function formatDate(value: string | null) {
 }
 
 export function MonitoringWorkspace() {
+    const { hasPermission } = useAuth();
+    const canAcknowledge = hasPermission("monitoring.change_monitorincident");
     const [overview, setOverview] = useState<MonitoringOverview | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -109,6 +112,7 @@ export function MonitoringWorkspace() {
     }, [loadOverview]);
 
     const acknowledge = async (incidentId: number) => {
+        if (!canAcknowledge) return;
         try {
             setAcknowledgingId(incidentId);
             setError(null);
@@ -306,18 +310,13 @@ export function MonitoringWorkspace() {
                                             {incident.failure_count} failures ·{" "}
                                             {formatDate(incident.opened_at)}
                                         </p>
-                                        {incident.status === "open" ? (
+                                        {incident.status === "open" && canAcknowledge ? (
                                             <Button
                                                 type="button"
                                                 size="sm"
                                                 variant="secondary"
-                                                disabled={
-                                                    acknowledgingId ===
-                                                    incident.id
-                                                }
-                                                onClick={() =>
-                                                    void acknowledge(incident.id)
-                                                }
+                                                disabled={acknowledgingId === incident.id}
+                                                onClick={() => void acknowledge(incident.id)}
                                             >
                                                 {acknowledgingId === incident.id
                                                     ? "Acknowledging..."
