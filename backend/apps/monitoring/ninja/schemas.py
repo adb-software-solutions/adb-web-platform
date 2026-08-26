@@ -102,3 +102,15 @@ class MonitoringOverviewOut(Schema):
     open_incidents: int
     checks: list[MonitorCheckOut]
     incidents: list[MonitorIncidentOut]
+
+
+class MonitorResourceOptionOut(Schema):
+    id: int
+    name: str
+    resource_type: str
+    client_id: int | None
+    client_name: str | None
+
+
+class MonitoringOptionsOut(Schema):
+    resources: list[MonitorResourceOptionOut]
