@@ -44,6 +44,7 @@ class Command(BaseCommand):
             "seed_task_workflows_development",
             "seed_infrastructure_development",
             "seed_ticketing_development",
+            "seed_monitoring_development",
         ):
             call_command(
                 command_name,
