@@ -400,7 +400,10 @@ export function InfrastructureResourcesWorkspace() {
 
             {selectedResourceId !== null ? (
                 <RecordDrawer
-                    onClose={() => setSelectedResourceId(null)}
+                    onClose={() => {
+                        setSelectedResourceId(null);
+                        void load();
+                    }}
                     fullPageHref={`/admin/infrastructure/resources/${selectedResourceId}`}
                 >
                     <InfrastructureResourceWorkspace
