@@ -502,9 +502,11 @@ The merged foundation includes:
 - native Database Instance/Logical Database specialists;
 - native Application/Application Environment specialists;
 - native Source Repository specialists and typed Application/Repository links;
+- native Website/Website Endpoint, Domain/DNS Zone/DNS Record and TLS Certificate specialists;
+- nested Website endpoint, DNS record and TLS Domain-coverage operations in the shared resource workspace;
 - safe resource-centric create/edit/archive workflows and conservative legacy promotion.
 
-The next Infrastructure slice is Web/Domain/DNS/TLS. Continue building real specialist operational structures rather than expanding the legacy flat registers indefinitely.
+The next sustained technical-operations slice is Monitoring. Web/Domain/DNS/TLS is part of the native structured resource model rather than a continuation of the legacy flat registers.
 
 ### 9.2 Credential Vault
 
@@ -749,7 +751,7 @@ model and portal design says otherwise.
 
 ## 16. Current ordered build plan
 
-The Credential Vault and the first Core typed Infrastructure slices are complete through compute/network plus Database/Application/Source Repository. The next sustained implementation stage is Web Infrastructure.
+The Credential Vault and Core typed Infrastructure are complete through compute/network, Database/Application/Source Repository and Web/Domain/DNS/TLS. The next sustained implementation stage is Monitoring and technical health.
 
 ### Stage 1 — Core typed Infrastructure — implemented
 
@@ -764,14 +766,17 @@ The platform now has:
 - conservative legacy promotion;
 - Credential references rather than duplicate secret fields.
 
-### Stage 2 — Web Infrastructure
+### Stage 2 — Web Infrastructure — implemented
 
-- Websites/endpoints;
-- Domains;
-- DNS zones/records where useful;
-- TLS Certificates and expiry relationships;
-- registrar/DNS/CDN/WAF/provider context;
-- Credential links for administrative/authentication material.
+- resource-backed Websites and concrete Website Endpoints;
+- Domains with registration/expiry metadata;
+- DNS Zones and structured DNS Records;
+- non-secret TLS Certificate metadata plus typed Domain coverage;
+- explicit registrar/DNS/CDN/WAF/hosting Provider Account context;
+- Website Endpoint links to Application Environment, Domain and TLS Certificate;
+- nested operational cards for Website Endpoints, DNS Records and TLS Domain coverage;
+- conservative legacy Website/Domain/SSL promotion with no ownership/provider/alias/nameserver guessing;
+- Credential links through the shared resource identity for administrative/authentication material.
 
 ### Stage 3 — Monitoring and technical dashboards
 

@@ -23,6 +23,10 @@ import {
     DataApplicationType,
 } from "./DataApplicationInfrastructureForm";
 import { StructuredInfrastructureForm } from "./StructuredInfrastructureForm";
+import {
+    WebDomainInfrastructureForm,
+    WebDomainType,
+} from "./WebDomainInfrastructureForm";
 
 type ComputeNetworkType = "server" | "network" | "subnet";
 
@@ -141,18 +145,25 @@ export function InfrastructureResourcesWorkspace() {
     const [lifecycle, setLifecycle] = useState("current");
     const [resourceType, setResourceType] = useState("all");
     const [environment, setEnvironment] = useState("all");
-    const [selectedResourceId, setSelectedResourceId] = useState<number | null>(null);
+    const [selectedResourceId, setSelectedResourceId] = useState<number | null>(
+        null,
+    );
     const [showComputeCreate, setShowComputeCreate] = useState(false);
     const [showDataCreate, setShowDataCreate] = useState(false);
+    const [showWebCreate, setShowWebCreate] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const computeTypes: ComputeNetworkType[] = [];
     const dataTypes: DataApplicationType[] = [];
+    const webTypes: WebDomainType[] = [];
     if (hasPermission("infrastructure.add_infrastructureresource")) {
-        if (hasPermission("infrastructure.add_serverprofile")) computeTypes.push("server");
-        if (hasPermission("infrastructure.add_network")) computeTypes.push("network");
-        if (hasPermission("infrastructure.add_subnet")) computeTypes.push("subnet");
+        if (hasPermission("infrastructure.add_serverprofile"))
+            computeTypes.push("server");
+        if (hasPermission("infrastructure.add_network"))
+            computeTypes.push("network");
+        if (hasPermission("infrastructure.add_subnet"))
+            computeTypes.push("subnet");
         if (hasPermission("infrastructure.add_databaseinstance")) {
             dataTypes.push("database_instance");
         }
@@ -167,6 +178,18 @@ export function InfrastructureResourcesWorkspace() {
         }
         if (hasPermission("infrastructure.add_sourcerepository")) {
             dataTypes.push("source_repository");
+        }
+        if (hasPermission("infrastructure.add_websiteprofile"))
+            webTypes.push("website");
+        if (hasPermission("infrastructure.add_websiteendpoint")) {
+            webTypes.push("website_endpoint");
+        }
+        if (hasPermission("infrastructure.add_domainprofile"))
+            webTypes.push("domain");
+        if (hasPermission("infrastructure.add_dnszone"))
+            webTypes.push("dns_zone");
+        if (hasPermission("infrastructure.add_tlscertificate")) {
+            webTypes.push("tls_certificate");
         }
     }
 
@@ -210,6 +233,7 @@ export function InfrastructureResourcesWorkspace() {
     function openCreatedResource(resourceId: number) {
         setShowComputeCreate(false);
         setShowDataCreate(false);
+        setShowWebCreate(false);
         setSelectedResourceId(resourceId);
         void load();
     }
@@ -240,6 +264,7 @@ export function InfrastructureResourcesWorkspace() {
                                 onClick={() => {
                                     setSelectedResourceId(null);
                                     setShowDataCreate(false);
+                                    setShowWebCreate(false);
                                     setShowComputeCreate(true);
                                 }}
                             >
@@ -253,13 +278,31 @@ export function InfrastructureResourcesWorkspace() {
                                 onClick={() => {
                                     setSelectedResourceId(null);
                                     setShowComputeCreate(false);
+                                    setShowWebCreate(false);
                                     setShowDataCreate(true);
                                 }}
                             >
                                 Add data / application
                             </Button>
                         ) : null}
-                        <ButtonLink href="/admin/infrastructure" variant="secondary">
+                        {webTypes.length > 0 ? (
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => {
+                                    setSelectedResourceId(null);
+                                    setShowComputeCreate(false);
+                                    setShowDataCreate(false);
+                                    setShowWebCreate(true);
+                                }}
+                            >
+                                Add web / domain
+                            </Button>
+                        ) : null}
+                        <ButtonLink
+                            href="/admin/infrastructure"
+                            variant="secondary"
+                        >
                             Infrastructure overview
                         </ButtonLink>
                         <ButtonLink
@@ -345,13 +388,18 @@ export function InfrastructureResourcesWorkspace() {
             <Card className="overflow-hidden">
                 <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
                     <div>
-                        <h2 className="text-sm font-semibold text-white">Resource register</h2>
+                        <h2 className="text-sm font-semibold text-white">
+                            Resource register
+                        </h2>
                         <p className="mt-0.5 text-xs text-slate-500">
-                            {data.total.toLocaleString("en-GB")} resources match this view.
+                            {data.total.toLocaleString("en-GB")} resources match
+                            this view.
                         </p>
                     </div>
                     {isLoading ? (
-                        <span className="text-xs text-slate-600">Refreshing…</span>
+                        <span className="text-xs text-slate-600">
+                            Refreshing…
+                        </span>
                     ) : null}
                 </div>
 
@@ -384,21 +432,27 @@ export function InfrastructureResourcesWorkspace() {
                                         <td className="px-4 py-3">
                                             <button
                                                 type="button"
-                                                onClick={() => setSelectedResourceId(resource.id)}
-                                                className="text-left font-medium text-slate-100 hover:text-adb-cyan-300"
+                                                onClick={() =>
+                                                    setSelectedResourceId(
+                                                        resource.id,
+                                                    )
+                                                }
+                                                className="hover:text-adb-cyan-300 text-left font-medium text-slate-100"
                                             >
                                                 {resource.name}
                                             </button>
                                             {resource.tags.length > 0 ? (
                                                 <div className="mt-1 flex flex-wrap gap-1">
-                                                    {resource.tags.map((tag) => (
-                                                        <span
-                                                            key={tag.id}
-                                                            className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400"
-                                                        >
-                                                            {tag.name}
-                                                        </span>
-                                                    ))}
+                                                    {resource.tags.map(
+                                                        (tag) => (
+                                                            <span
+                                                                key={tag.id}
+                                                                className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400"
+                                                            >
+                                                                {tag.name}
+                                                            </span>
+                                                        ),
+                                                    )}
                                                 </div>
                                             ) : null}
                                         </td>
@@ -406,7 +460,8 @@ export function InfrastructureResourcesWorkspace() {
                                             {label(resource.resource_type)}
                                         </td>
                                         <td className="px-4 py-3 text-slate-400">
-                                            {resource.client_name || "ADB Internal"}
+                                            {resource.client_name ||
+                                                "ADB Internal"}
                                         </td>
                                         <td className="px-4 py-3 text-slate-400">
                                             {label(resource.environment)}
@@ -417,9 +472,11 @@ export function InfrastructureResourcesWorkspace() {
                                         <td className="px-4 py-3">
                                             <span
                                                 className={
-                                                    resource.criticality === "critical"
+                                                    resource.criticality ===
+                                                    "critical"
                                                         ? "text-red-300"
-                                                        : resource.criticality === "high"
+                                                        : resource.criticality ===
+                                                            "high"
                                                           ? "text-amber-300"
                                                           : "text-slate-400"
                                                 }
@@ -458,6 +515,16 @@ export function InfrastructureResourcesWorkspace() {
                     <DataApplicationInfrastructureForm
                         allowedTypes={dataTypes}
                         onCancel={() => setShowDataCreate(false)}
+                        onCreated={openCreatedResource}
+                    />
+                </RecordDrawer>
+            ) : null}
+
+            {showWebCreate ? (
+                <RecordDrawer onClose={() => setShowWebCreate(false)}>
+                    <WebDomainInfrastructureForm
+                        allowedTypes={webTypes}
+                        onCancel={() => setShowWebCreate(false)}
                         onCreated={openCreatedResource}
                     />
                 </RecordDrawer>

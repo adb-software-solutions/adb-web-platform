@@ -202,6 +202,23 @@ to the legacy specialist projection only where a native replacement does not yet
 exist. Linked active Credentials are already surfaced from the Vault through the
 same resource identity.
 
+### Implemented Web/Domain/DNS/TLS specialist boundary
+
+Web infrastructure is now represented by native typed specialists rather than
+comma-separated legacy metadata:
+
+- `WebsiteProfile` represents the logical web property and explicit hosting/CDN/WAF Provider Accounts;
+- `WebsiteEndpoint` represents a concrete URL and may link to its `ApplicationEnvironment`, `DomainProfile` and `TLSCertificate`;
+- `DomainProfile` records deterministic registration/status/expiry information and an optional registrar Provider Account;
+- `DNSZone` belongs to a Domain and may reference its DNS Provider Account;
+- `DNSRecord` stores structured authoritative record data including TTL and MX/SRV/proxy/provider metadata;
+- `TLSCertificate` stores non-secret certificate metadata only;
+- `TLSCertificateDomain` records typed Domain coverage and primary-name context.
+
+The shared Resource workspace exposes nested Website Endpoint, DNS Record and TLS Domain-coverage operations so these relationships are usable without returning to flat specialist registers. Normal selectors are permission-scoped and enforce the same Client/Internal boundaries as direct API mutations.
+
+Private keys, certificate bundles, DNS/API tokens and registrar credentials are not fields on these models. They remain encrypted Vault Credentials linked to the relevant Website/Domain/Provider/TLS resource.
+
 ---
 
 ## 6. Generic resource relationships
@@ -312,10 +329,14 @@ During transition, structured resource detail may project safe specialist
 metadata from the legacy record.
 
 Reconciled legacy Servers additionally promote deterministic safe compute/IP
-facts into `ServerProfile`/`IPAddress`. This promotion deliberately does not
-infer Provider Accounts from legacy provider strings and does not copy general
-free-text notes. The legacy identity bridge remains intact for provenance while
-the native specialist becomes the operational representation.
+facts into `ServerProfile`/`IPAddress`. Legacy Database/Application rows likewise
+promote only deterministic typed fields. Reconciled legacy Websites create a
+`WebsiteProfile` and primary Endpoint from the exact primary URL; Domains promote
+the exact name/expiry/auto-renew values; legacy SSL rows promote non-secret TLS
+metadata and link to a Domain only when that Domain has already been explicitly
+reconciled.
+
+Promotion deliberately does not infer Provider Accounts from legacy provider/registrar/CDN strings, parse comma-separated aliases or nameservers into new topology, infer ownership, or copy general free-text notes. The legacy identity bridge remains intact for provenance while the native specialist becomes the operational representation.
 
 Secret-bearing legacy fields such as licence keys, passwords/API material and
 general sensitive notes must not leak through the structured resource API.

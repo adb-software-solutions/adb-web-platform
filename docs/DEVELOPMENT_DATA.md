@@ -69,7 +69,8 @@ At normal scale, the development dataset covers realistic examples across:
 - native structured Provider Account, Server, Network, Subnet, network-interface and IP-address examples;
 - native Database Instance, Logical Database, Application, Application Environment and Source Repository examples;
 - typed Application/Repository role links;
-- both Internal and Client-owned structured compute and data/application examples where an active demo Client exists;
+- native Website/Endpoint, Domain, DNS Zone/Record and non-secret TLS Certificate/Domain-coverage examples;
+- both Internal and Client-owned structured compute, data/application and web-infrastructure examples where an active demo Client exists;
 - Mobile App/API/Bot/Email-system examples;
 - Ticket Queues, configured demo Mailboxes, Tickets, Messages, Notes and
   attachment/scan-state examples;
@@ -102,9 +103,12 @@ for:
 - an Internal PostgreSQL Database Instance and Logical Database;
 - an Internal ADB Platform Application, production-like Application Environment, GitHub Provider Account and Source Repository;
 - a typed primary Application/Repository link;
-- matching Client-owned Database/Application/Environment/Repository examples using the same ownership-boundary rules.
+- an Internal Website connected to its Application Environment, reserved example Domain, DNS Zone/Records and non-secret TLS metadata;
+- a shared Internal Cloudflare Provider Account used for DNS/CDN/WAF/registrar context without embedding any API token;
+- matching Client-owned Database/Application/Environment/Repository and Website/Domain/DNS/TLS examples using the same ownership-boundary rules;
+- deliberately nearer fake Client Domain/TLS expiry dates so the next Monitoring/expiry work has useful development context.
 
-The IP addresses use documentation/reserved ranges and are never production addresses. Database/application/repository metadata is fake operational context only; authentication material remains in fake encrypted Vault Credentials rather than specialist fields.
+The IP addresses use documentation/reserved ranges and Web Infrastructure uses `.example.test` names. Database/application/repository/web metadata is fake operational context only; authentication material and private keys remain in fake encrypted Vault Credentials rather than specialist fields.
 Structured development resources are validated through the same
 model invariants as normal application records.
 

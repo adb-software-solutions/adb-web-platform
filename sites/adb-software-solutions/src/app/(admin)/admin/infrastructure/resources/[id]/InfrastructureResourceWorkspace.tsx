@@ -21,7 +21,16 @@ import {
     type DataApplicationType,
 } from "../DataApplicationInfrastructureForm";
 import { StructuredInfrastructureForm } from "../StructuredInfrastructureForm";
+import {
+    WebDomainInfrastructureForm,
+    type WebDomainType,
+} from "../WebDomainInfrastructureForm";
 import { ApplicationRepositoriesCard } from "./ApplicationRepositoriesCard";
+import {
+    DNSRecordsCard,
+    TLSCertificateDomainsCard,
+    WebsiteEndpointsCard,
+} from "./WebDomainNestedCards";
 
 interface SpecialistField {
     key: string;
@@ -92,7 +101,8 @@ interface InfrastructureResourceWorkspaceProps {
 }
 
 type ComputeSpecialistType = "server" | "network" | "subnet";
-type EditableSpecialistType = ComputeSpecialistType | DataApplicationType;
+type EditableSpecialistType =
+    ComputeSpecialistType | DataApplicationType | WebDomainType;
 
 const SPECIALIST_CHANGE_PERMISSIONS: Record<EditableSpecialistType, string> = {
     server: "infrastructure.change_serverprofile",
@@ -103,6 +113,11 @@ const SPECIALIST_CHANGE_PERMISSIONS: Record<EditableSpecialistType, string> = {
     application: "infrastructure.change_applicationprofile",
     application_environment: "infrastructure.change_applicationenvironment",
     source_repository: "infrastructure.change_sourcerepository",
+    website: "infrastructure.change_websiteprofile",
+    website_endpoint: "infrastructure.change_websiteendpoint",
+    domain: "infrastructure.change_domainprofile",
+    dns_zone: "infrastructure.change_dnszone",
+    tls_certificate: "infrastructure.change_tlscertificate",
 };
 
 function editableSpecialistType(value: string): EditableSpecialistType | null {
@@ -115,14 +130,33 @@ function editableSpecialistType(value: string): EditableSpecialistType | null {
         case "application":
         case "application_environment":
         case "source_repository":
+        case "website":
+        case "website_endpoint":
+        case "domain":
+        case "dns_zone":
+        case "tls_certificate":
             return value;
         default:
             return null;
     }
 }
 
-function isComputeSpecialistType(value: EditableSpecialistType): value is ComputeSpecialistType {
+function isComputeSpecialistType(
+    value: EditableSpecialistType,
+): value is ComputeSpecialistType {
     return value === "server" || value === "network" || value === "subnet";
+}
+
+function isWebDomainType(
+    value: EditableSpecialistType,
+): value is WebDomainType {
+    return (
+        value === "website" ||
+        value === "website_endpoint" ||
+        value === "domain" ||
+        value === "dns_zone" ||
+        value === "tls_certificate"
+    );
 }
 
 function label(value: string): string {
@@ -155,7 +189,10 @@ function label(value: string): string {
         routes_to: "Routes to",
         related_to: "Related to",
     };
-    return special[value] ?? `${value.charAt(0).toUpperCase()}${value.slice(1).replaceAll("_", " ")}`;
+    return (
+        special[value] ??
+        `${value.charAt(0).toUpperCase()}${value.slice(1).replaceAll("_", " ")}`
+    );
 }
 
 function dateTime(value: string): string {
@@ -172,7 +209,7 @@ function SpecialistValue({ field }: { field: SpecialistField }) {
                 href={field.value}
                 target="_blank"
                 rel="noreferrer"
-                className="break-all text-adb-cyan-300 hover:text-adb-cyan-200 hover:underline"
+                className="text-adb-cyan-300 hover:text-adb-cyan-200 break-all hover:underline"
             >
                 {field.value}
             </a>
@@ -180,13 +217,17 @@ function SpecialistValue({ field }: { field: SpecialistField }) {
     }
     if (field.kind === "code") {
         return (
-            <code className="break-all rounded bg-slate-950 px-1.5 py-1 text-xs text-slate-200">
+            <code className="rounded bg-slate-950 px-1.5 py-1 text-xs break-all text-slate-200">
                 {field.value}
             </code>
         );
     }
     if (field.kind === "multiline") {
-        return <span className="whitespace-pre-wrap text-slate-300">{field.value}</span>;
+        return (
+            <span className="whitespace-pre-wrap text-slate-300">
+                {field.value}
+            </span>
+        );
     }
     return <span className="text-slate-300">{field.value}</span>;
 }
@@ -213,11 +254,13 @@ export function InfrastructureResourceWorkspace({
     const [relationshipType, setRelationshipType] = useState("");
     const [relationshipTargetId, setRelationshipTargetId] = useState("");
     const [relationshipLabel, setRelationshipLabel] = useState("");
-    const [relationshipError, setRelationshipError] = useState<string | null>(null);
-    const [isSavingRelationship, setIsSavingRelationship] = useState(false);
-    const [deletingRelationshipId, setDeletingRelationshipId] = useState<number | null>(
+    const [relationshipError, setRelationshipError] = useState<string | null>(
         null,
     );
+    const [isSavingRelationship, setIsSavingRelationship] = useState(false);
+    const [deletingRelationshipId, setDeletingRelationshipId] = useState<
+        number | null
+    >(null);
 
     const load = useCallback(async () => {
         try {
@@ -283,7 +326,9 @@ export function InfrastructureResourceWorkspace({
 
     async function createRelationship() {
         if (!relationshipType || !relationshipTargetId) {
-            setRelationshipError("Choose a relationship type and target resource.");
+            setRelationshipError(
+                "Choose a relationship type and target resource.",
+            );
             return;
         }
 
@@ -376,6 +421,14 @@ export function InfrastructureResourceWorkspace({
                 />
             );
         }
+        if (isWebDomainType(editableType)) {
+            return (
+                <WebDomainInfrastructureForm
+                    allowedTypes={[editableType]}
+                    {...sharedFormProps}
+                />
+            );
+        }
         return (
             <DataApplicationInfrastructureForm
                 allowedTypes={[editableType]}
@@ -402,12 +455,18 @@ export function InfrastructureResourceWorkspace({
                 actions={
                     <>
                         {canEdit ? (
-                            <Button type="button" onClick={() => setIsEditing(true)}>
+                            <Button
+                                type="button"
+                                onClick={() => setIsEditing(true)}
+                            >
                                 Edit resource
                             </Button>
                         ) : null}
                         {presentation === "page" ? (
-                            <ButtonLink href="/admin/infrastructure/resources" variant="secondary">
+                            <ButtonLink
+                                href="/admin/infrastructure/resources"
+                                variant="secondary"
+                            >
                                 Back to resources
                             </ButtonLink>
                         ) : null}
@@ -451,7 +510,9 @@ export function InfrastructureResourceWorkspace({
                     <Card className="p-5">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                                <h2 className="text-sm font-semibold text-white">Technical details</h2>
+                                <h2 className="text-sm font-semibold text-white">
+                                    Technical details
+                                </h2>
                                 <p className="mt-1 text-xs leading-5 text-slate-500">
                                     {showingNativeFields
                                         ? "Native typed operational metadata attached to this resource identity."
@@ -460,7 +521,9 @@ export function InfrastructureResourceWorkspace({
                             </div>
                             {resource.legacy_reference ? (
                                 <ButtonLink
-                                    href={resource.legacy_reference.register_path}
+                                    href={
+                                        resource.legacy_reference.register_path
+                                    }
                                     variant="ghost"
                                     size="sm"
                                 >
@@ -474,7 +537,11 @@ export function InfrastructureResourceWorkspace({
                                 {technicalFields.map((field) => (
                                     <div
                                         key={field.key}
-                                        className={field.kind === "multiline" ? "sm:col-span-2" : ""}
+                                        className={
+                                            field.kind === "multiline"
+                                                ? "sm:col-span-2"
+                                                : ""
+                                        }
                                     >
                                         <dt className="text-[11px] font-semibold tracking-wide text-slate-600 uppercase">
                                             {field.label}
@@ -487,12 +554,15 @@ export function InfrastructureResourceWorkspace({
                             </dl>
                         ) : (
                             <div className="mt-5 rounded-xl border border-dashed border-slate-800 p-5 text-sm text-slate-500">
-                                No typed technical details have been recorded for this resource yet.
+                                No typed technical details have been recorded
+                                for this resource yet.
                             </div>
                         )}
                         {showingNativeFields && resource.legacy_reference ? (
                             <p className="mt-5 border-t border-slate-800 pt-4 text-xs leading-5 text-slate-600">
-                                Native structured data is authoritative here. The legacy source remains intact and available during reconciliation.
+                                Native structured data is authoritative here.
+                                The legacy source remains intact and available
+                                during reconciliation.
                             </p>
                         ) : null}
                     </Card>
@@ -505,12 +575,38 @@ export function InfrastructureResourceWorkspace({
                         />
                     ) : null}
 
+                    {resource.resource_type === "website" ? (
+                        <WebsiteEndpointsCard
+                            resourceId={resourceId}
+                            ownershipType={resource.ownership_type}
+                            clientId={resource.client_id}
+                            environment={resource.environment}
+                            criticality={resource.criticality}
+                        />
+                    ) : null}
+
+                    {resource.resource_type === "dns_zone" ? (
+                        <DNSRecordsCard resourceId={resourceId} />
+                    ) : null}
+
+                    {resource.resource_type === "tls_certificate" ? (
+                        <TLSCertificateDomainsCard
+                            resourceId={resourceId}
+                            ownershipType={resource.ownership_type}
+                            clientId={resource.client_id}
+                        />
+                    ) : null}
+
                     <Card className="p-5">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                                <h2 className="text-sm font-semibold text-white">Relationships</h2>
+                                <h2 className="text-sm font-semibold text-white">
+                                    Relationships
+                                </h2>
                                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                                    What this resource depends on and what depends on it across the visible infrastructure graph.
+                                    What this resource depends on and what
+                                    depends on it across the visible
+                                    infrastructure graph.
                                 </p>
                             </div>
                             {canCreateRelationships ? (
@@ -534,14 +630,26 @@ export function InfrastructureResourceWorkspace({
                                         </label>
                                         <Select
                                             value={relationshipType}
-                                            onChange={(event) => setRelationshipType(event.target.value)}
-                                            disabled={!relationshipOptions || isSavingRelationship}
+                                            onChange={(event) =>
+                                                setRelationshipType(
+                                                    event.target.value,
+                                                )
+                                            }
+                                            disabled={
+                                                !relationshipOptions ||
+                                                isSavingRelationship
+                                            }
                                         >
-                                            {relationshipOptions?.relationship_types.map((option) => (
-                                                <option key={option.value} value={option.value}>
-                                                    {option.label}
-                                                </option>
-                                            ))}
+                                            {relationshipOptions?.relationship_types.map(
+                                                (option) => (
+                                                    <option
+                                                        key={option.value}
+                                                        value={option.value}
+                                                    >
+                                                        {option.label}
+                                                    </option>
+                                                ),
+                                            )}
                                         </Select>
                                     </div>
                                     <div>
@@ -550,25 +658,51 @@ export function InfrastructureResourceWorkspace({
                                         </label>
                                         <Select
                                             value={relationshipTargetId}
-                                            onChange={(event) => setRelationshipTargetId(event.target.value)}
-                                            disabled={!relationshipOptions || isSavingRelationship}
+                                            onChange={(event) =>
+                                                setRelationshipTargetId(
+                                                    event.target.value,
+                                                )
+                                            }
+                                            disabled={
+                                                !relationshipOptions ||
+                                                isSavingRelationship
+                                            }
                                         >
-                                            <option value="">Choose resource</option>
-                                            {relationshipOptions?.targets.map((target) => (
-                                                <option key={target.id} value={target.id}>
-                                                    {target.name} · {label(target.resource_type)} · {" "}
-                                                    {target.client_name || "ADB Internal"}
-                                                </option>
-                                            ))}
+                                            <option value="">
+                                                Choose resource
+                                            </option>
+                                            {relationshipOptions?.targets.map(
+                                                (target) => (
+                                                    <option
+                                                        key={target.id}
+                                                        value={target.id}
+                                                    >
+                                                        {target.name} ·{" "}
+                                                        {label(
+                                                            target.resource_type,
+                                                        )}{" "}
+                                                        ·{" "}
+                                                        {target.client_name ||
+                                                            "ADB Internal"}
+                                                    </option>
+                                                ),
+                                            )}
                                         </Select>
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className="mb-2 block text-xs font-medium text-slate-400">
-                                            Label <span className="text-slate-600">(optional)</span>
+                                            Label{" "}
+                                            <span className="text-slate-600">
+                                                (optional)
+                                            </span>
                                         </label>
                                         <Input
                                             value={relationshipLabel}
-                                            onChange={(event) => setRelationshipLabel(event.target.value)}
+                                            onChange={(event) =>
+                                                setRelationshipLabel(
+                                                    event.target.value,
+                                                )
+                                            }
                                             placeholder="e.g. Production database, primary host..."
                                             disabled={isSavingRelationship}
                                         />
@@ -577,11 +711,15 @@ export function InfrastructureResourceWorkspace({
 
                                 {relationshipOptions?.targets.length === 0 ? (
                                     <p className="mt-3 text-xs text-slate-500">
-                                        There are no current resources in your access scope that can be related to this resource.
+                                        There are no current resources in your
+                                        access scope that can be related to this
+                                        resource.
                                     </p>
                                 ) : null}
                                 {relationshipError ? (
-                                    <p className="mt-3 text-sm text-red-300">{relationshipError}</p>
+                                    <p className="mt-3 text-sm text-red-300">
+                                        {relationshipError}
+                                    </p>
                                 ) : null}
 
                                 <div className="mt-4 flex justify-end gap-2">
@@ -597,19 +735,25 @@ export function InfrastructureResourceWorkspace({
                                     <Button
                                         type="button"
                                         size="sm"
-                                        onClick={() => void createRelationship()}
+                                        onClick={() =>
+                                            void createRelationship()
+                                        }
                                         disabled={
                                             isSavingRelationship ||
                                             !relationshipTargetId ||
                                             !relationshipType
                                         }
                                     >
-                                        {isSavingRelationship ? "Adding..." : "Add relationship"}
+                                        {isSavingRelationship
+                                            ? "Adding..."
+                                            : "Add relationship"}
                                     </Button>
                                 </div>
                             </div>
                         ) : relationshipError ? (
-                            <p className="mt-4 text-sm text-red-300">{relationshipError}</p>
+                            <p className="mt-4 text-sm text-red-300">
+                                {relationshipError}
+                            </p>
                         ) : null}
 
                         {resource.relationships.length === 0 ? (
@@ -625,29 +769,47 @@ export function InfrastructureResourceWorkspace({
                                     >
                                         <Link
                                             href={`/admin/infrastructure/resources/${relationship.related_resource_id}`}
-                                            className="min-w-0 flex-1 transition hover:text-adb-cyan-300"
+                                            className="hover:text-adb-cyan-300 min-w-0 flex-1 transition"
                                         >
                                             <div className="text-sm font-medium text-slate-200">
-                                                {relationship.related_resource_name}
+                                                {
+                                                    relationship.related_resource_name
+                                                }
                                             </div>
                                             <div className="mt-0.5 text-xs text-slate-500">
-                                                {label(relationship.related_resource_type)}
+                                                {label(
+                                                    relationship.related_resource_type,
+                                                )}
                                             </div>
                                         </Link>
                                         <div className="flex shrink-0 items-center gap-2">
                                             <div className="text-xs text-slate-500">
-                                                {relationship.direction === "outgoing" ? "→" : "←"}{" "}
-                                                {relationship.label || label(relationship.relationship_type)}
+                                                {relationship.direction ===
+                                                "outgoing"
+                                                    ? "→"
+                                                    : "←"}{" "}
+                                                {relationship.label ||
+                                                    label(
+                                                        relationship.relationship_type,
+                                                    )}
                                             </div>
                                             {canDeleteRelationships ? (
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
                                                     size="sm"
-                                                    onClick={() => void deleteRelationship(relationship)}
-                                                    disabled={deletingRelationshipId === relationship.id}
+                                                    onClick={() =>
+                                                        void deleteRelationship(
+                                                            relationship,
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        deletingRelationshipId ===
+                                                        relationship.id
+                                                    }
                                                 >
-                                                    {deletingRelationshipId === relationship.id
+                                                    {deletingRelationshipId ===
+                                                    relationship.id
                                                         ? "Removing..."
                                                         : "Remove"}
                                                 </Button>
@@ -664,32 +826,50 @@ export function InfrastructureResourceWorkspace({
 
                 <div className="space-y-6">
                     <Card className="p-5">
-                        <h2 className="text-sm font-semibold text-white">Resource context</h2>
+                        <h2 className="text-sm font-semibold text-white">
+                            Resource context
+                        </h2>
                         <dl className="mt-4 space-y-4 text-sm">
                             <div>
-                                <dt className="text-xs text-slate-600">Ownership</dt>
+                                <dt className="text-xs text-slate-600">
+                                    Ownership
+                                </dt>
                                 <dd className="mt-1 text-slate-300">
                                     {resource.client_name || "ADB Internal"}
                                 </dd>
                             </div>
                             <div>
-                                <dt className="text-xs text-slate-600">Resource type</dt>
+                                <dt className="text-xs text-slate-600">
+                                    Resource type
+                                </dt>
                                 <dd className="mt-1 text-slate-300">
                                     {label(resource.resource_type)}
                                 </dd>
                             </div>
                             <div>
-                                <dt className="text-xs text-slate-600">Created</dt>
-                                <dd className="mt-1 text-slate-300">{dateTime(resource.created_at)}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs text-slate-600">Last updated</dt>
-                                <dd className="mt-1 text-slate-300">{dateTime(resource.updated_at)}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs text-slate-600">Client portal</dt>
+                                <dt className="text-xs text-slate-600">
+                                    Created
+                                </dt>
                                 <dd className="mt-1 text-slate-300">
-                                    {resource.is_portal_visible ? "Marked visible" : "Private"}
+                                    {dateTime(resource.created_at)}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-slate-600">
+                                    Last updated
+                                </dt>
+                                <dd className="mt-1 text-slate-300">
+                                    {dateTime(resource.updated_at)}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-slate-600">
+                                    Client portal
+                                </dt>
+                                <dd className="mt-1 text-slate-300">
+                                    {resource.is_portal_visible
+                                        ? "Marked visible"
+                                        : "Private"}
                                 </dd>
                             </div>
                         </dl>
@@ -697,29 +877,41 @@ export function InfrastructureResourceWorkspace({
 
                     {resource.legacy_reference ? (
                         <Card className="border-amber-950/70 bg-amber-950/10 p-5">
-                            <h2 className="text-sm font-semibold text-amber-200">Legacy source</h2>
+                            <h2 className="text-sm font-semibold text-amber-200">
+                                Legacy source
+                            </h2>
                             <p className="mt-2 text-xs leading-5 text-amber-200/60">
-                                This resource is currently backed by the existing {" "}
-                                {label(resource.legacy_reference.legacy_type)} record #{" "}
-                                {resource.legacy_reference.legacy_id}. The structured identity is now the ownership and relationship anchor; the old row remains intact during migration.
+                                This resource is currently backed by the
+                                existing{" "}
+                                {label(resource.legacy_reference.legacy_type)}{" "}
+                                record # {resource.legacy_reference.legacy_id}.
+                                The structured identity is now the ownership and
+                                relationship anchor; the old row remains intact
+                                during migration.
                             </p>
                         </Card>
                     ) : null}
 
                     <Card className="p-5">
-                        <h2 className="text-sm font-semibold text-white">Workspace roadmap</h2>
+                        <h2 className="text-sm font-semibold text-white">
+                            Workspace roadmap
+                        </h2>
                         <div className="mt-4 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3 xl:grid-cols-1">
-                            {["Monitoring", "Documentation", "Activity"].map((item) => (
-                                <div
-                                    key={item}
-                                    className="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-3 text-slate-500"
-                                >
-                                    {item}
-                                </div>
-                            ))}
+                            {["Monitoring", "Documentation", "Activity"].map(
+                                (item) => (
+                                    <div
+                                        key={item}
+                                        className="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-3 text-slate-500"
+                                    >
+                                        {item}
+                                    </div>
+                                ),
+                            )}
                         </div>
                         <p className="mt-3 text-xs leading-5 text-slate-600">
-                            Credentials are live in this workspace. Monitoring, documentation and activity will attach to the same resource identity in their planned technical slices.
+                            Credentials are live in this workspace. Monitoring,
+                            documentation and activity will attach to the same
+                            resource identity in their planned technical slices.
                         </p>
                     </Card>
                 </div>
