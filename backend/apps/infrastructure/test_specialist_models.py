@@ -4,8 +4,8 @@ from django.test import TestCase
 from apps.clients.models import Client
 from apps.core.ownership import OwnershipType
 from apps.infrastructure.models import (
-    IPAddress,
     InfrastructureResource,
+    IPAddress,
     Network,
     NetworkInterface,
     ProviderAccount,
