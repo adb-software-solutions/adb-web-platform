@@ -120,7 +120,7 @@ class Command(BaseCommand):
             defaults={
                 "name": "DigitalOcean",
                 "category": ServiceProvider.Category.CLOUD,
-                "website": "https://www.digitalocean.com",
+                "website_url": "https://www.digitalocean.com",
                 "is_active": True,
             },
         )
@@ -134,7 +134,6 @@ class Command(BaseCommand):
             resource=provider_resource,
             defaults={
                 "provider": provider,
-                "account_name": "ADB Development",
                 "account_identifier": "demo-adb-do",
                 "default_region": "lon1",
             },
