@@ -202,7 +202,11 @@ def _apply_check_config(
     "/monitoring/overview",
     response={200: MonitoringOverviewOut, 401: ProblemDetail, 403: ProblemDetail},
 )
-def monitoring_overview(request: HttpRequest) -> MonitoringOverviewOut | StaffProblem:
+def monitoring_overview(
+    request: HttpRequest,
+    client_id: int | None = None,
+    resource_id: int | None = None,
+) -> MonitoringOverviewOut | StaffProblem:
     problem = _permission_problem(
         request,
         "monitoring.view_monitorcheck",
@@ -211,6 +215,11 @@ def monitoring_overview(request: HttpRequest) -> MonitoringOverviewOut | StaffPr
     if problem:
         return problem
     checks = _visible_checks(request)
+    if client_id is not None:
+        checks = checks.filter(resource__client_id=client_id)
+    if resource_id is not None:
+        checks = checks.filter(resource_id=resource_id)
+
     current_checks = list(
         checks.filter(enabled=True).order_by("status", "resource__name", "name")[:100]
     )

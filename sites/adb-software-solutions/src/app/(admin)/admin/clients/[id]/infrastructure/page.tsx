@@ -1,3 +1,4 @@
+import { MonitoringHealthPanel } from "@/components/admin/MonitoringHealthPanel";
 import { Container } from "@/components/ui";
 import { ClientInfrastructureWorkspace } from "./ClientInfrastructureWorkspace";
 
@@ -11,7 +12,14 @@ export default async function ClientInfrastructurePage({
 
     return (
         <Container className="py-8">
-            <ClientInfrastructureWorkspace clientId={clientId} />
+            <div className="space-y-6">
+                <ClientInfrastructureWorkspace clientId={clientId} />
+                <MonitoringHealthPanel
+                    clientId={clientId}
+                    title="Client technical health"
+                    description="Current monitoring state for infrastructure owned by this client."
+                />
+            </div>
         </Container>
     );
 }
