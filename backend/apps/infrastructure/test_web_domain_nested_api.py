@@ -74,6 +74,16 @@ class WebDomainNestedApiTests(TestCase):
             website=self.website,
             url="https://old.client-a.example.com",
         )
+        foreign_endpoint_resource = self._resource(
+            "Client B Invalid Endpoint",
+            InfrastructureResource.ResourceType.WEBSITE_ENDPOINT,
+            client=self.client_b,
+        )
+        self.foreign_endpoint = WebsiteEndpoint.objects.create(
+            resource=foreign_endpoint_resource,
+            website=self.website,
+            url="https://leak.client-b.example.com",
+        )
 
         domain_resource = self._resource(
             "Client A Domain",
@@ -115,6 +125,19 @@ class WebDomainNestedApiTests(TestCase):
             certificate=self.certificate,
             domain=self.domain,
             is_primary=True,
+        )
+        foreign_domain_resource = self._resource(
+            "Client B Invalid Domain",
+            InfrastructureResource.ResourceType.DOMAIN,
+            client=self.client_b,
+        )
+        self.foreign_domain = DomainProfile.objects.create(
+            resource=foreign_domain_resource,
+            domain_name="client-b.example.com",
+        )
+        self.foreign_domain_link = TLSCertificateDomain.objects.create(
+            certificate=self.certificate,
+            domain=self.foreign_domain,
         )
 
         other_website_resource = self._resource(
@@ -181,6 +204,10 @@ class WebDomainNestedApiTests(TestCase):
         )
 
         self.assertEqual([item.resource_id for item in result], [self.active_endpoint.resource_id])
+        self.assertNotIn(
+            self.foreign_endpoint.resource_id,
+            {item.resource_id for item in result},
+        )
 
     def test_dns_records_return_for_visible_zone(self) -> None:
         user = self._user("nested-dns@example.com")
@@ -193,7 +220,7 @@ class WebDomainNestedApiTests(TestCase):
         self.assertEqual([item.id for item in result], [self.record.id])
         self.assertEqual(result[0].value, "203.0.113.10")
 
-    def test_tls_domain_coverage_returns_visible_links(self) -> None:
+    def test_tls_domain_coverage_only_returns_accessible_domains(self) -> None:
         user = self._user("nested-tls@example.com")
 
         result = cast(
@@ -203,6 +230,7 @@ class WebDomainNestedApiTests(TestCase):
 
         self.assertEqual([item.id for item in result], [self.domain_link.id])
         self.assertEqual(result[0].domain_resource_id, self.domain.resource_id)
+        self.assertNotIn(self.foreign_domain_link.id, {item.id for item in result})
 
     def test_nested_api_hides_other_client_resources(self) -> None:
         user = self._user("nested-scope@example.com")
