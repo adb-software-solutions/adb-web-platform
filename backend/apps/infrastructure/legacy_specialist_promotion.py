@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .models import IPAddress, InfrastructureResource, Server, ServerProfile
+from .models import InfrastructureResource, IPAddress, Server, ServerProfile
 
 _SERVER_OS_MAP: dict[str, tuple[str, str, str]] = {
     "ubuntu_20": (ServerProfile.OSFamily.LINUX, "Ubuntu", "20.04"),
