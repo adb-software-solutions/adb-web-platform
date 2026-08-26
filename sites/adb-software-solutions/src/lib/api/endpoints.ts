@@ -149,6 +149,14 @@ export const AdminAPI = {
     },
     monitoring: {
         overview: () => `${API_BASE_URL}/admin/monitoring/overview`,
+        get: (checkId: number) =>
+            `${API_BASE_URL}/admin/monitoring/checks/${checkId}`,
+        update: (checkId: number) =>
+            `${API_BASE_URL}/admin/monitoring/checks/${checkId}`,
+        pause: (checkId: number) =>
+            `${API_BASE_URL}/admin/monitoring/checks/${checkId}/pause`,
+        resume: (checkId: number) =>
+            `${API_BASE_URL}/admin/monitoring/checks/${checkId}/resume`,
         acknowledge: (incidentId: number) =>
             `${API_BASE_URL}/admin/monitoring/incidents/${incidentId}/acknowledge`,
     },

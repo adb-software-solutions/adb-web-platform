@@ -3,6 +3,7 @@
 import {
     Badge,
     Button,
+    ButtonLink,
     Card,
     DataError,
     DataLoading,
@@ -233,14 +234,23 @@ export function MonitoringWorkspace() {
                                             </p>
                                         ) : null}
                                     </div>
-                                    <div className="shrink-0 text-left text-xs text-slate-500 sm:text-right">
-                                        <p>{formatDate(check.last_checked_at)}</p>
-                                        <p className="mt-1 uppercase">
-                                            {check.check_type}
-                                            {check.last_duration_ms !== null
-                                                ? ` · ${check.last_duration_ms} ms`
-                                                : ""}
-                                        </p>
+                                    <div className="flex shrink-0 items-center gap-3">
+                                        <div className="text-left text-xs text-slate-500 sm:text-right">
+                                            <p>{formatDate(check.last_checked_at)}</p>
+                                            <p className="mt-1 uppercase">
+                                                {check.check_type}
+                                                {check.last_duration_ms !== null
+                                                    ? ` · ${check.last_duration_ms} ms`
+                                                    : ""}
+                                            </p>
+                                        </div>
+                                        <ButtonLink
+                                            href={`/admin/monitoring/checks/${check.id}`}
+                                            size="sm"
+                                            variant="outline"
+                                        >
+                                            View
+                                        </ButtonLink>
                                     </div>
                                 </div>
                             ))}
