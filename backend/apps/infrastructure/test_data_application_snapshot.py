@@ -154,7 +154,7 @@ class DataApplicationSnapshotTests(TestCase):
 class DataApplicationSharedEditEndpointTests(TestCase):
     def setUp(self) -> None:
         self.factory = RequestFactory()
-        self.client = Client.objects.create(
+        self.client_record = Client.objects.create(
             name="Client A",
             company="Client A Ltd",
             email="client-a-edit-data@example.com",
