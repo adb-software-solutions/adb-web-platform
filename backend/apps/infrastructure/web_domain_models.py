@@ -222,7 +222,12 @@ class DNSZone(models.Model):
             models.UniqueConstraint(
                 fields=["domain", "zone_name"],
                 name="unique_dns_zone_name_per_domain",
-            )
+            ),
+            models.UniqueConstraint(
+                fields=["domain"],
+                condition=Q(is_primary=True),
+                name="unique_primary_dns_zone",
+            ),
         ]
 
     def clean(self) -> None:
@@ -395,7 +400,12 @@ class TLSCertificateDomain(models.Model):
             models.UniqueConstraint(
                 fields=["certificate", "domain"],
                 name="unique_tls_certificate_domain",
-            )
+            ),
+            models.UniqueConstraint(
+                fields=["certificate"],
+                condition=Q(is_primary=True),
+                name="unique_primary_tls_domain",
+            ),
         ]
 
     def clean(self) -> None:
