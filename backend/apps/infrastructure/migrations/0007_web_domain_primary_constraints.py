@@ -1,18 +1,19 @@
+from django.apps.registry import Apps
 from django.db import migrations, models
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 from django.db.models import Q
 
 
-def demote_duplicate_primaries(apps, schema_editor):
+def demote_duplicate_primaries(
+    apps: Apps,
+    schema_editor: BaseDatabaseSchemaEditor,
+) -> None:
     database = schema_editor.connection.alias
     DNSZone = apps.get_model("infrastructure", "DNSZone")
     TLSCertificateDomain = apps.get_model("infrastructure", "TLSCertificateDomain")
 
     seen_domains = set()
-    for zone in (
-        DNSZone.objects.using(database)
-        .filter(is_primary=True)
-        .order_by("domain_id", "id")
-    ):
+    for zone in DNSZone.objects.using(database).filter(is_primary=True).order_by("domain_id", "id"):
         if zone.domain_id in seen_domains:
             zone.is_primary = False
             zone.save(update_fields=["is_primary"], using=database)
@@ -20,11 +21,12 @@ def demote_duplicate_primaries(apps, schema_editor):
             seen_domains.add(zone.domain_id)
 
     seen_certificates = set()
-    for link in (
+    primary_links = (
         TLSCertificateDomain.objects.using(database)
         .filter(is_primary=True)
         .order_by("certificate_id", "id")
-    ):
+    )
+    for link in primary_links:
         if link.certificate_id in seen_certificates:
             link.is_primary = False
             link.save(update_fields=["is_primary"], using=database)
