@@ -53,7 +53,7 @@ def list_application_repository_links(
     if application is None:
         return _problem(404, "Application not found.", "not_found")
 
-    links = ApplicationRepositoryLink.objects.select_related(
-        "repository__resource"
-    ).filter(application=application)
+    links = ApplicationRepositoryLink.objects.select_related("repository__resource").filter(
+        application=application
+    )
     return [_link_out(link) for link in links]
