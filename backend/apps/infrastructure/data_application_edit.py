@@ -20,42 +20,46 @@ def data_application_edit_values(
     """Return exact safe values for the native data/application editor."""
 
     if resource.resource_type == InfrastructureResource.ResourceType.DATABASE_INSTANCE:
-        database = DatabaseInstance.objects.filter(resource=resource).first()
-        if database is None:
+        database_instance = DatabaseInstance.objects.filter(resource=resource).first()
+        if database_instance is None:
             return None
-        server = database.server if database.server_id else None
-        provider_account = database.provider_account if database.provider_account_id else None
+        server = database_instance.server if database_instance.server_id else None
+        provider_account = (
+            database_instance.provider_account if database_instance.provider_account_id else None
+        )
         return {
-            "engine": database.engine,
-            "engine_version": database.engine_version,
-            "hosting_type": database.hosting_type,
+            "engine": database_instance.engine,
+            "engine_version": database_instance.engine_version,
+            "hosting_type": database_instance.hosting_type,
             "server_resource_id": server.resource_id if server else None,
             "provider_account_resource_id": (
                 provider_account.resource_id if provider_account else None
             ),
-            "provider_resource_id": database.provider_resource_id,
-            "endpoint": database.endpoint,
-            "port": database.port,
-            "region": database.region,
-            "zone": database.zone,
-            "tls_mode": database.tls_mode,
-            "high_availability": database.high_availability,
-            "replica_count": database.replica_count,
-            "backup_enabled": database.backup_enabled,
-            "maintenance_window": database.maintenance_window,
+            "provider_resource_id": database_instance.provider_resource_id,
+            "endpoint": database_instance.endpoint,
+            "port": database_instance.port,
+            "region": database_instance.region,
+            "zone": database_instance.zone,
+            "tls_mode": database_instance.tls_mode,
+            "high_availability": database_instance.high_availability,
+            "replica_count": database_instance.replica_count,
+            "backup_enabled": database_instance.backup_enabled,
+            "maintenance_window": database_instance.maintenance_window,
         }
 
     if resource.resource_type == InfrastructureResource.ResourceType.LOGICAL_DATABASE:
-        database = LogicalDatabase.objects.select_related("instance").filter(resource=resource).first()
-        if database is None:
+        logical_database = (
+            LogicalDatabase.objects.select_related("instance").filter(resource=resource).first()
+        )
+        if logical_database is None:
             return None
         return {
-            "instance_resource_id": database.instance.resource_id,
-            "database_name": database.database_name,
-            "purpose": database.purpose,
-            "default_schema": database.default_schema,
-            "charset": database.charset,
-            "collation": database.collation,
+            "instance_resource_id": logical_database.instance.resource_id,
+            "database_name": logical_database.database_name,
+            "purpose": logical_database.purpose,
+            "default_schema": logical_database.default_schema,
+            "charset": logical_database.charset,
+            "collation": logical_database.collation,
         }
 
     if resource.resource_type == InfrastructureResource.ResourceType.APPLICATION:
@@ -74,9 +78,7 @@ def data_application_edit_values(
         if environment is None:
             return None
         server = environment.server if environment.server_id else None
-        provider_account = (
-            environment.provider_account if environment.provider_account_id else None
-        )
+        provider_account = environment.provider_account if environment.provider_account_id else None
         return {
             "application_resource_id": environment.application.resource_id,
             "deployment_type": environment.deployment_type,
