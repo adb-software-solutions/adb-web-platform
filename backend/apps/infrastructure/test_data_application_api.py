@@ -8,6 +8,8 @@ from apps.access_control.models import ClientAccessGrant, StaffAccessProfile
 from apps.clients.models import Client
 from apps.core.ownership import OwnershipType
 from apps.infrastructure.models import (
+    ApplicationProfile,
+    ApplicationRepositoryLink,
     DatabaseInstance,
     InfrastructureResource,
     ProviderAccount,
@@ -28,12 +30,16 @@ from apps.infrastructure.ninja.data_application_schemas import (
     SourceRepositoryCreateIn,
     SourceRepositoryOut,
 )
+from apps.infrastructure.ninja.application_repository_views import (
+    list_application_repository_links,
+)
 from apps.infrastructure.ninja.data_application_views import (
     create_application,
     create_application_environment,
     create_application_repository_link,
     create_database_instance,
     create_source_repository,
+    delete_application_repository_link,
     data_application_options,
 )
 from authentication.models import User
@@ -262,6 +268,10 @@ class DataApplicationSpecialistApiTests(TestCase):
                 "add_infrastructureresource",
                 "add_applicationprofile",
                 "add_sourcerepository",
+                "view_infrastructureresource",
+                "view_applicationprofile",
+                "view_sourcerepository",
+                "view_applicationrepositorylink",
                 "add_applicationrepositorylink",
             ],
         )
@@ -300,3 +310,114 @@ class DataApplicationSpecialistApiTests(TestCase):
         link = cast(ApplicationRepositoryLinkOut, link_result)
         self.assertEqual(link.repository_resource_id, repository.resource_id)
         self.assertEqual(link.role, "infrastructure")
+
+    def test_repository_link_creation_requires_repository_view_capability(self) -> None:
+        user = self._user(
+            "application-repository-no-view@example.com",
+            [
+                "add_infrastructureresource",
+                "add_applicationprofile",
+                "add_sourcerepository",
+                "add_applicationrepositorylink",
+            ],
+        )
+        app_status, app_result = create_application(
+            self._request(user),
+            ApplicationCreateIn(name="Internal App"),
+        )
+        self.assertEqual(app_status, 201)
+        repo_status, repo_result = create_source_repository(
+            self._request(user),
+            SourceRepositoryCreateIn(
+                name="Internal Repo",
+                repository_name="internal-repo",
+            ),
+        )
+        self.assertEqual(repo_status, 201)
+
+        status, payload = create_application_repository_link(
+            self._request(user),
+            cast(ApplicationOut, app_result).resource_id,
+            ApplicationRepositoryLinkCreateIn(
+                repository_resource_id=cast(SourceRepositoryOut, repo_result).resource_id,
+            ),
+        )
+
+        self.assertEqual(status, 403)
+        self.assertEqual(cast(dict[str, object], payload)["code"], "forbidden")
+
+    def test_repository_link_list_hides_repository_outside_scope(self) -> None:
+        application_resource = self._resource(
+            "Internal Application",
+            InfrastructureResource.ResourceType.APPLICATION,
+        )
+        application = ApplicationProfile.objects.create(resource=application_resource)
+        repository_resource = self._resource(
+            "Client B Private Repo",
+            InfrastructureResource.ResourceType.SOURCE_REPOSITORY,
+            client=self.client_b,
+        )
+        repository = SourceRepository.objects.create(
+            resource=repository_resource,
+            repository_name="client-b-private",
+        )
+        ApplicationRepositoryLink.objects.create(
+            application=application,
+            repository=repository,
+        )
+        user = self._user(
+            "application-repository-scope@example.com",
+            [
+                "view_infrastructureresource",
+                "view_applicationprofile",
+                "view_sourcerepository",
+                "view_applicationrepositorylink",
+            ],
+        )
+
+        result = list_application_repository_links(
+            self._request(user),
+            application_resource.id,
+        )
+
+        self.assertEqual(result, [])
+
+    def test_repository_link_delete_hides_repository_outside_scope(self) -> None:
+        application_resource = self._resource(
+            "Internal Application",
+            InfrastructureResource.ResourceType.APPLICATION,
+        )
+        application = ApplicationProfile.objects.create(resource=application_resource)
+        repository_resource = self._resource(
+            "Client B Private Repo",
+            InfrastructureResource.ResourceType.SOURCE_REPOSITORY,
+            client=self.client_b,
+        )
+        repository = SourceRepository.objects.create(
+            resource=repository_resource,
+            repository_name="client-b-private",
+        )
+        link = ApplicationRepositoryLink.objects.create(
+            application=application,
+            repository=repository,
+        )
+        user = self._user(
+            "application-repository-delete-scope@example.com",
+            [
+                "view_infrastructureresource",
+                "view_applicationprofile",
+                "view_sourcerepository",
+                "view_applicationrepositorylink",
+                "delete_applicationrepositorylink",
+            ],
+        )
+
+        status, payload = delete_application_repository_link(
+            self._request(user),
+            application_resource.id,
+            link.id,
+        )
+
+        self.assertEqual(status, 404)
+        self.assertEqual(cast(dict[str, object], payload)["code"], "not_found")
+        self.assertTrue(ApplicationRepositoryLink.objects.filter(id=link.id).exists())

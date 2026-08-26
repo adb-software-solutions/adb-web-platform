@@ -47,9 +47,14 @@ export function ApplicationRepositoriesCard({
     const { hasPermission } = useAuth();
     const canView =
         hasPermission("infrastructure.view_applicationprofile") &&
+        hasPermission("infrastructure.view_sourcerepository") &&
         hasPermission("infrastructure.view_applicationrepositorylink");
-    const canAdd = hasPermission("infrastructure.add_applicationrepositorylink");
-    const canDelete = hasPermission("infrastructure.delete_applicationrepositorylink");
+    const canAdd = hasPermission(
+        "infrastructure.add_applicationrepositorylink",
+    );
+    const canDelete = hasPermission(
+        "infrastructure.delete_applicationrepositorylink",
+    );
 
     const [links, setLinks] = useState<RepositoryLink[]>([]);
     const [options, setOptions] = useState<DataApplicationOptions | null>(null);
@@ -165,7 +170,12 @@ export function ApplicationRepositoriesCard({
     }
 
     async function removeRepository(link: RepositoryLink) {
-        if (!window.confirm(`Remove ${link.repository_name} from this application?`)) return;
+        if (
+            !window.confirm(
+                `Remove ${link.repository_name} from this application?`,
+            )
+        )
+            return;
         try {
             setDeletingId(link.id);
             setError(null);
@@ -191,9 +201,12 @@ export function ApplicationRepositoriesCard({
         <Card className="p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h2 className="text-sm font-semibold text-white">Source repositories</h2>
+                    <h2 className="text-sm font-semibold text-white">
+                        Source repositories
+                    </h2>
                     <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Typed source-control links for this Application, including repository role and optional monorepo path.
+                        Typed source-control links for this Application,
+                        including repository role and optional monorepo path.
                     </p>
                 </div>
                 {canAdd ? (
@@ -215,7 +228,9 @@ export function ApplicationRepositoriesCard({
                             Source repository
                             <Select
                                 value={repositoryId}
-                                onChange={(event) => setRepositoryId(event.target.value)}
+                                onChange={(event) =>
+                                    setRepositoryId(event.target.value)
+                                }
                                 disabled={isSaving || !options}
                             >
                                 <option value="">Choose repository</option>
@@ -224,7 +239,8 @@ export function ApplicationRepositoriesCard({
                                         key={repository.resource_id}
                                         value={repository.resource_id}
                                     >
-                                        {repository.name} · {repository.repository_name}
+                                        {repository.name} ·{" "}
+                                        {repository.repository_name}
                                     </option>
                                 ))}
                             </Select>
@@ -233,15 +249,21 @@ export function ApplicationRepositoriesCard({
                             Role
                             <Select
                                 value={role}
-                                onChange={(event) => setRole(event.target.value)}
+                                onChange={(event) =>
+                                    setRole(event.target.value)
+                                }
                                 disabled={isSaving}
                             >
                                 <option value="primary">Primary</option>
                                 <option value="backend">Backend</option>
                                 <option value="frontend">Frontend</option>
-                                <option value="infrastructure">Infrastructure</option>
+                                <option value="infrastructure">
+                                    Infrastructure
+                                </option>
                                 <option value="mobile">Mobile</option>
-                                <option value="documentation">Documentation</option>
+                                <option value="documentation">
+                                    Documentation
+                                </option>
                                 <option value="other">Other</option>
                             </Select>
                         </label>
@@ -249,7 +271,9 @@ export function ApplicationRepositoriesCard({
                             Monorepo path
                             <Input
                                 value={path}
-                                onChange={(event) => setPath(event.target.value)}
+                                onChange={(event) =>
+                                    setPath(event.target.value)
+                                }
                                 placeholder="sites/customer-portal"
                                 disabled={isSaving}
                             />
@@ -258,7 +282,9 @@ export function ApplicationRepositoriesCard({
                             Operational notes
                             <Textarea
                                 value={notes}
-                                onChange={(event) => setNotes(event.target.value)}
+                                onChange={(event) =>
+                                    setNotes(event.target.value)
+                                }
                                 rows={2}
                                 placeholder="Do not store passwords, tokens or private keys here."
                                 disabled={isSaving}
@@ -287,7 +313,9 @@ export function ApplicationRepositoriesCard({
                 </div>
             ) : null}
 
-            {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
+            {error ? (
+                <p className="mt-4 text-sm text-red-300">{error}</p>
+            ) : null}
 
             {links.length === 0 ? (
                 <p className="mt-5 text-sm text-slate-500">
@@ -302,7 +330,7 @@ export function ApplicationRepositoriesCard({
                         >
                             <Link
                                 href={`/admin/infrastructure/resources/${link.repository_resource_id}`}
-                                className="min-w-0 flex-1 hover:text-adb-cyan-300"
+                                className="hover:text-adb-cyan-300 min-w-0 flex-1"
                             >
                                 <div className="text-sm font-medium text-slate-200">
                                     {link.repository_name}
@@ -312,7 +340,9 @@ export function ApplicationRepositoriesCard({
                                     {link.path ? ` · ${link.path}` : ""}
                                 </div>
                                 {link.notes ? (
-                                    <div className="mt-1 text-xs text-slate-600">{link.notes}</div>
+                                    <div className="mt-1 text-xs text-slate-600">
+                                        {link.notes}
+                                    </div>
                                 ) : null}
                             </Link>
                             {canDelete ? (
@@ -323,7 +353,9 @@ export function ApplicationRepositoriesCard({
                                     onClick={() => void removeRepository(link)}
                                     disabled={deletingId === link.id}
                                 >
-                                    {deletingId === link.id ? "Removing..." : "Remove"}
+                                    {deletingId === link.id
+                                        ? "Removing..."
+                                        : "Remove"}
                                 </Button>
                             ) : null}
                         </div>
