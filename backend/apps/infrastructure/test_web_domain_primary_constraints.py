@@ -162,7 +162,6 @@ class WebDomainPrimaryConstraintTests(TestCase):
         self.assertEqual(first_status, 201)
         self.assertEqual(second_status, 400)
 
-
     def test_archiving_primary_dns_zone_allows_replacement(self) -> None:
         domain = self._domain("replace-zone.example")
         first_resource = self._resource(
