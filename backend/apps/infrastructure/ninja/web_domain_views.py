@@ -865,6 +865,9 @@ def archive_website_endpoint(
     endpoint = _endpoint_queryset(request).filter(resource_id=resource_id).first()
     if endpoint is None:
         return _problem(404, "Website endpoint not found.", "not_found")
+    if endpoint.is_primary:
+        endpoint.is_primary = False
+        endpoint.save(update_fields=["is_primary", "updated_at"])
     _archive_resource(request, endpoint.resource)
     return _endpoint_out(endpoint, _visible_resource_ids(request))
 
@@ -1092,6 +1095,9 @@ def archive_dns_zone(request: HttpRequest, resource_id: int) -> DNSZoneOut | Sta
     zone = _visible_dns_zone(request, resource_id)
     if zone is None:
         return _problem(404, "DNS zone not found.", "not_found")
+    if zone.is_primary:
+        zone.is_primary = False
+        zone.save(update_fields=["is_primary", "updated_at"])
     _archive_resource(request, zone.resource)
     return _dns_zone_out(request, zone)
 

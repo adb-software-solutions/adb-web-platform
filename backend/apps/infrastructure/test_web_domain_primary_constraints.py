@@ -9,14 +9,20 @@ from apps.infrastructure.models import (
     InfrastructureResource,
     TLSCertificate,
     TLSCertificateDomain,
+    WebsiteEndpoint,
+    WebsiteProfile,
 )
 from apps.infrastructure.ninja.web_domain_schemas import (
     DNSZoneCreateIn,
     TLSCertificateDomainCreateIn,
+    WebsiteEndpointCreateIn,
 )
 from apps.infrastructure.ninja.web_domain_views import (
+    archive_dns_zone,
+    archive_website_endpoint,
     create_dns_zone,
     create_tls_certificate_domain,
+    create_website_endpoint,
 )
 from authentication.models import User
 
@@ -155,3 +161,76 @@ class WebDomainPrimaryConstraintTests(TestCase):
 
         self.assertEqual(first_status, 201)
         self.assertEqual(second_status, 400)
+
+
+    def test_archiving_primary_dns_zone_allows_replacement(self) -> None:
+        domain = self._domain("replace-zone.example")
+        first_resource = self._resource(
+            "Retired primary DNS",
+            InfrastructureResource.ResourceType.DNS_ZONE,
+        )
+        first = DNSZone.objects.create(
+            resource=first_resource,
+            domain=domain,
+            zone_name=domain.domain_name,
+            is_primary=True,
+        )
+
+        archive_dns_zone(self._request(), first_resource.id)
+
+        first.refresh_from_db()
+        first_resource.refresh_from_db()
+        self.assertFalse(first.is_primary)
+        self.assertEqual(
+            first_resource.lifecycle_status,
+            InfrastructureResource.LifecycleStatus.ARCHIVED,
+        )
+        status, _ = create_dns_zone(
+            self._request(),
+            DNSZoneCreateIn(
+                name="Replacement primary DNS",
+                domain_resource_id=domain.resource_id,
+                zone_name=f"replacement.{domain.domain_name}",
+                is_primary=True,
+            ),
+        )
+        self.assertEqual(status, 201)
+
+    def test_archiving_primary_website_endpoint_allows_replacement(self) -> None:
+        website_resource = self._resource(
+            "Replacement Website",
+            InfrastructureResource.ResourceType.WEBSITE,
+        )
+        website = WebsiteProfile.objects.create(resource=website_resource)
+        first_resource = self._resource(
+            "Retired primary endpoint",
+            InfrastructureResource.ResourceType.WEBSITE_ENDPOINT,
+        )
+        first = WebsiteEndpoint.objects.create(
+            resource=first_resource,
+            website=website,
+            url="https://replacement.example",
+            role=WebsiteEndpoint.Role.PRIMARY,
+            is_primary=True,
+        )
+
+        archive_website_endpoint(self._request(), first_resource.id)
+
+        first.refresh_from_db()
+        first_resource.refresh_from_db()
+        self.assertFalse(first.is_primary)
+        self.assertEqual(
+            first_resource.lifecycle_status,
+            InfrastructureResource.LifecycleStatus.ARCHIVED,
+        )
+        status, _ = create_website_endpoint(
+            self._request(),
+            WebsiteEndpointCreateIn(
+                name="Replacement primary endpoint",
+                website_resource_id=website.resource_id,
+                url="https://new.replacement.example",
+                role=WebsiteEndpoint.Role.PRIMARY,
+                is_primary=True,
+            ),
+        )
+        self.assertEqual(status, 201)
