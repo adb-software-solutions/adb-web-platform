@@ -16,6 +16,7 @@ import { API_URL } from "@/lib/config";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { CredentialVault } from "../../../credentials/CredentialVault";
+import { StructuredInfrastructureForm } from "../StructuredInfrastructureForm";
 
 interface SpecialistField {
     key: string;
@@ -83,6 +84,18 @@ interface ResourceDetail {
 interface InfrastructureResourceWorkspaceProps {
     resourceId: number;
     presentation?: "page" | "drawer";
+}
+
+type EditableSpecialistType = "server" | "network" | "subnet";
+
+const SPECIALIST_CHANGE_PERMISSIONS: Record<EditableSpecialistType, string> = {
+    server: "infrastructure.change_serverprofile",
+    network: "infrastructure.change_network",
+    subnet: "infrastructure.change_subnet",
+};
+
+function editableSpecialistType(value: string): EditableSpecialistType | null {
+    return value === "server" || value === "network" || value === "subnet" ? value : null;
 }
 
 function label(value: string): string {
@@ -166,6 +179,7 @@ export function InfrastructureResourceWorkspace({
     const [resource, setResource] = useState<ResourceDetail | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isEditing, setIsEditing] = useState(false);
     const [showRelationshipForm, setShowRelationshipForm] = useState(false);
     const [relationshipOptions, setRelationshipOptions] =
         useState<RelationshipOptions | null>(null);
@@ -203,6 +217,7 @@ export function InfrastructureResourceWorkspace({
     }, [load]);
 
     useEffect(() => {
+        setIsEditing(false);
         setShowRelationshipForm(false);
         setRelationshipOptions(null);
         setRelationshipType("");
@@ -311,6 +326,26 @@ export function InfrastructureResourceWorkspace({
         );
     }
 
+    const editableType = editableSpecialistType(resource.resource_type);
+    const canEdit =
+        editableType !== null &&
+        hasPermission("infrastructure.change_infrastructureresource") &&
+        hasPermission(SPECIALIST_CHANGE_PERMISSIONS[editableType]);
+
+    if (isEditing && editableType !== null) {
+        return (
+            <StructuredInfrastructureForm
+                allowedTypes={[editableType]}
+                editResourceId={resourceId}
+                onCancel={() => setIsEditing(false)}
+                onSaved={() => {
+                    setIsEditing(false);
+                    void load();
+                }}
+            />
+        );
+    }
+
     const technicalFields =
         resource.specialist_fields.length > 0
             ? resource.specialist_fields
@@ -327,11 +362,18 @@ export function InfrastructureResourceWorkspace({
                     `${resource.client_name || "ADB Internal"} · ${label(resource.environment)} · ${label(resource.lifecycle_status)}`
                 }
                 actions={
-                    presentation === "page" ? (
-                        <ButtonLink href="/admin/infrastructure/resources" variant="secondary">
-                            Back to resources
-                        </ButtonLink>
-                    ) : undefined
+                    <>
+                        {canEdit ? (
+                            <Button type="button" onClick={() => setIsEditing(true)}>
+                                Edit resource
+                            </Button>
+                        ) : null}
+                        {presentation === "page" ? (
+                            <ButtonLink href="/admin/infrastructure/resources" variant="secondary">
+                                Back to resources
+                            </ButtonLink>
+                        ) : null}
+                    </>
                 }
             />
 
@@ -394,9 +436,7 @@ export function InfrastructureResourceWorkspace({
                                 {technicalFields.map((field) => (
                                     <div
                                         key={field.key}
-                                        className={
-                                            field.kind === "multiline" ? "sm:col-span-2" : ""
-                                        }
+                                        className={field.kind === "multiline" ? "sm:col-span-2" : ""}
                                     >
                                         <dt className="text-[11px] font-semibold tracking-wide text-slate-600 uppercase">
                                             {field.label}
@@ -448,18 +488,14 @@ export function InfrastructureResourceWorkspace({
                                         </label>
                                         <Select
                                             value={relationshipType}
-                                            onChange={(event) =>
-                                                setRelationshipType(event.target.value)
-                                            }
+                                            onChange={(event) => setRelationshipType(event.target.value)}
                                             disabled={!relationshipOptions || isSavingRelationship}
                                         >
-                                            {relationshipOptions?.relationship_types.map(
-                                                (option) => (
-                                                    <option key={option.value} value={option.value}>
-                                                        {option.label}
-                                                    </option>
-                                                ),
-                                            )}
+                                            {relationshipOptions?.relationship_types.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </option>
+                                            ))}
                                         </Select>
                                     </div>
                                     <div>
@@ -468,9 +504,7 @@ export function InfrastructureResourceWorkspace({
                                         </label>
                                         <Select
                                             value={relationshipTargetId}
-                                            onChange={(event) =>
-                                                setRelationshipTargetId(event.target.value)
-                                            }
+                                            onChange={(event) => setRelationshipTargetId(event.target.value)}
                                             disabled={!relationshipOptions || isSavingRelationship}
                                         >
                                             <option value="">Choose resource</option>
@@ -488,9 +522,7 @@ export function InfrastructureResourceWorkspace({
                                         </label>
                                         <Input
                                             value={relationshipLabel}
-                                            onChange={(event) =>
-                                                setRelationshipLabel(event.target.value)
-                                            }
+                                            onChange={(event) => setRelationshipLabel(event.target.value)}
                                             placeholder="e.g. Production database, primary host..."
                                             disabled={isSavingRelationship}
                                         />
@@ -503,9 +535,7 @@ export function InfrastructureResourceWorkspace({
                                     </p>
                                 ) : null}
                                 {relationshipError ? (
-                                    <p className="mt-3 text-sm text-red-300">
-                                        {relationshipError}
-                                    </p>
+                                    <p className="mt-3 text-sm text-red-300">{relationshipError}</p>
                                 ) : null}
 
                                 <div className="mt-4 flex justify-end gap-2">
@@ -561,20 +591,15 @@ export function InfrastructureResourceWorkspace({
                                         <div className="flex shrink-0 items-center gap-2">
                                             <div className="text-xs text-slate-500">
                                                 {relationship.direction === "outgoing" ? "→" : "←"}{" "}
-                                                {relationship.label ||
-                                                    label(relationship.relationship_type)}
+                                                {relationship.label || label(relationship.relationship_type)}
                                             </div>
                                             {canDeleteRelationships ? (
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
                                                     size="sm"
-                                                    onClick={() =>
-                                                        void deleteRelationship(relationship)
-                                                    }
-                                                    disabled={
-                                                        deletingRelationshipId === relationship.id
-                                                    }
+                                                    onClick={() => void deleteRelationship(relationship)}
+                                                    disabled={deletingRelationshipId === relationship.id}
                                                 >
                                                     {deletingRelationshipId === relationship.id
                                                         ? "Removing..."
@@ -609,15 +634,11 @@ export function InfrastructureResourceWorkspace({
                             </div>
                             <div>
                                 <dt className="text-xs text-slate-600">Created</dt>
-                                <dd className="mt-1 text-slate-300">
-                                    {dateTime(resource.created_at)}
-                                </dd>
+                                <dd className="mt-1 text-slate-300">{dateTime(resource.created_at)}</dd>
                             </div>
                             <div>
                                 <dt className="text-xs text-slate-600">Last updated</dt>
-                                <dd className="mt-1 text-slate-300">
-                                    {dateTime(resource.updated_at)}
-                                </dd>
+                                <dd className="mt-1 text-slate-300">{dateTime(resource.updated_at)}</dd>
                             </div>
                             <div>
                                 <dt className="text-xs text-slate-600">Client portal</dt>
@@ -630,9 +651,7 @@ export function InfrastructureResourceWorkspace({
 
                     {resource.legacy_reference ? (
                         <Card className="border-amber-950/70 bg-amber-950/10 p-5">
-                            <h2 className="text-sm font-semibold text-amber-200">
-                                Legacy source
-                            </h2>
+                            <h2 className="text-sm font-semibold text-amber-200">Legacy source</h2>
                             <p className="mt-2 text-xs leading-5 text-amber-200/60">
                                 This resource is currently backed by the existing {" "}
                                 {label(resource.legacy_reference.legacy_type)} record #{" "}
