@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import socket
 import ssl
+import subprocess
 import time
 import urllib.error
 import urllib.request
@@ -45,6 +46,31 @@ def _timed_observation(
 def execute_check(check: MonitorCheck) -> CheckObservation:
     """Execute supported unauthenticated probes without persisting secret material."""
     timeout = check.timeout_seconds
+
+    if check.check_type == MonitorCheck.CheckType.ICMP:
+
+        def icmp_probe() -> tuple[bool, str, int | None, str]:
+            try:
+                result = subprocess.run(
+                    ["ping", "-n", "-c", "1", "-W", str(timeout), check.target],
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout + 1,
+                    check=False,
+                )
+            except subprocess.TimeoutExpired as error:
+                raise OSError("ICMP probe timed out.") from error
+            successful = result.returncode == 0
+            return (
+                successful,
+                "ICMP echo reply received."
+                if successful
+                else "ICMP echo request did not receive a reply.",
+                None,
+                check.target,
+            )
+
+        return _timed_observation(icmp_probe)
 
     if check.check_type == MonitorCheck.CheckType.TCP:
 
@@ -117,6 +143,31 @@ def execute_check(check: MonitorCheck) -> CheckObservation:
             )
 
         return _timed_observation(tls_probe)
+
+    if check.check_type == MonitorCheck.CheckType.DOMAIN_EXPIRY:
+
+        def domain_expiry_probe() -> tuple[bool, str, int | None, str]:
+            domain_profile = getattr(check.resource, "domain_profile", None)
+            if domain_profile is None:
+                raise ValueError("Domain profile is not configured for this resource.")
+            if domain_profile.expires_on is None:
+                raise ValueError("Domain expiry date is not configured for this resource.")
+            days = (domain_profile.expires_on - timezone.localdate()).days
+            if days < 0:
+                return (
+                    False,
+                    f"Domain expired {-days} days ago.",
+                    None,
+                    domain_profile.expires_on.isoformat(),
+                )
+            return (
+                days >= check.expiry_warning_days,
+                f"Domain expires in {days} days.",
+                None,
+                domain_profile.expires_on.isoformat(),
+            )
+
+        return _timed_observation(domain_expiry_probe)
 
     now = timezone.now()
     return CheckObservation(
