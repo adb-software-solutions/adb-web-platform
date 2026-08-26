@@ -36,6 +36,23 @@ class MonitorCheckModelTests(TestCase):
         with self.assertRaises(ValidationError):
             check.full_clean()
 
+    def test_retired_resource_cannot_receive_new_monitoring_check(self) -> None:
+        resource = InfrastructureResource.objects.create(
+            ownership_type=OwnershipType.INTERNAL,
+            name="Retired website",
+            resource_type=InfrastructureResource.ResourceType.WEBSITE,
+            lifecycle_status=InfrastructureResource.LifecycleStatus.RETIRED,
+        )
+        check = MonitorCheck(
+            resource=resource,
+            name="Retired health",
+            check_type=MonitorCheck.CheckType.HTTP,
+            target="https://retired.example.test/health",
+        )
+
+        with self.assertRaises(ValidationError):
+            check.full_clean()
+
     def test_tcp_check_requires_port(self) -> None:
         resource = InfrastructureResource.objects.create(
             ownership_type=OwnershipType.INTERNAL,

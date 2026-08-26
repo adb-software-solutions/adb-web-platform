@@ -61,6 +61,20 @@ class MonitorIncidentLifecycleTests(TestCase):
         self.assertEqual(incident.status, MonitorIncident.Status.RESOLVED)
         self.assertIsNotNone(incident.resolved_at)
 
+    def test_in_flight_result_does_not_unpause_check(self) -> None:
+        self.check.enabled = False
+        self.check.status = MonitorCheck.Status.PAUSED
+        self.check.next_run_at = None
+        self.check.save(update_fields=["enabled", "status", "next_run_at"])
+
+        self._record(False, "Finished after pause")
+
+        self.assertEqual(self.check.status, MonitorCheck.Status.PAUSED)
+        self.assertIsNone(self.check.next_run_at)
+        self.assertEqual(self.check.consecutive_failures, 0)
+        self.assertFalse(MonitorIncident.objects.exists())
+        self.assertEqual(self.check.results.count(), 1)
+
     def test_result_messages_are_bounded(self) -> None:
         self._record(False, "x" * 800)
         result = self.check.results.get()
