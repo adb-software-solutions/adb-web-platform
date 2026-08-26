@@ -136,6 +136,7 @@ class LegacyWebDomainPromotionTests(TestCase):
         self.assertEqual(certificate.certificate_type, TLSCertificate.CertificateType.ACME)
         self.assertEqual(certificate.issuer, "Let's Encrypt")
         self.assertEqual(certificate.subject_common_name, legacy_domain.domain_name)
+        assert certificate.expires_at is not None
         self.assertEqual(certificate.expires_at.date(), legacy_certificate.expiry_date)
         self.assertIsNone(certificate.provider_account_id)
         self.assertEqual(link.domain_id, domain.id)
