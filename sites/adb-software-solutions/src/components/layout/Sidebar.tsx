@@ -16,6 +16,7 @@ import {
     MegaphoneIcon,
     RectangleGroupIcon,
     ServerStackIcon,
+    SignalIcon,
     UsersIcon,
     XMarkIcon,
 } from "@heroicons/react/24/outline";
@@ -129,6 +130,12 @@ const navigation: NavigationGroup[] = [
                 href: "/admin/infrastructure/applications",
                 icon: CloudIcon,
                 permissions: ["infrastructure.view_application"],
+            },
+            {
+                label: "Monitoring",
+                href: "/admin/monitoring",
+                icon: SignalIcon,
+                permissions: ["monitoring.view_monitorcheck"],
             },
         ],
     },

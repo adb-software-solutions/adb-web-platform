@@ -147,6 +147,11 @@ export const AdminAPI = {
             `${API_BASE_URL}/admin/infrastructure/email-systems`,
         techStack: () => `${API_BASE_URL}/admin/infrastructure/tech-stack`,
     },
+    monitoring: {
+        overview: () => `${API_BASE_URL}/admin/monitoring/overview`,
+        acknowledge: (incidentId: number) =>
+            `${API_BASE_URL}/admin/monitoring/incidents/${incidentId}/acknowledge`,
+    },
     website: {
         portfolio: {
             list: () => `${API_BASE_URL}/admin/website/portfolio`,
