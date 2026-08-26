@@ -1,4 +1,5 @@
 import { Container, PageHeader } from "@/components/ui";
+import { MonitoringAddAction } from "./MonitoringAddAction";
 import { MonitoringWorkspace } from "./MonitoringWorkspace";
 
 export const metadata = {
@@ -11,6 +12,7 @@ export default function MonitoringPage() {
             <PageHeader
                 title="Monitoring"
                 description="Current technical health and active incidents across managed infrastructure."
+                actions={<MonitoringAddAction />}
             />
             <div className="mt-6">
                 <MonitoringWorkspace />
