@@ -135,9 +135,7 @@ class MonitorCheck(models.Model):
         if self.check_type == self.CheckType.DOMAIN_EXPIRY and (
             self.resource.resource_type != InfrastructureResource.ResourceType.DOMAIN
         ):
-            raise ValidationError(
-                {"resource": "Domain expiry checks require a Domain resource."}
-            )
+            raise ValidationError({"resource": "Domain expiry checks require a Domain resource."})
         if self.check_type == self.CheckType.TCP and self.port is None:
             raise ValidationError({"port": "TCP checks require a port."})
         if self.check_type == self.CheckType.CONTENT and not (
