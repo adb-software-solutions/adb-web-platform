@@ -27,6 +27,12 @@ class MonitorCheckUpdateIn(MonitorCheckConfigIn):
     pass
 
 
+class MonitorCheckConfigOut(MonitorCheckConfigIn):
+    id: int
+    resource_id: int
+    resource_name: str
+
+
 class MonitorCheckOut(Schema):
     id: int
     resource_id: int

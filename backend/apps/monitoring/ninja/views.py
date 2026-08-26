@@ -17,6 +17,7 @@ from apps.monitoring.services import acknowledge_incident
 from authentication.ninja.schemas import ProblemDetail
 
 from .schemas import (
+    MonitorCheckConfigOut,
     MonitorCheckCreateIn,
     MonitorCheckDetailOut,
     MonitorCheckOut,
@@ -78,6 +79,31 @@ def _check_out(check: MonitorCheck) -> MonitorCheckOut:
         next_run_at=check.next_run_at,
         last_duration_ms=check.last_duration_ms,
         last_message=check.last_message,
+    )
+
+
+def _check_config_out(request: HttpRequest, check: MonitorCheck) -> MonitorCheckConfigOut:
+    return MonitorCheckConfigOut(
+        id=check.id,
+        resource_id=check.resource_id,
+        resource_name=check.resource.name,
+        name=check.name,
+        check_type=check.check_type,
+        severity=check.severity,
+        target=check.target,
+        port=check.port,
+        expected_value=check.expected_value,
+        forbidden_value=check.forbidden_value,
+        interval_seconds=check.interval_seconds,
+        timeout_seconds=check.timeout_seconds,
+        failure_threshold=check.failure_threshold,
+        recovery_threshold=check.recovery_threshold,
+        expiry_warning_days=check.expiry_warning_days,
+        credential_id=(
+            check.credential_id
+            if request.user.has_perm("credentials.view_storedcredential")
+            else None
+        ),
     )
 
 
@@ -313,6 +339,28 @@ def create_monitor_check(
     except ValidationError as error:
         return _problem(400, "; ".join(error.messages), "validation_error")
     return 201, _check_out(check)
+
+
+@monitoring_router.get(
+    "/monitoring/checks/{check_id}/configuration",
+    response={
+        200: MonitorCheckConfigOut,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
+)
+def monitor_check_configuration(
+    request: HttpRequest,
+    check_id: int,
+) -> MonitorCheckConfigOut | StaffProblem:
+    problem = _permission_problem(request, "monitoring.change_monitorcheck")
+    if problem:
+        return problem
+    check = _visible_check(request, check_id)
+    if check is None:
+        return _problem(404, "Monitoring check not found.", "not_found")
+    return _check_config_out(request, check)
 
 
 @monitoring_router.get(

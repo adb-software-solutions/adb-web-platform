@@ -87,6 +87,24 @@ class MonitoringManagementAPITests(TestCase):
         self.assertNotIn(self.hidden_resource.id, resource_ids)
         self.assertNotIn(self.retired_resource.id, resource_ids)
 
+    def test_configuration_read_requires_change_but_not_history_permissions(self) -> None:
+        self.grant("change_monitorcheck")
+        check = MonitorCheck.objects.create(
+            resource=self.internal_resource,
+            name="Editable endpoint",
+            check_type=MonitorCheck.CheckType.HTTP,
+            target="https://example.test/health",
+        )
+
+        response = self.client.get(
+            f"/api/admin/monitoring/checks/{check.id}/configuration"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["id"], check.id)
+        self.assertEqual(response.json()["resource_id"], self.internal_resource.id)
+        self.assertEqual(response.json()["name"], check.name)
+
     def test_update_without_credential_visibility_preserves_existing_reference(self) -> None:
         self.grant("change_monitorcheck")
         credential_type = CredentialType.objects.create(name="Monitoring Login")

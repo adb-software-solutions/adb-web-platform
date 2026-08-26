@@ -125,7 +125,7 @@ export function MonitoringCheckForm({
             setError(null);
             if (checkId) {
                 const check = (await fetchAPI(
-                    AdminAPI.monitoring.get(checkId),
+                    `${API_URL}/api/admin/monitoring/checks/${checkId}/configuration`,
                 )) as MonitorCheckDetail;
                 setResourceName(check.resource_name);
                 setForm({
