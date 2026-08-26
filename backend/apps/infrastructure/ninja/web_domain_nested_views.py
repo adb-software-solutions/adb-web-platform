@@ -53,7 +53,8 @@ def list_website_endpoints(
     return [
         _endpoint_out(endpoint, visible_ids)
         for endpoint in website.endpoints.all()
-        if endpoint.resource.lifecycle_status in CURRENT_LIFECYCLE_STATUSES
+        if endpoint.resource_id in visible_ids
+        and endpoint.resource.lifecycle_status in CURRENT_LIFECYCLE_STATUSES
     ]
 
 
@@ -109,4 +110,9 @@ def list_tls_certificate_domains(
     certificate = _visible_tls_certificate(request, resource_id)
     if certificate is None:
         return _problem(404, "TLS certificate not found.", "not_found")
-    return [_tls_domain_out(link) for link in certificate.domain_links.all()]
+    visible_ids = _visible_resource_ids(request)
+    return [
+        _tls_domain_out(link)
+        for link in certificate.domain_links.all()
+        if link.domain.resource_id in visible_ids
+    ]
