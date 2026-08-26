@@ -5,6 +5,14 @@ resource layer is introduced alongside them. They will be migrated onto the new
 resource identities incrementally rather than rewritten in place.
 """
 
+from .data_application_models import (
+    ApplicationEnvironment,
+    ApplicationProfile,
+    ApplicationRepositoryLink,
+    DatabaseInstance,
+    LogicalDatabase,
+    SourceRepository,
+)
 from .legacy_models import (
     API,
     Application,
@@ -45,10 +53,14 @@ __all__ = [
     "API",
     "APIResourceIdentity",
     "Application",
+    "ApplicationEnvironment",
+    "ApplicationProfile",
+    "ApplicationRepositoryLink",
     "ApplicationResourceIdentity",
     "Bot",
     "BotResourceIdentity",
     "Database",
+    "DatabaseInstance",
     "DatabaseResourceIdentity",
     "Domain",
     "DomainResourceIdentity",
@@ -59,6 +71,7 @@ __all__ = [
     "InfrastructureTag",
     "Licence",
     "LicenceResourceIdentity",
+    "LogicalDatabase",
     "MobileApp",
     "MobileAppResourceIdentity",
     "Network",
@@ -71,6 +84,7 @@ __all__ = [
     "ServerProfile",
     "ServerResourceIdentity",
     "ServiceProvider",
+    "SourceRepository",
     "Subnet",
     "Website",
     "WebsiteResourceIdentity",

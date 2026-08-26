@@ -3,17 +3,23 @@ from django.contrib import admin
 from .models import (
     API,
     Application,
+    ApplicationEnvironment,
+    ApplicationProfile,
+    ApplicationRepositoryLink,
     Bot,
     Database,
+    DatabaseInstance,
     Domain,
     EmailSystem,
     IPAddress,
     Licence,
+    LogicalDatabase,
     MobileApp,
     Network,
     NetworkInterface,
     Server,
     ServerProfile,
+    SourceRepository,
     SSLCertificate,
     Subnet,
     Website,
@@ -82,6 +88,97 @@ class IPAddressAdmin(admin.ModelAdmin):
     list_filter = ("scope", "is_primary")
     search_fields = ("address", "resource__name", "ptr_record")
     raw_id_fields = ("resource", "interface")
+
+
+@admin.register(DatabaseInstance)
+class DatabaseInstanceAdmin(admin.ModelAdmin):
+    list_display = (
+        "resource",
+        "engine",
+        "engine_version",
+        "hosting_type",
+        "provider_account",
+        "server",
+        "region",
+    )
+    list_filter = ("engine", "hosting_type", "tls_mode", "region")
+    search_fields = (
+        "resource__name",
+        "endpoint",
+        "provider_resource_id",
+        "engine_version",
+    )
+    raw_id_fields = ("resource", "provider_account", "server")
+
+
+@admin.register(LogicalDatabase)
+class LogicalDatabaseAdmin(admin.ModelAdmin):
+    list_display = ("resource", "database_name", "instance", "default_schema")
+    search_fields = ("resource__name", "database_name", "instance__resource__name")
+    raw_id_fields = ("resource", "instance")
+
+
+@admin.register(ApplicationProfile)
+class ApplicationProfileAdmin(admin.ModelAdmin):
+    list_display = ("resource", "application_type", "owner_team", "primary_language", "framework")
+    list_filter = ("application_type",)
+    search_fields = ("resource__name", "owner_team", "primary_language", "framework")
+    raw_id_fields = ("resource",)
+
+
+@admin.register(ApplicationEnvironment)
+class ApplicationEnvironmentAdmin(admin.ModelAdmin):
+    list_display = (
+        "resource",
+        "application",
+        "deployment_type",
+        "server",
+        "provider_account",
+        "region",
+    )
+    list_filter = ("deployment_type", "region", "automatic_deployments")
+    search_fields = (
+        "resource__name",
+        "application__resource__name",
+        "provider_resource_id",
+        "runtime",
+        "release_version",
+    )
+    raw_id_fields = ("resource", "application", "server", "provider_account")
+
+
+@admin.register(SourceRepository)
+class SourceRepositoryAdmin(admin.ModelAdmin):
+    list_display = (
+        "resource",
+        "owner_name",
+        "repository_name",
+        "visibility",
+        "provider_account",
+        "default_branch",
+    )
+    list_filter = ("visibility", "is_fork")
+    search_fields = (
+        "resource__name",
+        "owner_name",
+        "repository_name",
+        "provider_repository_id",
+        "web_url",
+    )
+    raw_id_fields = ("resource", "provider_account")
+
+
+@admin.register(ApplicationRepositoryLink)
+class ApplicationRepositoryLinkAdmin(admin.ModelAdmin):
+    list_display = ("application", "repository", "role", "path")
+    list_filter = ("role",)
+    search_fields = (
+        "application__resource__name",
+        "repository__resource__name",
+        "repository__repository_name",
+        "path",
+    )
+    raw_id_fields = ("application", "repository")
 
 
 @admin.register(Database)
