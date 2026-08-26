@@ -322,14 +322,15 @@ See `MICROSOFT_GRAPH_TICKETING_SETUP.md` and
 - [x] relationship create/delete management with backend validation.
 - [x] Client-context Infrastructure workspace.
 - [x] Infrastructure Resource workspaces surface linked active Credentials.
+- [x] native Server/compute/network specialists with resource-centric create/edit/archive flows.
+- [x] native Database Instance and Logical Database specialists.
+- [x] native Application and Application Environment specialists.
+- [x] native Source Repository specialists plus typed Application/Repository role/path links.
+- [x] deterministic safe legacy Server/Database/Application promotion where source data is unambiguous.
+- [x] unified resource drawer/workspace create/edit flows for the implemented specialist families.
 
 ### Next technical slices
 
-- [ ] safe create/edit/archive flows for mature structured specialists rather
-      than extending legacy registers indefinitely.
-- [ ] core Server/compute/network structures.
-- [ ] Database instance/logical database structures.
-- [ ] logical Application/Environment/source/dependency structures.
 - [ ] Website/Domain/DNS/TLS structures.
 - [ ] Monitoring checks/history/incidents.
 - [ ] Docker/Kubernetes and later specialist operations resources.

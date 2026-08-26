@@ -497,10 +497,14 @@ The merged foundation includes:
 - specialist legacy identity bridges;
 - explicit operator-driven reconciliation;
 - Client-scoped/global structured resource workspaces;
-- contextual links to active Credentials.
+- contextual links to active Credentials;
+- native compute/network specialists;
+- native Database Instance/Logical Database specialists;
+- native Application/Application Environment specialists;
+- native Source Repository specialists and typed Application/Repository links;
+- safe resource-centric create/edit/archive workflows and conservative legacy promotion.
 
-The next Infrastructure slices should build real specialist operational
-structures rather than expanding the legacy flat registers indefinitely.
+The next Infrastructure slice is Web/Domain/DNS/TLS. Continue building real specialist operational structures rather than expanding the legacy flat registers indefinitely.
 
 ### 9.2 Credential Vault
 
@@ -745,19 +749,19 @@ model and portal design says otherwise.
 
 ## 16. Current ordered build plan
 
-The Credential Vault foundation is complete in the change set that carries this
-document. The next sustained implementation stage is typed Infrastructure.
+The Credential Vault and the first Core typed Infrastructure slices are complete through compute/network plus Database/Application/Source Repository. The next sustained implementation stage is Web Infrastructure.
 
-### Stage 1 — Core typed Infrastructure
+### Stage 1 — Core typed Infrastructure — implemented
 
-Move beyond transitional legacy specialist records into the most useful
-strongly typed operational structures:
+The platform now has:
 
 - Server/compute and networking foundations;
-- Database instance/logical database structures;
-- logical Application + environment/source/dependency context;
+- Database Instance/Logical Database structures;
+- logical Application + Application Environment context;
+- Source Repository plus typed Application/Repository links;
 - Provider Account relationships;
 - safe resource create/edit/archive lifecycle;
+- conservative legacy promotion;
 - Credential references rather than duplicate secret fields.
 
 ### Stage 2 — Web Infrastructure

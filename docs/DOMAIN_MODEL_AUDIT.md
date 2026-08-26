@@ -459,13 +459,19 @@ legacy fields must not leak through the structured resource API. Secret values
 move to Vault Credentials where appropriate before old plaintext columns are
 retired.
 
-### Future typed specialist models/relationships — Keep / extend progressively
+### Native typed specialist models/relationships — Keep / extend progressively
 
-The planned structured families include:
+Implemented structured families now include:
 
-- Server/compute/network;
-- Database instance/logical database;
-- Application/Application Environment/source context;
+- `ServerProfile`, Network, Subnet, Network Interface and IP Address;
+- `DatabaseInstance` and `LogicalDatabase`;
+- `ApplicationProfile` and `ApplicationEnvironment`;
+- `SourceRepository` plus typed `ApplicationRepositoryLink` role/path context.
+
+These models remain resource-backed and enforce Client/Internal boundaries. Specialist authentication material references Vault Credentials rather than introducing password/token/private-key fields.
+
+Future structured families still include:
+
 - Website/endpoints;
 - Domain/DNS/TLS;
 - Docker/Kubernetes;
@@ -473,9 +479,7 @@ The planned structured families include:
 - system services/scheduled jobs;
 - licences/subscriptions/email systems and other useful operations records.
 
-Implement these progressively rather than redesigning every technical model in
-one migration. Authentication material in those families references Vault
-Credentials.
+Implement these progressively rather than redesigning every technical model in one migration.
 
 ## 11. Knowledge Base
 
