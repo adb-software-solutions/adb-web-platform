@@ -116,7 +116,11 @@ class OperationalOwnershipTests(TestCase):
         self.assertIsNone(task.project)
 
     def test_knowledge_document_supports_client_ownership(self) -> None:
-        section = KnowledgeBaseSection.objects.create(name="Setup")
+        section = KnowledgeBaseSection.objects.create(
+            ownership_type=OwnershipType.CLIENT,
+            client=self.client_account,
+            name="Setup",
+        )
         document = KnowledgeBaseDocument(
             ownership_type=OwnershipType.CLIENT,
             client=self.client_account,

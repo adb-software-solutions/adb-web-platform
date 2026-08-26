@@ -32,6 +32,10 @@ app.conf.beat_schedule = {
         "task": "ticketing.enqueue_attachment_scans",
         "schedule": 60,
     },
+    "knowledge-base-attachment-scan-dispatch": {
+        "task": "knowledge_base.enqueue_attachment_scans",
+        "schedule": 60,
+    },
 }
 app.conf.timezone = "UTC"
 

@@ -38,8 +38,10 @@ async function ensureCsrfToken(): Promise<string | null> {
 export async function fetchRawAPI(url: string, options: RequestInit = {}) {
     const method = (options.method ?? "GET").toUpperCase();
     const headers = new Headers(options.headers);
+    const isFormData =
+        typeof FormData !== "undefined" && options.body instanceof FormData;
 
-    if (!headers.has("Content-Type") && options.body) {
+    if (!headers.has("Content-Type") && options.body && !isFormData) {
         headers.set("Content-Type", "application/json");
     }
 

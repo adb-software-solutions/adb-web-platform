@@ -27,6 +27,8 @@ from apps.infrastructure.ninja.specialist_edit_views import infrastructure_speci
 from apps.infrastructure.ninja.specialist_views import infrastructure_specialist_router
 from apps.infrastructure.ninja.web_domain_nested_views import web_domain_nested_router
 from apps.infrastructure.ninja.web_domain_views import web_domain_specialist_router
+from apps.knowledge_base.ninja.attachment_views import knowledge_attachment_router
+from apps.knowledge_base.ninja.views import knowledge_base_router
 from apps.monitoring.ninja.views import monitoring_router
 from apps.tasks.ninja.admin_views import tasks_admin_router
 from apps.tasks.ninja.calendar_views import calendar_router
@@ -105,6 +107,8 @@ admin_router.add_router("", web_domain_specialist_router)
 admin_router.add_router("", web_domain_nested_router)
 admin_router.add_router("", monitoring_router)
 admin_router.add_router("", credential_router)
+admin_router.add_router("", knowledge_base_router)
+admin_router.add_router("", knowledge_attachment_router)
 admin_router.add_router("", resource_admin_router)
 admin_router.add_router("/website", website_admin_router)
 api.add_router("/admin", admin_router)

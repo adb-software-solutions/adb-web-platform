@@ -53,6 +53,15 @@ class Command(BaseCommand):
                 stderr=self.stderr,
             )
 
+        knowledge_base_args = [arg for arg in common_args if arg != "--reset"]
+        knowledge_base_args.insert(0, "--reset")
+        call_command(
+            "seed_knowledge_base_development",
+            *knowledge_base_args,
+            stdout=self.stdout,
+            stderr=self.stderr,
+        )
+
         self.stdout.write(
             self.style.SUCCESS(f"Full platform development data ready (scale={scale}).")
         )

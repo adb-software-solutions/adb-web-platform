@@ -1,3 +1,4 @@
+import { KnowledgeBasePanel } from "@/components/admin/KnowledgeBasePanel";
 import { CredentialVault } from "@/app/(admin)/admin/credentials/CredentialVault";
 import { ButtonLink, Container } from "@/components/ui";
 import { ClientWorkspace } from "./ClientWorkspace";
@@ -27,6 +28,13 @@ export default async function ClientPage({
                 </ButtonLink>
             </div>
             <ClientWorkspace clientId={clientId} />
+            <div className="mt-8 border-t border-slate-800 pt-8">
+                <KnowledgeBasePanel
+                    clientId={clientId}
+                    title="Client knowledge"
+                    description="Current runbooks and documentation owned by this client."
+                />
+            </div>
             <div className="mt-8 border-t border-slate-800 pt-8">
                 <CredentialVault initialClientId={clientId} compact />
             </div>
