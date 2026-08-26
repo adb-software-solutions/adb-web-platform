@@ -39,6 +39,7 @@ def list_application_repository_links(
         request,
         "infrastructure.view_infrastructureresource",
         "infrastructure.view_applicationprofile",
+        "infrastructure.view_sourcerepository",
         "infrastructure.view_applicationrepositorylink",
     )
     if problem:
@@ -54,6 +55,7 @@ def list_application_repository_links(
         return _problem(404, "Application not found.", "not_found")
 
     links = ApplicationRepositoryLink.objects.select_related("repository__resource").filter(
-        application=application
+        application=application,
+        repository__resource__in=visible,
     )
     return [_link_out(link) for link in links]

@@ -826,7 +826,14 @@ def create_application_repository_link(
     resource_id: int,
     payload: ApplicationRepositoryLinkCreateIn,
 ) -> tuple[int, ApplicationRepositoryLinkOut | dict[str, object]]:
-    problem = _permission_problem(request, "infrastructure.add_applicationrepositorylink")
+    problem = _permission_problem(
+        request,
+        "infrastructure.view_infrastructureresource",
+        "infrastructure.view_applicationprofile",
+        "infrastructure.view_sourcerepository",
+        "infrastructure.view_applicationrepositorylink",
+        "infrastructure.add_applicationrepositorylink",
+    )
     if problem:
         return problem
     application = _visible_application(request, resource_id)
@@ -860,13 +867,24 @@ def delete_application_repository_link(
     resource_id: int,
     link_id: int,
 ) -> tuple[int, None] | StaffProblem:
-    problem = _permission_problem(request, "infrastructure.delete_applicationrepositorylink")
+    problem = _permission_problem(
+        request,
+        "infrastructure.view_infrastructureresource",
+        "infrastructure.view_applicationprofile",
+        "infrastructure.view_sourcerepository",
+        "infrastructure.view_applicationrepositorylink",
+        "infrastructure.delete_applicationrepositorylink",
+    )
     if problem:
         return problem
     application = _visible_application(request, resource_id)
     if application is None:
         return _problem(404, "Application not found.", "not_found")
-    link = ApplicationRepositoryLink.objects.filter(id=link_id, application=application).first()
+    link = ApplicationRepositoryLink.objects.filter(
+        id=link_id,
+        application=application,
+        repository__resource__in=_visible_queryset(request),
+    ).first()
     if link is None:
         return _problem(404, "Repository link not found.", "not_found")
     link.delete()
