@@ -6,18 +6,13 @@ from typing import TypeAlias
 from django.http import HttpRequest
 from ninja import Router, Schema
 
-from apps.infrastructure.models import (
-    InfrastructureResource,
-    Network,
-    ServerProfile,
-    Subnet,
-)
+from apps.infrastructure.models import InfrastructureResource, Network, ServerProfile, Subnet
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
 from authentication.ninja.schemas import ProblemDetail
 
 infrastructure_specialist_edit_router = Router(tags=["admin-infrastructure-specialist-edit"])
 StaffProblem = tuple[int, dict[str, object]]
-SpecialistEditValue: TypeAlias = str | int | bool | None | list[str]
+SpecialistEditValue: TypeAlias = str | int | bool | list[str] | None
 
 
 class InfrastructureSpecialistEditOut(Schema):
@@ -79,6 +74,7 @@ def _server_edit(resource: InfrastructureResource) -> InfrastructureSpecialistEd
     server = ServerProfile.objects.filter(resource=resource).first()
     if server is None:
         return None
+    provider_account = server.provider_account if server.provider_account_id else None
     return _resource_out(
         resource,
         {
@@ -97,7 +93,7 @@ def _server_edit(resource: InfrastructureResource) -> InfrastructureSpecialistEd
             "os_version": server.os_version,
             "kernel_version": server.kernel_version,
             "provider_account_resource_id": (
-                server.provider_account.resource_id if server.provider_account_id else None
+                provider_account.resource_id if provider_account else None
             ),
             "provider_resource_id": server.provider_resource_id,
             "region": server.region,
@@ -120,12 +116,13 @@ def _network_edit(resource: InfrastructureResource) -> InfrastructureSpecialistE
     network = Network.objects.filter(resource=resource).first()
     if network is None:
         return None
+    provider_account = network.provider_account if network.provider_account_id else None
     return _resource_out(
         resource,
         {
             "network_type": network.network_type,
             "provider_account_resource_id": (
-                network.provider_account.resource_id if network.provider_account_id else None
+                provider_account.resource_id if provider_account else None
             ),
             "provider_network_id": network.provider_network_id,
             "cidr": network.cidr,
