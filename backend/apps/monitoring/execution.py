@@ -88,16 +88,26 @@ def execute_check(check: MonitorCheck) -> CheckObservation:
                 check.target,
                 headers={"User-Agent": "ADB-Monitor/1.0"},
             )
-            with urllib.request.urlopen(request, timeout=timeout) as response:
-                body = response.read(1_000_000).decode("utf-8", errors="replace")
-                status_code = response.status
+            try:
+                with urllib.request.urlopen(request, timeout=timeout) as response:
+                    body = response.read(1_000_000).decode("utf-8", errors="replace")
+                    status_code = response.status
+            except urllib.error.HTTPError as error:
+                try:
+                    body = error.read(1_000_000).decode("utf-8", errors="replace")
+                finally:
+                    error.close()
+                status_code = error.code
+
             successful = 200 <= status_code < 400
+            if not successful:
+                return False, f"HTTP {status_code}.", status_code, ""
             if check.check_type == MonitorCheck.CheckType.CONTENT:
                 if check.expected_value and check.expected_value not in body:
                     return False, "Expected content was not present.", status_code, ""
                 if check.forbidden_value and check.forbidden_value in body:
                     return False, "Forbidden content was present.", status_code, ""
-            return successful, f"HTTP {status_code}.", status_code, ""
+            return True, f"HTTP {status_code}.", status_code, ""
 
         return _timed_observation(http_probe)
 
