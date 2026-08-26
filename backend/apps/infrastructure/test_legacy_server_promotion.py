@@ -2,12 +2,7 @@ from django.test import TestCase
 
 from apps.core.ownership import OwnershipType
 from apps.infrastructure.legacy_reconciliation import reconcile_legacy_resource
-from apps.infrastructure.models import (
-    IPAddress,
-    InfrastructureResource,
-    Server,
-    ServerProfile,
-)
+from apps.infrastructure.models import InfrastructureResource, IPAddress, Server, ServerProfile
 
 
 class LegacyServerPromotionTests(TestCase):
