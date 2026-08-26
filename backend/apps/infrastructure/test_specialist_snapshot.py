@@ -1,3 +1,5 @@
+from typing import cast
+
 from django.contrib.auth.models import Permission
 from django.test import RequestFactory, TestCase
 
@@ -53,7 +55,7 @@ class InfrastructureSpecialistSnapshotTests(TestCase):
         result = get_infrastructure_resource(request, resource.id)
 
         self.assertIsInstance(result, InfrastructureResourceDetailOut)
-        detail = result
+        detail = cast(InfrastructureResourceDetailOut, result)
         fields = {field.key: field.value for field in detail.specialist_fields}
         self.assertEqual(fields["hostname"], "adb-lon-ws01")
         self.assertEqual(fields["cpu_model"], "AMD EPYC")
