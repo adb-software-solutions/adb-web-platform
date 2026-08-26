@@ -138,5 +138,6 @@ class InfrastructureResourceDetailOut(InfrastructureResourceSummaryOut):
     description: str
     is_portal_visible: bool
     relationships: list[InfrastructureRelationshipOut]
+    specialist_fields: list[SpecialistFieldOut]
     legacy_reference: LegacyResourceReferenceOut | None
     created_at: datetime
