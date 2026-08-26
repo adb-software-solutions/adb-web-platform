@@ -79,6 +79,8 @@ Primary operations include:
 - section create/update;
 - attachment upload/download/delete.
 
+Ownership, client, section and Infrastructure Resource filters always narrow the caller's already-resolved access scope; they never widen it. Resource-filtered requests also require independent Infrastructure Resource visibility before the filter can be applied.
+
 Search currently covers document title, summary, Markdown content and tag names using database `icontains` matching. Stage 4 does not introduce an external search engine.
 
 ## Markdown rendering
