@@ -8,8 +8,8 @@ from apps.access_control.models import ClientAccessGrant, StaffAccessProfile
 from apps.clients.models import Client
 from apps.core.ownership import OwnershipType
 from apps.infrastructure.models import (
-    IPAddress,
     InfrastructureResource,
+    IPAddress,
     Network,
     NetworkInterface,
     ProviderAccount,
@@ -18,9 +18,11 @@ from apps.infrastructure.models import (
     Subnet,
 )
 from apps.infrastructure.ninja.specialist_schemas import (
-    IPAddressCreateIn,
     InfrastructureSpecialistOptionsOut,
+    IPAddressCreateIn,
+    IPAddressOut,
     NetworkInterfaceCreateIn,
+    NetworkInterfaceOut,
     ServerCreateIn,
     ServerOut,
 )
@@ -297,8 +299,8 @@ class InfrastructureSpecialistApiTests(TestCase):
             ),
         )
         self.assertEqual(interface_status, 201)
-        interface = cast(object, interface_result)
-        interface_id = cast(int, getattr(interface, "id"))
+        interface = cast(NetworkInterfaceOut, interface_result)
+        interface_id = interface.id
 
         ip_status, ip_result = create_ip_address(
             self._request(user),
@@ -311,10 +313,13 @@ class InfrastructureSpecialistApiTests(TestCase):
         )
 
         self.assertEqual(ip_status, 201)
-        ip_id = cast(int, getattr(ip_result, "id"))
-        saved_ip = IPAddress.objects.get(id=ip_id)
+        ip_address = cast(IPAddressOut, ip_result)
+        saved_ip = IPAddress.objects.get(id=ip_address.id)
         self.assertEqual(saved_ip.resource_id, server_resource.id)
         self.assertEqual(saved_ip.interface_id, interface_id)
         self.assertTrue(
-            NetworkInterface.objects.filter(id=interface_id, server__resource=server_resource).exists()
+            NetworkInterface.objects.filter(
+                id=interface_id,
+                server__resource=server_resource,
+            ).exists()
         )
