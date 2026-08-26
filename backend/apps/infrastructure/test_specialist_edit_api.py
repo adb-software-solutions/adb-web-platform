@@ -107,7 +107,9 @@ class InfrastructureSpecialistEditApiTests(TestCase):
         self.assertEqual(result.ownership_type, "internal")
         self.assertEqual(result.values["hostname"], "adb-lon-ws01")
         self.assertEqual(result.values["compute_type"], "cloud_vm")
-        self.assertEqual(result.values["provider_account_resource_id"], self.provider_account.resource_id)
+        self.assertEqual(
+            result.values["provider_account_resource_id"], self.provider_account.resource_id
+        )
         self.assertEqual(result.values["automatic_updates"], True)
         self.assertEqual(result.values["patch_window"], "Sunday 03:00 Europe/London")
         self.assertNotIn("password", result.values)
