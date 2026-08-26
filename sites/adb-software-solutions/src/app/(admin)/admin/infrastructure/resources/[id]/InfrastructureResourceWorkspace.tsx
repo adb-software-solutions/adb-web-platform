@@ -16,7 +16,12 @@ import { API_URL } from "@/lib/config";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { CredentialVault } from "../../../credentials/CredentialVault";
+import {
+    DataApplicationInfrastructureForm,
+    type DataApplicationType,
+} from "../DataApplicationInfrastructureForm";
 import { StructuredInfrastructureForm } from "../StructuredInfrastructureForm";
+import { ApplicationRepositoriesCard } from "./ApplicationRepositoriesCard";
 
 interface SpecialistField {
     key: string;
@@ -86,16 +91,38 @@ interface InfrastructureResourceWorkspaceProps {
     presentation?: "page" | "drawer";
 }
 
-type EditableSpecialistType = "server" | "network" | "subnet";
+type ComputeSpecialistType = "server" | "network" | "subnet";
+type EditableSpecialistType = ComputeSpecialistType | DataApplicationType;
 
 const SPECIALIST_CHANGE_PERMISSIONS: Record<EditableSpecialistType, string> = {
     server: "infrastructure.change_serverprofile",
     network: "infrastructure.change_network",
     subnet: "infrastructure.change_subnet",
+    database_instance: "infrastructure.change_databaseinstance",
+    logical_database: "infrastructure.change_logicaldatabase",
+    application: "infrastructure.change_applicationprofile",
+    application_environment: "infrastructure.change_applicationenvironment",
+    source_repository: "infrastructure.change_sourcerepository",
 };
 
 function editableSpecialistType(value: string): EditableSpecialistType | null {
-    return value === "server" || value === "network" || value === "subnet" ? value : null;
+    switch (value) {
+        case "server":
+        case "network":
+        case "subnet":
+        case "database_instance":
+        case "logical_database":
+        case "application":
+        case "application_environment":
+        case "source_repository":
+            return value;
+        default:
+            return null;
+    }
+}
+
+function isComputeSpecialistType(value: EditableSpecialistType): value is ComputeSpecialistType {
+    return value === "server" || value === "network" || value === "subnet";
 }
 
 function label(value: string): string {
@@ -333,15 +360,26 @@ export function InfrastructureResourceWorkspace({
         hasPermission(SPECIALIST_CHANGE_PERMISSIONS[editableType]);
 
     if (isEditing && editableType !== null) {
+        const sharedFormProps = {
+            editResourceId: resourceId,
+            onCancel: () => setIsEditing(false),
+            onSaved: () => {
+                setIsEditing(false);
+                void load();
+            },
+        };
+        if (isComputeSpecialistType(editableType)) {
+            return (
+                <StructuredInfrastructureForm
+                    allowedTypes={[editableType]}
+                    {...sharedFormProps}
+                />
+            );
+        }
         return (
-            <StructuredInfrastructureForm
+            <DataApplicationInfrastructureForm
                 allowedTypes={[editableType]}
-                editResourceId={resourceId}
-                onCancel={() => setIsEditing(false)}
-                onSaved={() => {
-                    setIsEditing(false);
-                    void load();
-                }}
+                {...sharedFormProps}
             />
         );
     }
@@ -458,6 +496,14 @@ export function InfrastructureResourceWorkspace({
                             </p>
                         ) : null}
                     </Card>
+
+                    {resource.resource_type === "application" ? (
+                        <ApplicationRepositoriesCard
+                            resourceId={resourceId}
+                            ownershipType={resource.ownership_type}
+                            clientId={resource.client_id}
+                        />
+                    ) : null}
 
                     <Card className="p-5">
                         <div className="flex flex-wrap items-start justify-between gap-3">
