@@ -39,13 +39,7 @@ from .resource_models import (
     ResourceRelationship,
     ServiceProvider,
 )
-from .specialist_models import (
-    IPAddress,
-    Network,
-    NetworkInterface,
-    ServerProfile,
-    Subnet,
-)
+from .specialist_models import IPAddress, Network, NetworkInterface, ServerProfile, Subnet
 
 __all__ = [
     "API",
