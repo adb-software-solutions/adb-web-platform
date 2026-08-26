@@ -1,22 +1,28 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
 from django.core.exceptions import ValidationError
-from django.db.models import QuerySet
+from django.db.models import Avg, Count, Q, QuerySet
 from django.http import HttpRequest
+from django.utils import timezone
 from ninja import Router
 
 from apps.credentials.models import StoredCredential
 from apps.credentials.policies import scope_credentials_for_user
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
-from apps.monitoring.models import MonitorCheck, MonitorIncident
+from apps.monitoring.models import MonitorCheck, MonitorIncident, MonitorResult
 from apps.monitoring.services import acknowledge_incident
 from authentication.ninja.schemas import ProblemDetail
 
 from .schemas import (
     MonitorCheckCreateIn,
+    MonitorCheckDetailOut,
     MonitorCheckOut,
+    MonitorCheckUpdateIn,
     MonitorIncidentOut,
     MonitoringOverviewOut,
+    MonitorResultOut,
 )
 
 monitoring_router = Router(tags=["admin-monitoring"])
@@ -44,6 +50,10 @@ def _visible_checks(request: HttpRequest) -> QuerySet[MonitorCheck]:
     )
 
 
+def _visible_check(request: HttpRequest, check_id: int) -> MonitorCheck | None:
+    return _visible_checks(request).select_related("credential").filter(id=check_id).first()
+
+
 def _check_out(check: MonitorCheck) -> MonitorCheckOut:
     resource = check.resource
     return MonitorCheckOut(
@@ -68,6 +78,19 @@ def _check_out(check: MonitorCheck) -> MonitorCheckOut:
     )
 
 
+def _result_out(result: MonitorResult) -> MonitorResultOut:
+    return MonitorResultOut(
+        id=result.id,
+        outcome=result.outcome,
+        started_at=result.started_at,
+        finished_at=result.finished_at,
+        duration_ms=result.duration_ms,
+        status_code=result.status_code,
+        observed_value=result.observed_value,
+        message=result.message,
+    )
+
+
 def _incident_out(incident: MonitorIncident) -> MonitorIncidentOut:
     resource = incident.monitor_check.resource
     return MonitorIncidentOut(
@@ -86,6 +109,93 @@ def _incident_out(incident: MonitorIncident) -> MonitorIncidentOut:
         failure_count=incident.failure_count,
         summary=incident.summary,
     )
+
+
+def _history_metrics(check: MonitorCheck, since: datetime) -> tuple[float | None, int | None]:
+    stats = check.results.filter(started_at__gte=since).aggregate(
+        total=Count("id"),
+        successes=Count("id", filter=Q(outcome=MonitorResult.Outcome.SUCCESS)),
+        average_ms=Avg("duration_ms"),
+    )
+    total = int(stats["total"] or 0)
+    if total == 0:
+        return None, None
+    successes = int(stats["successes"] or 0)
+    uptime = round((successes / total) * 100, 2)
+    average = stats["average_ms"]
+    return uptime, round(float(average)) if average is not None else None
+
+
+def _check_detail_out(request: HttpRequest, check: MonitorCheck) -> MonitorCheckDetailOut:
+    now = timezone.now()
+    uptime_24h, average_24h = _history_metrics(check, now - timedelta(hours=24))
+    uptime_7d, average_7d = _history_metrics(check, now - timedelta(days=7))
+    results = list(check.results.order_by("-started_at", "-id")[:50])
+    incidents = list(check.incidents.order_by("status", "-opened_at", "-id")[:20])
+    base = _check_out(check)
+    return MonitorCheckDetailOut(
+        **base.dict(),
+        expected_value=check.expected_value,
+        forbidden_value=check.forbidden_value,
+        interval_seconds=check.interval_seconds,
+        timeout_seconds=check.timeout_seconds,
+        failure_threshold=check.failure_threshold,
+        recovery_threshold=check.recovery_threshold,
+        expiry_warning_days=check.expiry_warning_days,
+        credential_id=(
+            check.credential_id
+            if request.user.has_perm("credentials.view_storedcredential")
+            else None
+        ),
+        uptime_24h_percent=uptime_24h,
+        uptime_7d_percent=uptime_7d,
+        average_response_24h_ms=average_24h,
+        average_response_7d_ms=average_7d,
+        results=[_result_out(result) for result in results],
+        incidents=[_incident_out(incident) for incident in incidents],
+    )
+
+
+def _resolve_credential(
+    request: HttpRequest,
+    credential_id: int | None,
+) -> StoredCredential | None | StaffProblem:
+    if credential_id is None:
+        return None
+    credential_problem = _permission_problem(request, "credentials.view_storedcredential")
+    if credential_problem:
+        return credential_problem
+    credential = (
+        scope_credentials_for_user(request.user)
+        .filter(id=credential_id, status=StoredCredential.Status.ACTIVE)
+        .first()
+    )
+    if credential is None:
+        return _problem(404, "Credential not found.", "not_found")
+    return credential
+
+
+def _apply_check_config(
+    check: MonitorCheck,
+    payload: MonitorCheckUpdateIn | MonitorCheckCreateIn,
+    credential: StoredCredential | None,
+) -> None:
+    check.credential = credential
+    for field_name in (
+        "name",
+        "check_type",
+        "severity",
+        "target",
+        "port",
+        "expected_value",
+        "forbidden_value",
+        "interval_seconds",
+        "timeout_seconds",
+        "failure_threshold",
+        "recovery_threshold",
+        "expiry_warning_days",
+    ):
+        setattr(check, field_name, getattr(payload, field_name))
 
 
 @monitoring_router.get(
@@ -147,43 +257,126 @@ def create_monitor_check(
     )
     if resource is None:
         return _problem(404, "Infrastructure resource not found.", "not_found")
-    credential = None
-    if payload.credential_id is not None:
-        credential_problem = _permission_problem(request, "credentials.view_storedcredential")
-        if credential_problem:
-            return credential_problem
-        credential = (
-            scope_credentials_for_user(request.user)
-            .filter(
-                id=payload.credential_id,
-                status=StoredCredential.Status.ACTIVE,
-            )
-            .first()
-        )
-        if credential is None:
-            return _problem(404, "Credential not found.", "not_found")
-    check = MonitorCheck(
-        resource=resource,
-        credential=credential,
-        name=payload.name,
-        check_type=payload.check_type,
-        severity=payload.severity,
-        target=payload.target,
-        port=payload.port,
-        expected_value=payload.expected_value,
-        forbidden_value=payload.forbidden_value,
-        interval_seconds=payload.interval_seconds,
-        timeout_seconds=payload.timeout_seconds,
-        failure_threshold=payload.failure_threshold,
-        recovery_threshold=payload.recovery_threshold,
-        expiry_warning_days=payload.expiry_warning_days,
-    )
+    credential = _resolve_credential(request, payload.credential_id)
+    if isinstance(credential, tuple):
+        return credential
+    check = MonitorCheck(resource=resource)
+    _apply_check_config(check, payload, credential)
     try:
         check.full_clean()
         check.save()
     except ValidationError as error:
         return _problem(400, "; ".join(error.messages), "validation_error")
     return 201, _check_out(check)
+
+
+@monitoring_router.get(
+    "/monitoring/checks/{check_id}",
+    response={
+        200: MonitorCheckDetailOut,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
+)
+def monitor_check_detail(
+    request: HttpRequest,
+    check_id: int,
+) -> MonitorCheckDetailOut | StaffProblem:
+    problem = _permission_problem(
+        request,
+        "monitoring.view_monitorcheck",
+        "monitoring.view_monitorresult",
+        "monitoring.view_monitorincident",
+    )
+    if problem:
+        return problem
+    check = _visible_check(request, check_id)
+    if check is None:
+        return _problem(404, "Monitoring check not found.", "not_found")
+    return _check_detail_out(request, check)
+
+
+@monitoring_router.put(
+    "/monitoring/checks/{check_id}",
+    response={
+        200: MonitorCheckOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
+)
+def update_monitor_check(
+    request: HttpRequest,
+    check_id: int,
+    payload: MonitorCheckUpdateIn,
+) -> MonitorCheckOut | StaffProblem:
+    problem = _permission_problem(request, "monitoring.change_monitorcheck")
+    if problem:
+        return problem
+    check = _visible_check(request, check_id)
+    if check is None:
+        return _problem(404, "Monitoring check not found.", "not_found")
+    credential = _resolve_credential(request, payload.credential_id)
+    if isinstance(credential, tuple):
+        return credential
+    _apply_check_config(check, payload, credential)
+    try:
+        check.full_clean()
+        check.save()
+    except ValidationError as error:
+        return _problem(400, "; ".join(error.messages), "validation_error")
+    return _check_out(check)
+
+
+@monitoring_router.post(
+    "/monitoring/checks/{check_id}/pause",
+    response={200: MonitorCheckOut, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+)
+def pause_monitor_check(request: HttpRequest, check_id: int) -> MonitorCheckOut | StaffProblem:
+    problem = _permission_problem(request, "monitoring.change_monitorcheck")
+    if problem:
+        return problem
+    check = _visible_check(request, check_id)
+    if check is None:
+        return _problem(404, "Monitoring check not found.", "not_found")
+    if check.enabled or check.status != MonitorCheck.Status.PAUSED:
+        check.enabled = False
+        check.status = MonitorCheck.Status.PAUSED
+        check.next_run_at = None
+        check.save(update_fields=["enabled", "status", "next_run_at", "updated_at"])
+    return _check_out(check)
+
+
+@monitoring_router.post(
+    "/monitoring/checks/{check_id}/resume",
+    response={200: MonitorCheckOut, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+)
+def resume_monitor_check(request: HttpRequest, check_id: int) -> MonitorCheckOut | StaffProblem:
+    problem = _permission_problem(request, "monitoring.change_monitorcheck")
+    if problem:
+        return problem
+    check = _visible_check(request, check_id)
+    if check is None:
+        return _problem(404, "Monitoring check not found.", "not_found")
+    if not check.enabled or check.status == MonitorCheck.Status.PAUSED:
+        check.enabled = True
+        check.status = MonitorCheck.Status.PENDING
+        check.next_run_at = timezone.now()
+        check.consecutive_failures = 0
+        check.consecutive_successes = 0
+        check.save(
+            update_fields=[
+                "enabled",
+                "status",
+                "next_run_at",
+                "consecutive_failures",
+                "consecutive_successes",
+                "updated_at",
+            ]
+        )
+    return _check_out(check)
 
 
 @monitoring_router.post(
