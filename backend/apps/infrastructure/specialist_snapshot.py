@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .data_application_snapshot import data_application_resource_snapshot
 from .legacy_resource_snapshot import SpecialistField, SpecialistFieldKind
 from .models import InfrastructureResource, Network, ServerProfile, Subnet
 
@@ -180,4 +181,4 @@ def specialist_resource_snapshot(
         return _network_fields(resource)
     if resource.resource_type == InfrastructureResource.ResourceType.SUBNET:
         return _subnet_fields(resource)
-    return ()
+    return data_application_resource_snapshot(resource)

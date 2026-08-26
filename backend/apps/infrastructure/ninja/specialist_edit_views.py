@@ -6,6 +6,7 @@ from typing import TypeAlias
 from django.http import HttpRequest
 from ninja import Router, Schema
 
+from apps.infrastructure.data_application_edit import data_application_edit_values
 from apps.infrastructure.models import InfrastructureResource, Network, ServerProfile, Subnet
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
 from authentication.ninja.schemas import ProblemDetail
@@ -188,11 +189,8 @@ def get_infrastructure_specialist_edit_details(
     elif resource.resource_type == InfrastructureResource.ResourceType.SUBNET:
         result = _subnet_edit(resource)
     else:
-        return _problem(
-            404,
-            "This infrastructure resource does not have a native editable specialist profile.",
-            "not_found",
-        )
+        values = data_application_edit_values(resource)
+        result = _resource_out(resource, values) if values is not None else None
 
     if result is None:
         return _problem(
