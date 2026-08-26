@@ -134,7 +134,7 @@ def _check_detail_out(request: HttpRequest, check: MonitorCheck) -> MonitorCheck
     incidents = list(check.incidents.order_by("status", "-opened_at", "-id")[:20])
     base = _check_out(check)
     return MonitorCheckDetailOut(
-        **base.dict(),
+        **base.model_dump(),
         expected_value=check.expected_value,
         forbidden_value=check.forbidden_value,
         interval_seconds=check.interval_seconds,
@@ -159,7 +159,7 @@ def _check_detail_out(request: HttpRequest, check: MonitorCheck) -> MonitorCheck
 def _resolve_credential(
     request: HttpRequest,
     credential_id: int | None,
-) -> StoredCredential | None | StaffProblem:
+) -> StoredCredential | StaffProblem | None:
     if credential_id is None:
         return None
     credential_problem = _permission_problem(request, "credentials.view_storedcredential")

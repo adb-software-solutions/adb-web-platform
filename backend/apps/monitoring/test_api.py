@@ -102,11 +102,7 @@ class MonitoringAdminAPITests(TestCase):
         now = timezone.now()
         for index in range(55):
             started_at = now - timedelta(minutes=index + 1)
-            outcome = (
-                MonitorResult.Outcome.SUCCESS
-                if index < 45
-                else MonitorResult.Outcome.FAILURE
-            )
+            outcome = MonitorResult.Outcome.SUCCESS if index < 45 else MonitorResult.Outcome.FAILURE
             MonitorResult.objects.create(
                 monitor_check=self.check,
                 outcome=outcome,
