@@ -338,9 +338,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 "ordering": ["resource__name", "address", "id"],
-                "indexes": [
-                    models.Index(fields=["address"], name="infra_ip_address_idx")
-                ],
+                "indexes": [models.Index(fields=["address"], name="infra_ip_address_idx")],
                 "constraints": [
                     models.UniqueConstraint(
                         fields=("resource", "address"),
