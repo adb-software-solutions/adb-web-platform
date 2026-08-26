@@ -130,10 +130,11 @@ class ServerProfile(models.Model):
                 InfrastructureResource.ResourceType.SERVER,
                 "Server",
             )
-        if self.provider_account_id and self.resource_id:
+        provider_account = self.provider_account
+        if provider_account is not None and self.resource_id:
             _validate_resource_boundary(
                 self.resource,
-                self.provider_account.resource,
+                provider_account.resource,
                 "provider_account",
             )
         if (
@@ -198,10 +199,11 @@ class Network(models.Model):
                 InfrastructureResource.ResourceType.NETWORK,
                 "Network",
             )
-        if self.provider_account_id and self.resource_id:
+        provider_account = self.provider_account
+        if provider_account is not None and self.resource_id:
             _validate_resource_boundary(
                 self.resource,
-                self.provider_account.resource,
+                provider_account.resource,
                 "provider_account",
             )
         if self.cidr:
@@ -255,10 +257,11 @@ class Subnet(models.Model):
                 InfrastructureResource.ResourceType.SUBNET,
                 "Subnet",
             )
-        if self.network_id and self.resource_id:
+        network_profile = self.network
+        if self.resource_id:
             _validate_resource_boundary(
                 self.resource,
-                self.network.resource,
+                network_profile.resource,
                 "network",
             )
         try:
@@ -318,19 +321,25 @@ class NetworkInterface(models.Model):
 
     def clean(self) -> None:
         super().clean()
-        if self.network_id:
+        network_profile = self.network
+        subnet_profile = self.subnet
+        if network_profile is not None:
             _validate_resource_boundary(
                 self.server.resource,
-                self.network.resource,
+                network_profile.resource,
                 "network",
             )
-        if self.subnet_id:
+        if subnet_profile is not None:
             _validate_resource_boundary(
                 self.server.resource,
-                self.subnet.resource,
+                subnet_profile.resource,
                 "subnet",
             )
-        if self.network_id and self.subnet_id and self.subnet.network_id != self.network_id:
+        if (
+            network_profile is not None
+            and subnet_profile is not None
+            and subnet_profile.network_id != network_profile.id
+        ):
             raise ValidationError({"subnet": "Subnet must belong to the selected network."})
 
     def __str__(self) -> str:
@@ -384,13 +393,17 @@ class IPAddress(models.Model):
 
     def clean(self) -> None:
         super().clean()
-        if self.interface_id:
-            if self.resource_id != self.interface.server.resource_id:
+        interface = self.interface
+        if interface is not None:
+            if self.resource_id != interface.server.resource_id:
                 raise ValidationError(
-                    {"interface": "Interface must belong to the resource that owns this IP address."}
+                    {
+                        "interface": "Interface must belong to the resource that owns this IP address."
+                    }
                 )
-            if self.interface.subnet_id:
-                subnet = ipaddress.ip_network(self.interface.subnet.cidr, strict=False)
+            subnet_profile = interface.subnet
+            if subnet_profile is not None:
+                subnet = ipaddress.ip_network(subnet_profile.cidr, strict=False)
                 address = ipaddress.ip_address(self.address)
                 if address not in subnet:
                     raise ValidationError(
