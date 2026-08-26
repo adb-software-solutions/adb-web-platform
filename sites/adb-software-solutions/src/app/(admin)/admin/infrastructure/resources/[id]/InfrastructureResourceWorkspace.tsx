@@ -15,6 +15,7 @@ import { fetchAPI } from "@/lib/api/fetch";
 import { API_URL } from "@/lib/config";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { CredentialVault } from "../../../credentials/CredentialVault";
 
 interface SpecialistField {
     key: string;
@@ -73,6 +74,7 @@ interface ResourceDetail {
     is_portal_visible: boolean;
     tags: { id: number; name: string; slug: string; colour: string }[];
     relationships: Relationship[];
+    specialist_fields: SpecialistField[];
     legacy_reference: LegacyReference | null;
     created_at: string;
     updated_at: string;
@@ -309,6 +311,12 @@ export function InfrastructureResourceWorkspace({
         );
     }
 
+    const technicalFields =
+        resource.specialist_fields.length > 0
+            ? resource.specialist_fields
+            : (resource.legacy_reference?.fields ?? []);
+    const showingNativeFields = resource.specialist_fields.length > 0;
+
     return (
         <div className="space-y-6">
             <PageHeader
@@ -365,7 +373,9 @@ export function InfrastructureResourceWorkspace({
                             <div>
                                 <h2 className="text-sm font-semibold text-white">Technical details</h2>
                                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                                    Specialist operational metadata behind this shared resource identity.
+                                    {showingNativeFields
+                                        ? "Native typed operational metadata attached to this resource identity."
+                                        : "Operational metadata from the legacy specialist record while this resource family is migrated."}
                                 </p>
                             </div>
                             {resource.legacy_reference ? (
@@ -379,9 +389,9 @@ export function InfrastructureResourceWorkspace({
                             ) : null}
                         </div>
 
-                        {resource.legacy_reference?.fields.length ? (
+                        {technicalFields.length ? (
                             <dl className="mt-5 grid gap-x-6 gap-y-5 sm:grid-cols-2">
-                                {resource.legacy_reference.fields.map((field) => (
+                                {technicalFields.map((field) => (
                                     <div
                                         key={field.key}
                                         className={
@@ -399,9 +409,14 @@ export function InfrastructureResourceWorkspace({
                             </dl>
                         ) : (
                             <div className="mt-5 rounded-xl border border-dashed border-slate-800 p-5 text-sm text-slate-500">
-                                This resource does not have a legacy specialist record. Native structured specialist fields will appear here as each resource family is implemented.
+                                No typed technical details have been recorded for this resource yet.
                             </div>
                         )}
+                        {showingNativeFields && resource.legacy_reference ? (
+                            <p className="mt-5 border-t border-slate-800 pt-4 text-xs leading-5 text-slate-600">
+                                Native structured data is authoritative here. The legacy source remains intact and available during reconciliation.
+                            </p>
+                        ) : null}
                     </Card>
 
                     <Card className="p-5">
@@ -572,6 +587,8 @@ export function InfrastructureResourceWorkspace({
                             </div>
                         )}
                     </Card>
+
+                    <CredentialVault initialResourceId={resourceId} compact />
                 </div>
 
                 <div className="space-y-6">
@@ -626,20 +643,18 @@ export function InfrastructureResourceWorkspace({
 
                     <Card className="p-5">
                         <h2 className="text-sm font-semibold text-white">Workspace roadmap</h2>
-                        <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                            {["Credentials", "Monitoring", "Documentation", "Activity"].map(
-                                (item) => (
-                                    <div
-                                        key={item}
-                                        className="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-3 text-slate-500"
-                                    >
-                                        {item}
-                                    </div>
-                                ),
-                            )}
+                        <div className="mt-4 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3 xl:grid-cols-1">
+                            {["Monitoring", "Documentation", "Activity"].map((item) => (
+                                <div
+                                    key={item}
+                                    className="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-3 text-slate-500"
+                                >
+                                    {item}
+                                </div>
+                            ))}
                         </div>
                         <p className="mt-3 text-xs leading-5 text-slate-600">
-                            These sections will attach to this shared resource identity as their technical slices are implemented.
+                            Credentials are live in this workspace. Monitoring, documentation and activity will attach to the same resource identity in their planned technical slices.
                         </p>
                     </Card>
                 </div>
