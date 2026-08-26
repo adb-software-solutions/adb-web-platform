@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -123,6 +125,18 @@ class MonitorCheck(models.Model):
         ]:
             raise ValidationError(
                 {"resource": "Monitoring checks require a current infrastructure resource."}
+            )
+        if self.check_type in [self.CheckType.HTTP, self.CheckType.CONTENT]:
+            parsed_target = urlparse(self.target)
+            if parsed_target.scheme not in {"http", "https"} or not parsed_target.hostname:
+                raise ValidationError(
+                    {"target": "HTTP monitoring targets must use http:// or https://."}
+                )
+        if self.check_type == self.CheckType.DOMAIN_EXPIRY and (
+            self.resource.resource_type != InfrastructureResource.ResourceType.DOMAIN
+        ):
+            raise ValidationError(
+                {"resource": "Domain expiry checks require a Domain resource."}
             )
         if self.check_type == self.CheckType.TCP and self.port is None:
             raise ValidationError({"port": "TCP checks require a port."})

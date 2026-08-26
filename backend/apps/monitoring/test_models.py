@@ -36,6 +36,38 @@ class MonitorCheckModelTests(TestCase):
         with self.assertRaises(ValidationError):
             check.full_clean()
 
+    def test_http_check_rejects_non_http_target(self) -> None:
+        resource = InfrastructureResource.objects.create(
+            ownership_type=OwnershipType.INTERNAL,
+            name="Internal website",
+            resource_type=InfrastructureResource.ResourceType.WEBSITE,
+        )
+        check = MonitorCheck(
+            resource=resource,
+            name="Unsafe target",
+            check_type=MonitorCheck.CheckType.HTTP,
+            target="file:///etc/passwd",
+        )
+
+        with self.assertRaises(ValidationError):
+            check.full_clean()
+
+    def test_domain_expiry_requires_domain_resource(self) -> None:
+        resource = InfrastructureResource.objects.create(
+            ownership_type=OwnershipType.INTERNAL,
+            name="Website",
+            resource_type=InfrastructureResource.ResourceType.WEBSITE,
+        )
+        check = MonitorCheck(
+            resource=resource,
+            name="Domain expiry",
+            check_type=MonitorCheck.CheckType.DOMAIN_EXPIRY,
+            target="example.test",
+        )
+
+        with self.assertRaises(ValidationError):
+            check.full_clean()
+
     def test_retired_resource_cannot_receive_new_monitoring_check(self) -> None:
         resource = InfrastructureResource.objects.create(
             ownership_type=OwnershipType.INTERNAL,
