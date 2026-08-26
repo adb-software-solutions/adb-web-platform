@@ -2,6 +2,7 @@
 
 import { RecordDrawer } from "@/components/admin/RecordDrawer";
 import {
+    Button,
     ButtonLink,
     Card,
     DataError,
@@ -12,10 +13,14 @@ import {
     Pagination,
     Select,
 } from "@/components/ui";
+import { useAuth } from "@/contexts/AuthContext";
 import { fetchAPI } from "@/lib/api/fetch";
 import { API_URL } from "@/lib/config";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { InfrastructureResourceWorkspace } from "./[id]/InfrastructureResourceWorkspace";
+import { StructuredInfrastructureForm } from "./StructuredInfrastructureForm";
+
+type SpecialistType = "server" | "network" | "subnet";
 
 interface ResourceSummary {
     id: number;
@@ -121,6 +126,7 @@ function label(value: string): string {
 }
 
 export function InfrastructureResourcesWorkspace() {
+    const { hasPermission } = useAuth();
     const [data, setData] = useState<ResourcePage | null>(null);
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
@@ -129,8 +135,16 @@ export function InfrastructureResourcesWorkspace() {
     const [resourceType, setResourceType] = useState("all");
     const [environment, setEnvironment] = useState("all");
     const [selectedResourceId, setSelectedResourceId] = useState<number | null>(null);
+    const [showCreate, setShowCreate] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const allowedTypes: SpecialistType[] = [];
+    if (hasPermission("infrastructure.add_infrastructureresource")) {
+        if (hasPermission("infrastructure.add_serverprofile")) allowedTypes.push("server");
+        if (hasPermission("infrastructure.add_network")) allowedTypes.push("network");
+        if (hasPermission("infrastructure.add_subnet")) allowedTypes.push("subnet");
+    }
 
     const url = useMemo(() => {
         const params = new URLSearchParams({
@@ -186,13 +200,24 @@ export function InfrastructureResourcesWorkspace() {
             <PageHeader
                 eyebrow="Technical operations"
                 title="Structured resources"
-                description="The shared operational resource graph across ADB Internal and Client infrastructure. Open a resource to see its technical details and relationships in context."
+                description="The shared operational resource graph across ADB Internal and Client infrastructure. Open a resource to see its technical details, credentials and relationships in context."
                 actions={
                     <>
+                        {allowedTypes.length > 0 ? (
+                            <Button
+                                type="button"
+                                onClick={() => {
+                                    setSelectedResourceId(null);
+                                    setShowCreate(true);
+                                }}
+                            >
+                                Add structured resource
+                            </Button>
+                        ) : null}
                         <ButtonLink href="/admin/infrastructure" variant="secondary">
                             Infrastructure overview
                         </ButtonLink>
-                        <ButtonLink href="/admin/infrastructure/reconciliation">
+                        <ButtonLink href="/admin/infrastructure/reconciliation" variant="secondary">
                             Reconcile legacy records
                         </ButtonLink>
                     </>
@@ -284,7 +309,7 @@ export function InfrastructureResourcesWorkspace() {
                     <div className="p-5">
                         <EmptyState
                             title="No resources match this view"
-                            description="Try changing the filters, or reconcile an existing infrastructure record into the structured graph."
+                            description="Try changing the filters, create a native structured resource, or reconcile an existing infrastructure record into the graph."
                         />
                     </div>
                 ) : (
@@ -358,6 +383,20 @@ export function InfrastructureResourcesWorkspace() {
                     disabled={isLoading}
                 />
             </Card>
+
+            {showCreate ? (
+                <RecordDrawer onClose={() => setShowCreate(false)}>
+                    <StructuredInfrastructureForm
+                        allowedTypes={allowedTypes}
+                        onCancel={() => setShowCreate(false)}
+                        onCreated={(resourceId) => {
+                            setShowCreate(false);
+                            setSelectedResourceId(resourceId);
+                            void load();
+                        }}
+                    />
+                </RecordDrawer>
+            ) : null}
 
             {selectedResourceId !== null ? (
                 <RecordDrawer
