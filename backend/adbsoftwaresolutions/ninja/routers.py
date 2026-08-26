@@ -18,6 +18,7 @@ from apps.crm.ninja.admin_views import crm_admin_router
 from apps.crm.ninja.email_views import lead_email_router
 from apps.crm.ninja.overview_views import lead_overview_router
 from apps.infrastructure.ninja.admin_views import infrastructure_admin_router
+from apps.infrastructure.ninja.application_repository_views import application_repository_router
 from apps.infrastructure.ninja.data_application_views import data_application_specialist_router
 from apps.infrastructure.ninja.extended_views import infrastructure_extended_router
 from apps.infrastructure.ninja.reconciliation_views import infrastructure_reconciliation_router
@@ -96,6 +97,7 @@ admin_router.add_router("", infrastructure_reconciliation_router)
 admin_router.add_router("", infrastructure_specialist_router)
 admin_router.add_router("", infrastructure_specialist_edit_router)
 admin_router.add_router("", data_application_specialist_router)
+admin_router.add_router("", application_repository_router)
 admin_router.add_router("", credential_router)
 admin_router.add_router("", resource_admin_router)
 admin_router.add_router("/website", website_admin_router)
