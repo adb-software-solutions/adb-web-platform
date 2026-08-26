@@ -48,6 +48,15 @@ from .resource_models import (
     ServiceProvider,
 )
 from .specialist_models import IPAddress, Network, NetworkInterface, ServerProfile, Subnet
+from .web_domain_models import (
+    DNSRecord,
+    DNSZone,
+    DomainProfile,
+    TLSCertificate,
+    TLSCertificateDomain,
+    WebsiteEndpoint,
+    WebsiteProfile,
+)
 
 __all__ = [
     "API",
@@ -59,10 +68,13 @@ __all__ = [
     "ApplicationResourceIdentity",
     "Bot",
     "BotResourceIdentity",
+    "DNSRecord",
+    "DNSZone",
     "Database",
     "DatabaseInstance",
     "DatabaseResourceIdentity",
     "Domain",
+    "DomainProfile",
     "DomainResourceIdentity",
     "EmailSystem",
     "EmailSystemResourceIdentity",
@@ -86,7 +98,11 @@ __all__ = [
     "ServiceProvider",
     "SourceRepository",
     "Subnet",
+    "TLSCertificate",
+    "TLSCertificateDomain",
     "Website",
+    "WebsiteEndpoint",
+    "WebsiteProfile",
     "WebsiteResourceIdentity",
     "WebsiteTechStack",
 ]

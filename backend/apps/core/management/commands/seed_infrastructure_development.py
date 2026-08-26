@@ -18,7 +18,10 @@ from apps.infrastructure.models import (
     ApplicationRepositoryLink,
     Bot,
     DatabaseInstance,
+    DNSRecord,
+    DNSZone,
     Domain,
+    DomainProfile,
     EmailSystem,
     InfrastructureResource,
     IPAddress,
@@ -32,7 +35,11 @@ from apps.infrastructure.models import (
     SourceRepository,
     SSLCertificate,
     Subnet,
+    TLSCertificate,
+    TLSCertificateDomain,
     Website,
+    WebsiteEndpoint,
+    WebsiteProfile,
     WebsiteTechStack,
 )
 
@@ -66,6 +73,7 @@ class Command(BaseCommand):
                 self._reset()
             self._seed_structured_compute()
             self._seed_structured_data_applications()
+            self._seed_structured_web_domains()
             self._seed_website_technology(websites)
             self._seed_ssl(domains, rng)
             self._seed_mobile_apps(scale)
@@ -90,6 +98,11 @@ class Command(BaseCommand):
                 InfrastructureResource.ResourceType.APPLICATION,
                 InfrastructureResource.ResourceType.APPLICATION_ENVIRONMENT,
                 InfrastructureResource.ResourceType.SOURCE_REPOSITORY,
+                InfrastructureResource.ResourceType.WEBSITE,
+                InfrastructureResource.ResourceType.WEBSITE_ENDPOINT,
+                InfrastructureResource.ResourceType.DOMAIN,
+                InfrastructureResource.ResourceType.DNS_ZONE,
+                InfrastructureResource.ResourceType.TLS_CERTIFICATE,
             ],
         ).delete()
         WebsiteTechStack.objects.filter(website__name__startswith=DEMO_PREFIX).delete()
@@ -586,6 +599,313 @@ class Command(BaseCommand):
         )
         client_repository_link.full_clean()
         client_repository_link.save()
+
+    def _seed_structured_web_domains(self) -> None:
+        shared_cloud_account = ProviderAccount.objects.select_related("resource").get(
+            resource__name=f"{DEMO_PREFIX} ADB DigitalOcean"
+        )
+        internal_environment = ApplicationEnvironment.objects.select_related(
+            "resource", "application__resource"
+        ).get(resource__name=f"{DEMO_PREFIX} ADB Platform Production")
+
+        cloudflare_provider, _ = ServiceProvider.objects.update_or_create(
+            slug="cloudflare",
+            defaults={
+                "name": "Cloudflare",
+                "category": ServiceProvider.Category.DNS,
+                "website_url": "https://www.cloudflare.com",
+                "is_active": True,
+            },
+        )
+        cloudflare_resource = self._resource(
+            name=f"{DEMO_PREFIX} ADB Cloudflare",
+            resource_type=InfrastructureResource.ResourceType.PROVIDER_ACCOUNT,
+            environment=InfrastructureResource.Environment.SHARED,
+            description="Shared DNS/CDN/WAF provider account for development web infrastructure.",
+        )
+        cloudflare_account, _ = ProviderAccount.objects.update_or_create(
+            resource=cloudflare_resource,
+            defaults={
+                "provider": cloudflare_provider,
+                "account_identifier": "demo-adb-cloudflare",
+                "portal_url": "https://dash.cloudflare.com",
+            },
+        )
+        cloudflare_account.full_clean()
+        cloudflare_account.save()
+
+        domain_resource = self._resource(
+            name=f"{DEMO_PREFIX} ADB Platform Domain",
+            resource_type=InfrastructureResource.ResourceType.DOMAIN,
+            environment=InfrastructureResource.Environment.SHARED,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Reserved example Domain for structured web infrastructure development.",
+        )
+        domain, _ = DomainProfile.objects.update_or_create(
+            resource=domain_resource,
+            defaults={
+                "domain_name": "adb-platform.example.test",
+                "registrar_account": cloudflare_account,
+                "provider_domain_id": "demo-domain-adb-platform",
+                "status": DomainProfile.Status.ACTIVE,
+                "registered_on": timezone.localdate() - timedelta(days=500),
+                "expires_on": timezone.localdate() + timedelta(days=140),
+                "auto_renew": True,
+                "transfer_lock_enabled": True,
+                "privacy_enabled": True,
+            },
+        )
+        domain.full_clean()
+        domain.save()
+
+        zone_resource = self._resource(
+            name=f"{DEMO_PREFIX} ADB Platform DNS",
+            resource_type=InfrastructureResource.ResourceType.DNS_ZONE,
+            environment=InfrastructureResource.Environment.SHARED,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Authoritative development DNS zone backed by the shared Cloudflare account.",
+        )
+        zone, _ = DNSZone.objects.update_or_create(
+            resource=zone_resource,
+            defaults={
+                "domain": domain,
+                "provider_account": cloudflare_account,
+                "zone_name": domain.domain_name,
+                "provider_zone_id": "demo-zone-adb-platform",
+                "dnssec_enabled": True,
+                "is_primary": True,
+            },
+        )
+        zone.full_clean()
+        zone.save()
+        for record_name, record_type, value, proxied in (
+            ("@", DNSRecord.RecordType.A, "203.0.113.10", True),
+            ("www", DNSRecord.RecordType.CNAME, "adb-platform.example.test", True),
+            ("api", DNSRecord.RecordType.CNAME, "adb-platform.example.test", True),
+        ):
+            record, _ = DNSRecord.objects.update_or_create(
+                zone=zone,
+                name=record_name,
+                record_type=record_type,
+                defaults={
+                    "value": value,
+                    "ttl": 300,
+                    "proxied": proxied,
+                    "provider_record_id": f"demo-{record_name}-{record_type.lower()}",
+                },
+            )
+            record.full_clean()
+            record.save()
+
+        certificate_resource = self._resource(
+            name=f"{DEMO_PREFIX} ADB Platform TLS",
+            resource_type=InfrastructureResource.ResourceType.TLS_CERTIFICATE,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Non-secret ACME certificate metadata for development web infrastructure.",
+        )
+        certificate, _ = TLSCertificate.objects.update_or_create(
+            resource=certificate_resource,
+            defaults={
+                "provider_account": cloudflare_account,
+                "certificate_type": TLSCertificate.CertificateType.ACME,
+                "issuer": "Let's Encrypt (development metadata)",
+                "subject_common_name": domain.domain_name,
+                "provider_certificate_id": "demo-cert-adb-platform",
+                "issued_at": timezone.now() - timedelta(days=20),
+                "expires_at": timezone.now() + timedelta(days=70),
+                "auto_renew": True,
+            },
+        )
+        certificate.full_clean()
+        certificate.save()
+        coverage, _ = TLSCertificateDomain.objects.update_or_create(
+            certificate=certificate,
+            domain=domain,
+            defaults={"is_primary": True},
+        )
+        coverage.full_clean()
+        coverage.save()
+
+        website_resource = self._resource(
+            name=f"{DEMO_PREFIX} ADB Platform Website",
+            resource_type=InfrastructureResource.ResourceType.WEBSITE,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Structured Website demonstrating application, Domain, DNS and TLS context.",
+        )
+        website, _ = WebsiteProfile.objects.update_or_create(
+            resource=website_resource,
+            defaults={
+                "website_type": WebsiteProfile.WebsiteType.WEB_APP,
+                "admin_url": "https://adb-platform.example.test/admin",
+                "hosting_provider_account": shared_cloud_account,
+                "cdn_provider_account": cloudflare_account,
+                "waf_provider_account": cloudflare_account,
+            },
+        )
+        website.full_clean()
+        website.save()
+        endpoint_resource = self._resource(
+            name=f"{DEMO_PREFIX} ADB Platform Website Production",
+            resource_type=InfrastructureResource.ResourceType.WEBSITE_ENDPOINT,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Primary development endpoint for the structured ADB Platform Website.",
+        )
+        endpoint, _ = WebsiteEndpoint.objects.update_or_create(
+            resource=endpoint_resource,
+            defaults={
+                "website": website,
+                "application_environment": internal_environment,
+                "domain": domain,
+                "tls_certificate": certificate,
+                "url": "https://adb-platform.example.test",
+                "role": WebsiteEndpoint.Role.PRIMARY,
+                "is_primary": True,
+            },
+        )
+        endpoint.full_clean()
+        endpoint.save()
+
+        client = Client.objects.filter(status="active").order_by("id").first()
+        if client is None:
+            return
+        client_name = client.company or client.name
+        client_environment = ApplicationEnvironment.objects.select_related(
+            "resource", "application__resource"
+        ).get(resource__name=f"{DEMO_PREFIX} {client_name} Production")
+        client_domain_resource = self._resource(
+            name=f"{DEMO_PREFIX} {client_name} Domain",
+            resource_type=InfrastructureResource.ResourceType.DOMAIN,
+            ownership_type=OwnershipType.CLIENT,
+            client=client,
+            environment=InfrastructureResource.Environment.SHARED,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Client-owned example Domain managed through shared ADB provider context.",
+        )
+        client_domain, _ = DomainProfile.objects.update_or_create(
+            resource=client_domain_resource,
+            defaults={
+                "domain_name": "client-application.example.test",
+                "registrar_account": cloudflare_account,
+                "provider_domain_id": "demo-domain-client-application",
+                "status": DomainProfile.Status.ACTIVE,
+                "registered_on": timezone.localdate() - timedelta(days=300),
+                "expires_on": timezone.localdate() + timedelta(days=55),
+                "auto_renew": True,
+                "transfer_lock_enabled": True,
+                "privacy_enabled": True,
+            },
+        )
+        client_domain.full_clean()
+        client_domain.save()
+        client_zone_resource = self._resource(
+            name=f"{DEMO_PREFIX} {client_name} DNS",
+            resource_type=InfrastructureResource.ResourceType.DNS_ZONE,
+            ownership_type=OwnershipType.CLIENT,
+            client=client,
+            environment=InfrastructureResource.Environment.SHARED,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Client-owned DNS zone using the shared ADB Cloudflare Provider Account.",
+        )
+        client_zone, _ = DNSZone.objects.update_or_create(
+            resource=client_zone_resource,
+            defaults={
+                "domain": client_domain,
+                "provider_account": cloudflare_account,
+                "zone_name": client_domain.domain_name,
+                "provider_zone_id": "demo-zone-client-application",
+                "dnssec_enabled": True,
+                "is_primary": True,
+            },
+        )
+        client_zone.full_clean()
+        client_zone.save()
+        client_record, _ = DNSRecord.objects.update_or_create(
+            zone=client_zone,
+            name="@",
+            record_type=DNSRecord.RecordType.A,
+            defaults={
+                "value": "198.51.100.20",
+                "ttl": 300,
+                "proxied": True,
+                "provider_record_id": "demo-client-root-a",
+            },
+        )
+        client_record.full_clean()
+        client_record.save()
+
+        client_certificate_resource = self._resource(
+            name=f"{DEMO_PREFIX} {client_name} TLS",
+            resource_type=InfrastructureResource.ResourceType.TLS_CERTIFICATE,
+            ownership_type=OwnershipType.CLIENT,
+            client=client,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Client-owned non-secret TLS metadata with an intentionally nearer expiry.",
+        )
+        client_certificate, _ = TLSCertificate.objects.update_or_create(
+            resource=client_certificate_resource,
+            defaults={
+                "provider_account": cloudflare_account,
+                "certificate_type": TLSCertificate.CertificateType.MANAGED,
+                "issuer": "Cloudflare (development metadata)",
+                "subject_common_name": client_domain.domain_name,
+                "provider_certificate_id": "demo-cert-client-application",
+                "issued_at": timezone.now() - timedelta(days=35),
+                "expires_at": timezone.now() + timedelta(days=25),
+                "auto_renew": True,
+            },
+        )
+        client_certificate.full_clean()
+        client_certificate.save()
+        client_coverage, _ = TLSCertificateDomain.objects.update_or_create(
+            certificate=client_certificate,
+            domain=client_domain,
+            defaults={"is_primary": True},
+        )
+        client_coverage.full_clean()
+        client_coverage.save()
+
+        client_website_resource = self._resource(
+            name=f"{DEMO_PREFIX} {client_name} Website",
+            resource_type=InfrastructureResource.ResourceType.WEBSITE,
+            ownership_type=OwnershipType.CLIENT,
+            client=client,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Client-owned Website served through shared ADB hosting/CDN provider context.",
+        )
+        client_website, _ = WebsiteProfile.objects.update_or_create(
+            resource=client_website_resource,
+            defaults={
+                "website_type": WebsiteProfile.WebsiteType.WEB_APP,
+                "admin_url": "https://client-application.example.test/admin",
+                "hosting_provider_account": shared_cloud_account,
+                "cdn_provider_account": cloudflare_account,
+                "waf_provider_account": cloudflare_account,
+            },
+        )
+        client_website.full_clean()
+        client_website.save()
+        client_endpoint_resource = self._resource(
+            name=f"{DEMO_PREFIX} {client_name} Website Production",
+            resource_type=InfrastructureResource.ResourceType.WEBSITE_ENDPOINT,
+            ownership_type=OwnershipType.CLIENT,
+            client=client,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Primary Client Website endpoint linked to its application and web infrastructure.",
+        )
+        client_endpoint, _ = WebsiteEndpoint.objects.update_or_create(
+            resource=client_endpoint_resource,
+            defaults={
+                "website": client_website,
+                "application_environment": client_environment,
+                "domain": client_domain,
+                "tls_certificate": client_certificate,
+                "url": "https://client-application.example.test",
+                "role": WebsiteEndpoint.Role.PRIMARY,
+                "is_primary": True,
+            },
+        )
+        client_endpoint.full_clean()
+        client_endpoint.save()
 
     def _seed_website_technology(self, websites: list[Website]) -> None:
         technologies = [

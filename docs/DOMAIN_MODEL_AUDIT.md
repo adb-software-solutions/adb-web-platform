@@ -466,14 +466,15 @@ Implemented structured families now include:
 - `ServerProfile`, Network, Subnet, Network Interface and IP Address;
 - `DatabaseInstance` and `LogicalDatabase`;
 - `ApplicationProfile` and `ApplicationEnvironment`;
-- `SourceRepository` plus typed `ApplicationRepositoryLink` role/path context.
+- `SourceRepository` plus typed `ApplicationRepositoryLink` role/path context;
+- `WebsiteProfile` and concrete `WebsiteEndpoint` URLs;
+- `DomainProfile`, `DNSZone` and structured `DNSRecord`;
+- `TLSCertificate` plus typed `TLSCertificateDomain` coverage.
 
-These models remain resource-backed and enforce Client/Internal boundaries. Specialist authentication material references Vault Credentials rather than introducing password/token/private-key fields.
+These models remain resource-backed where they need cross-cutting identity and enforce Client/Internal boundaries. DNS Records are deliberately nested under a DNS Zone rather than each becoming a generic resource. Specialist authentication/private-key material references Vault Credentials rather than introducing password/token/private-key fields.
 
 Future structured families still include:
 
-- Website/endpoints;
-- Domain/DNS/TLS;
 - Docker/Kubernetes;
 - storage/backups;
 - system services/scheduled jobs;

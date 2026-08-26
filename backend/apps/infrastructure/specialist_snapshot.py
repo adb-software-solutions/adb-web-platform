@@ -5,6 +5,7 @@ from typing import Any
 from .data_application_snapshot import data_application_resource_snapshot
 from .legacy_resource_snapshot import SpecialistField, SpecialistFieldKind
 from .models import InfrastructureResource, Network, ServerProfile, Subnet
+from .web_domain_snapshot import web_domain_resource_snapshot
 
 
 def _value(value: Any) -> str:
@@ -181,4 +182,7 @@ def specialist_resource_snapshot(
         return _network_fields(resource)
     if resource.resource_type == InfrastructureResource.ResourceType.SUBNET:
         return _subnet_fields(resource)
-    return data_application_resource_snapshot(resource)
+    snapshot = data_application_resource_snapshot(resource)
+    if snapshot:
+        return snapshot
+    return web_domain_resource_snapshot(resource)

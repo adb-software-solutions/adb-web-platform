@@ -9,7 +9,10 @@ from .models import (
     Bot,
     Database,
     DatabaseInstance,
+    DNSRecord,
+    DNSZone,
     Domain,
+    DomainProfile,
     EmailSystem,
     IPAddress,
     Licence,
@@ -22,7 +25,11 @@ from .models import (
     SourceRepository,
     SSLCertificate,
     Subnet,
+    TLSCertificate,
+    TLSCertificateDomain,
     Website,
+    WebsiteEndpoint,
+    WebsiteProfile,
     WebsiteTechStack,
 )
 
@@ -179,6 +186,106 @@ class ApplicationRepositoryLinkAdmin(admin.ModelAdmin):
         "path",
     )
     raw_id_fields = ("application", "repository")
+
+
+@admin.register(WebsiteProfile)
+class WebsiteProfileAdmin(admin.ModelAdmin):
+    list_display = (
+        "resource",
+        "website_type",
+        "hosting_provider_account",
+        "cdn_provider_account",
+        "waf_provider_account",
+    )
+    list_filter = ("website_type",)
+    search_fields = ("resource__name", "admin_url", "cms", "cms_version")
+    raw_id_fields = (
+        "resource",
+        "hosting_provider_account",
+        "cdn_provider_account",
+        "waf_provider_account",
+    )
+
+
+@admin.register(WebsiteEndpoint)
+class WebsiteEndpointAdmin(admin.ModelAdmin):
+    list_display = ("url", "website", "role", "is_primary", "domain", "tls_certificate")
+    list_filter = ("role", "is_primary")
+    search_fields = ("url", "website__resource__name", "domain__domain_name")
+    raw_id_fields = (
+        "resource",
+        "website",
+        "application_environment",
+        "domain",
+        "tls_certificate",
+    )
+
+
+@admin.register(DomainProfile)
+class DomainProfileAdmin(admin.ModelAdmin):
+    list_display = (
+        "domain_name",
+        "resource",
+        "registrar_account",
+        "status",
+        "expires_on",
+        "auto_renew",
+    )
+    list_filter = ("status", "auto_renew", "expires_on")
+    search_fields = ("domain_name", "resource__name", "provider_domain_id")
+    raw_id_fields = ("resource", "registrar_account")
+
+
+@admin.register(DNSZone)
+class DNSZoneAdmin(admin.ModelAdmin):
+    list_display = (
+        "zone_name",
+        "resource",
+        "domain",
+        "provider_account",
+        "dnssec_enabled",
+        "is_primary",
+    )
+    list_filter = ("dnssec_enabled", "is_primary")
+    search_fields = ("zone_name", "resource__name", "domain__domain_name", "provider_zone_id")
+    raw_id_fields = ("resource", "domain", "provider_account")
+
+
+@admin.register(DNSRecord)
+class DNSRecordAdmin(admin.ModelAdmin):
+    list_display = ("name", "record_type", "zone", "ttl", "proxied")
+    list_filter = ("record_type", "proxied")
+    search_fields = ("name", "value", "zone__zone_name", "provider_record_id")
+    raw_id_fields = ("zone",)
+
+
+@admin.register(TLSCertificate)
+class TLSCertificateAdmin(admin.ModelAdmin):
+    list_display = (
+        "resource",
+        "certificate_type",
+        "subject_common_name",
+        "issuer",
+        "expires_at",
+        "auto_renew",
+    )
+    list_filter = ("certificate_type", "auto_renew", "expires_at")
+    search_fields = (
+        "resource__name",
+        "subject_common_name",
+        "issuer",
+        "serial_number",
+        "fingerprint_sha256",
+    )
+    raw_id_fields = ("resource", "provider_account")
+
+
+@admin.register(TLSCertificateDomain)
+class TLSCertificateDomainAdmin(admin.ModelAdmin):
+    list_display = ("certificate", "domain", "is_primary")
+    list_filter = ("is_primary",)
+    search_fields = ("certificate__resource__name", "domain__domain_name")
+    raw_id_fields = ("certificate", "domain")
 
 
 @admin.register(Database)

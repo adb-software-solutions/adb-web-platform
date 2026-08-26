@@ -327,11 +327,17 @@ See `MICROSOFT_GRAPH_TICKETING_SETUP.md` and
 - [x] native Application and Application Environment specialists.
 - [x] native Source Repository specialists plus typed Application/Repository role/path links.
 - [x] deterministic safe legacy Server/Database/Application promotion where source data is unambiguous.
+- [x] native Website and concrete Website Endpoint specialists.
+- [x] native Domain, DNS Zone and structured DNS Record specialists.
+- [x] non-secret TLS Certificate metadata plus typed Domain coverage.
+- [x] explicit hosting/registrar/DNS/CDN/WAF Provider Account context.
+- [x] Website Endpoint links to Application Environment, Domain and TLS Certificate.
+- [x] nested Website Endpoint, DNS Record and TLS Domain-coverage operations in the resource workspace.
+- [x] deterministic safe legacy Website/Domain/SSL promotion without ownership/provider/alias/nameserver guessing.
 - [x] unified resource drawer/workspace create/edit flows for the implemented specialist families.
 
 ### Next technical slices
 
-- [ ] Website/Domain/DNS/TLS structures.
 - [ ] Monitoring checks/history/incidents.
 - [ ] Docker/Kubernetes and later specialist operations resources.
 
@@ -522,10 +528,10 @@ Security/fix/integration work may still happen opportunistically.
 
 ## 21. Current ordered implementation sequence
 
-1. **Core typed Infrastructure** — Server/network/Database/Application
+1. **Core typed Infrastructure — implemented** — Server/network/Database/Application
    structures and safe specialist CRUD.
-2. **Web Infrastructure** — Website/Domain/DNS/TLS/provider context.
-3. **Monitoring + technical dashboards.**
+2. **Web Infrastructure — implemented** — Website/Endpoint/Domain/DNS/TLS/provider context.
+3. **Monitoring + technical dashboards — next.**
 4. **Knowledge Base redesign + resource links/search foundations.**
 5. **Docker/Kubernetes + storage/backups/services/scheduled jobs.**
 6. **Client Command Centre integration pass.**
