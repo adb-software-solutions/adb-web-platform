@@ -11,6 +11,7 @@ from apps.core.ownership import OwnershipType
 from apps.infrastructure.legacy_resource_snapshot import legacy_resource_snapshot
 from apps.infrastructure.models import InfrastructureResource, ResourceRelationship
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
+from apps.infrastructure.specialist_snapshot import specialist_resource_snapshot
 from authentication.ninja.schemas import ProblemDetail
 
 from .resource_schemas import (
@@ -427,12 +428,22 @@ def get_infrastructure_resource(
         return _resource_not_found()
 
     specialist = legacy_resource_snapshot(resource)
+    native_fields = specialist_resource_snapshot(resource)
     summary = _resource_summary(resource)
     return InfrastructureResourceDetailOut(
         **summary.model_dump(),
         description=resource.description,
         is_portal_visible=resource.is_portal_visible,
         relationships=_relationship_rows(request, resource),
+        specialist_fields=[
+            SpecialistFieldOut(
+                key=field.key,
+                label=field.label,
+                value=field.value,
+                kind=field.kind,
+            )
+            for field in native_fields
+        ],
         legacy_reference=(
             LegacyResourceReferenceOut(
                 legacy_type=specialist.legacy_type,
