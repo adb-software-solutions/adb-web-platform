@@ -30,7 +30,7 @@ StaffProblem = tuple[int, dict[str, object]]
 
 
 def _problem(status: int, detail: str, code: str) -> StaffProblem:
-    return status, {"detail": detail, "code": code}
+    return status, {"message": detail, "success": False, "code": code}
 
 
 def _permission_problem(request: HttpRequest, *permissions: str) -> StaffProblem | None:
