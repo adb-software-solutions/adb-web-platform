@@ -167,6 +167,41 @@ do not replace good specialist modelling.
 Secret material is never a specialist-field concern. Specialist records link to
 Vault Credentials rather than adding password/token/private-key columns.
 
+### Implemented compute/network specialist boundary
+
+The first native specialist family is implemented without renaming or deleting
+the still-live legacy `Server` model.
+
+`ServerProfile` is therefore the transitional modern compute model attached
+one-to-one to a Server `InfrastructureResource`. It carries operational fields
+such as hostname/FQDN, purpose/role, compute type, architecture, CPU/RAM/disk,
+OS/kernel metadata, Provider Account/provider resource identifiers,
+region/zone/datacentre, virtualisation, SSH port, timezone, patch/update policy
+and commission/decommission dates.
+
+Networking is represented by typed models rather than free-text Server fields:
+
+- `Network` for VPC/LAN/VLAN/VPN/overlay/public network context;
+- `Subnet` for CIDR/gateway/VLAN/AZ/purpose under a Network;
+- `NetworkInterface` for Server interface/MAC/MTU/network/subnet membership;
+- `IPAddress` for IPv4/IPv6 address/scope/primary/PTR metadata attached to a
+  structured resource and optionally an interface.
+
+The models validate resource type, Client/Internal boundaries, Network/Subnet
+consistency, gateway/CIDR membership and IP/interface/subnet membership.
+Provider/account relationships are explicit and never inferred from a legacy
+provider label.
+
+Specialist create/edit/archive APIs use the canonical `InfrastructureResource`
+ID in their URL/API identity. Invalid specialist creation is atomic and must not
+leave an orphan shared resource. Archive is a shared resource lifecycle change,
+not hard deletion.
+
+The resource workspace projects safe native specialist metadata and falls back
+to the legacy specialist projection only where a native replacement does not yet
+exist. Linked active Credentials are already surfaced from the Vault through the
+same resource identity.
+
 ---
 
 ## 6. Generic resource relationships
@@ -271,10 +306,16 @@ migration operation. Normal Client scope still applies.
 
 Each legacy row is reconciled only once.
 
-### Safe specialist projection
+### Safe specialist projection and promotion
 
 During transition, structured resource detail may project safe specialist
 metadata from the legacy record.
+
+Reconciled legacy Servers additionally promote deterministic safe compute/IP
+facts into `ServerProfile`/`IPAddress`. This promotion deliberately does not
+infer Provider Accounts from legacy provider strings and does not copy general
+free-text notes. The legacy identity bridge remains intact for provenance while
+the native specialist becomes the operational representation.
 
 Secret-bearing legacy fields such as licence keys, passwords/API material and
 general sensitive notes must not leak through the structured resource API.
@@ -417,10 +458,15 @@ Monitoring slice rather than guessed now.
 
 ### Compute and networking
 
-- Servers/VMs/bare-metal/container hosts;
+Implemented foundation:
+
+- Servers/VMs/bare-metal/container hosts through `ServerProfile`;
 - network interfaces/IP addresses;
 - networks/VPCs/VLANs/subnets/VPNs;
-- firewall/load-balancer/network-device records where operationally useful.
+- Provider Account links and Client/Internal boundary validation.
+
+Later networking specialists may add firewall/load-balancer/network-device
+records where they are operationally useful.
 
 ### Applications and source
 
@@ -478,7 +524,7 @@ Mature resource workspaces should converge on a recognisable pattern:
 
 ```text
 Resource
-├── Overview
+├── Overview / technical details
 ├── Relationships
 ├── Credentials
 ├── Monitoring
@@ -489,8 +535,12 @@ Resource
 Overview remains specialist-specific. Cross-cutting sections use the shared
 resource identity.
 
-The Credentials section is already backed by the Vault's scoped resource-link
-API and must retain independent secret-action permissions.
+Native Server/Network/Subnet technical details and active linked Credentials are
+now rendered directly in the shared Resource workspace. Reconciled resources
+retain their legacy-source provenance/back-link during migration.
+
+The Credentials section is backed by the Vault's scoped resource-link API and
+retains independent secret-action permissions.
 
 Normal clicks may open resources in the shared right-side Record drawer while
 full-page deep links remain available.
@@ -536,7 +586,15 @@ The technical foundation now provides:
 - relationship target/options/create/delete APIs/UI;
 - typed identity bridges for every current legacy specialist family;
 - explicit permission-aware legacy reconciliation;
-- safe specialist projection/provenance;
+- safe legacy specialist projection/provenance;
+- deterministic reconciled legacy Server -> `ServerProfile`/`IPAddress`
+  promotion without provider/ownership guessing;
+- native `ServerProfile`, `Network`, `Subnet`, `NetworkInterface` and
+  `IPAddress` specialist models;
+- resource-centric create/edit/archive APIs for Server/Network/Subnet plus
+  interface/IP management;
+- native safe specialist projections in the Resource workspace;
+- deterministic development seed data for structured compute/network examples;
 - the typed encrypted Credential Vault;
 - Credential -> Infrastructure Resource links with ownership validation;
 - Client and Resource contextual Credential registers;
@@ -545,18 +603,21 @@ The technical foundation now provides:
 
 It does **not** yet provide:
 
-- complete modern specialist Server/Database/Application/etc. CRUD;
+- modern Database/Application/Application Environment/Source Repository
+  specialists;
 - mature Web/Domain/DNS/TLS specialist structures;
 - Monitoring checks/results/incidents;
 - redesigned KB folder/editor/resource links;
 - Docker/Kubernetes specialist structures;
+- firewall/load-balancer and other deeper networking specialists;
 - final broad technical topology/search polish.
 
 ---
 
 ## 16. Current technical-operations sequence
 
-1. core Server/network/Database/Application specialist structures;
+1. Database Instance/Logical Database + Application/Application Environment +
+   Source Repository specialist structures;
 2. Website/Domain/DNS/TLS specialist structures;
 3. Monitoring checks/history/incidents + technical dashboards;
 4. Knowledge Base folder/editor/version/attachment work;
