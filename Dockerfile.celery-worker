@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     gcc \
     curl \
+    iputils-ping \
     libffi-dev \
     libxml2-dev \
     libxslt1-dev \
