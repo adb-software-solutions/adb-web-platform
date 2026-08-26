@@ -50,6 +50,22 @@ def record_observation(check_id: int, observation: CheckObservation) -> MonitorR
     check.last_checked_at = observation.finished_at
     check.last_duration_ms = observation.duration_ms
     check.last_message = observation.message[:500]
+
+    if not check.enabled:
+        check.status = MonitorCheck.Status.PAUSED
+        check.next_run_at = None
+        check.save(
+            update_fields=[
+                "status",
+                "last_checked_at",
+                "next_run_at",
+                "last_duration_ms",
+                "last_message",
+                "updated_at",
+            ]
+        )
+        return result
+
     check.next_run_at = observation.finished_at + timedelta(seconds=check.interval_seconds)
 
     active_incident = (

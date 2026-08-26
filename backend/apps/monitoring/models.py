@@ -117,6 +117,13 @@ class MonitorCheck(models.Model):
         self.target = self.target.strip()
         if not self.target:
             raise ValidationError({"target": "A monitoring target is required."})
+        if self.resource.lifecycle_status in [
+            InfrastructureResource.LifecycleStatus.RETIRED,
+            InfrastructureResource.LifecycleStatus.ARCHIVED,
+        ]:
+            raise ValidationError(
+                {"resource": "Monitoring checks require a current infrastructure resource."}
+            )
         if self.check_type == self.CheckType.TCP and self.port is None:
             raise ValidationError({"port": "TCP checks require a port."})
         if self.check_type == self.CheckType.CONTENT and not (
