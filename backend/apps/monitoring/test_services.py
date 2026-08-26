@@ -46,7 +46,7 @@ class MonitorIncidentLifecycleTests(TestCase):
         self.assertFalse(MonitorIncident.objects.exists())
 
         self._record(False, "Second failure")
-        incident = MonitorIncident.objects.get(check=self.check)
+        incident = MonitorIncident.objects.get(monitor_check=self.check)
         self.assertEqual(self.check.status, MonitorCheck.Status.FAILING)
         self.assertEqual(incident.status, MonitorIncident.Status.OPEN)
 

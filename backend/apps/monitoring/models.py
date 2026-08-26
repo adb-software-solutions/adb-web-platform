@@ -129,12 +129,9 @@ class MonitorCheck(models.Model):
             credential = self.credential
             if credential is None or credential.status != StoredCredential.Status.ACTIVE:
                 raise ValidationError({"credential": "Monitoring requires an active credential."})
-            if (
-                self.resource.ownership_type == OwnershipType.CLIENT
-                and (
-                    credential.ownership_type != OwnershipType.CLIENT
-                    or credential.client_id != self.resource.client_id
-                )
+            if self.resource.ownership_type == OwnershipType.CLIENT and (
+                credential.ownership_type != OwnershipType.CLIENT
+                or credential.client_id != self.resource.client_id
             ):
                 raise ValidationError(
                     {"credential": "Client monitoring can use only that Client's credential."}
@@ -152,7 +149,11 @@ class MonitorResult(models.Model):
         FAILURE = "failure", "Failure"
         ERROR = "error", "Execution error"
 
-    check = models.ForeignKey(MonitorCheck, on_delete=models.CASCADE, related_name="results")
+    monitor_check = models.ForeignKey(
+        MonitorCheck,
+        on_delete=models.CASCADE,
+        related_name="results",
+    )
     outcome = models.CharField(max_length=20, choices=Outcome.choices)
     started_at = models.DateTimeField()
     finished_at = models.DateTimeField()
@@ -165,7 +166,10 @@ class MonitorResult(models.Model):
     class Meta:
         ordering = ["-started_at", "-id"]
         indexes = [
-            models.Index(fields=["check", "-started_at"], name="monitor_result_history_idx")
+            models.Index(
+                fields=["monitor_check", "-started_at"],
+                name="monitor_result_history_idx",
+            )
         ]
 
     def clean(self) -> None:
@@ -182,7 +186,11 @@ class MonitorIncident(models.Model):
         ACKNOWLEDGED = "acknowledged", "Acknowledged"
         RESOLVED = "resolved", "Resolved"
 
-    check = models.ForeignKey(MonitorCheck, on_delete=models.CASCADE, related_name="incidents")
+    monitor_check = models.ForeignKey(
+        MonitorCheck,
+        on_delete=models.CASCADE,
+        related_name="incidents",
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
     severity = models.CharField(max_length=20, choices=MonitorCheck.Severity.choices)
     opened_at = models.DateTimeField()
@@ -197,7 +205,7 @@ class MonitorIncident(models.Model):
         ordering = ["status", "-opened_at", "-id"]
         constraints = [
             models.UniqueConstraint(
-                fields=["check"],
+                fields=["monitor_check"],
                 condition=Q(status__in=["open", "acknowledged"]),
                 name="unique_active_monitor_incident",
             )

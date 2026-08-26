@@ -12,7 +12,9 @@ from .models import MonitorCheck
 class MonitorCheckModelTests(TestCase):
     def test_client_check_rejects_another_clients_credential(self) -> None:
         first = Client.objects.create(name="First", company="First Ltd", email="first@example.test")
-        second = Client.objects.create(name="Second", company="Second Ltd", email="second@example.test")
+        second = Client.objects.create(
+            name="Second", company="Second Ltd", email="second@example.test"
+        )
         resource = InfrastructureResource.objects.create(
             ownership_type=OwnershipType.CLIENT,
             client=first,

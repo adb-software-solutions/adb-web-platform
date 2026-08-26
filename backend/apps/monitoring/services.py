@@ -35,7 +35,7 @@ def record_observation(check_id: int, observation: CheckObservation) -> MonitorR
         )
     )
     result = MonitorResult(
-        check=check,
+        monitor_check=check,
         outcome=outcome,
         started_at=observation.started_at,
         finished_at=observation.finished_at,
@@ -55,7 +55,7 @@ def record_observation(check_id: int, observation: CheckObservation) -> MonitorR
     active_incident = (
         MonitorIncident.objects.select_for_update()
         .filter(
-            check=check,
+            monitor_check=check,
             status__in=[MonitorIncident.Status.OPEN, MonitorIncident.Status.ACKNOWLEDGED],
         )
         .first()
@@ -84,7 +84,7 @@ def record_observation(check_id: int, observation: CheckObservation) -> MonitorR
             check.status = MonitorCheck.Status.FAILING
             if active_incident is None:
                 MonitorIncident.objects.create(
-                    check=check,
+                    monitor_check=check,
                     severity=check.severity,
                     opened_at=observation.finished_at,
                     failure_count=check.consecutive_failures,
