@@ -470,19 +470,26 @@ records where they are operationally useful.
 
 ### Applications and source
 
-- logical Applications;
-- Application Environments (production/staging/development etc.);
-- Source Repositories and role/context;
-- APIs/background services/bots/integrations/mobile apps;
-- useful technology/version catalogue links.
+Implemented foundation:
+
+- logical Applications through `ApplicationProfile`;
+- resource-backed `ApplicationEnvironment` records for deploy/runtime/release context;
+- resource-backed `SourceRepository` records with Provider Account metadata;
+- typed `ApplicationRepositoryLink` role/path relationships;
+- Client/Internal boundary validation and resource-centric create/edit/archive APIs;
+- Credentials remain Vault references rather than fields on these specialists.
+
+Later application specialists may add richer API/background-service/bot/mobile and technology/version relationships where operationally useful.
 
 ### Databases
 
-- Database Instances/services;
-- managed versus self-hosted semantics;
-- Logical Databases;
-- Server/Provider/endpoints/TLS/HA/replication metadata;
-- Credentials by Vault reference.
+Implemented foundation:
+
+- `DatabaseInstance` for managed/self-hosted service context;
+- `LogicalDatabase` as an explicit child of a Database Instance;
+- Server/Provider/endpoint/port/TLS/HA/replica/backup/maintenance metadata;
+- Client/Internal boundary validation and resource-centric create/edit/archive APIs;
+- authentication material through linked Vault Credentials, never specialist secret fields.
 
 ### Web, domains and TLS
 
@@ -535,9 +542,7 @@ Resource
 Overview remains specialist-specific. Cross-cutting sections use the shared
 resource identity.
 
-Native Server/Network/Subnet technical details and active linked Credentials are
-now rendered directly in the shared Resource workspace. Reconciled resources
-retain their legacy-source provenance/back-link during migration.
+Native Server/Network/Subnet, Database/Logical Database, Application/Environment and Source Repository technical details are rendered directly in the shared Resource workspace alongside active linked Credentials. Application workspaces also surface typed Source Repository links separately from the generic topology graph. Reconciled resources retain their legacy-source provenance/back-link during migration.
 
 The Credentials section is backed by the Vault's scoped resource-link API and
 retains independent secret-action permissions.
@@ -595,6 +600,11 @@ The technical foundation now provides:
   interface/IP management;
 - native safe specialist projections in the Resource workspace;
 - deterministic development seed data for structured compute/network examples;
+- native `DatabaseInstance`, `LogicalDatabase`, `ApplicationProfile`, `ApplicationEnvironment` and `SourceRepository` specialists;
+- typed `ApplicationRepositoryLink` role/path relationships;
+- resource-centric create/edit/archive APIs and scoped selectors for the data/application specialist family;
+- deterministic safe legacy Database/Application promotion without Provider Account, Server or free-text guessing;
+- deterministic Internal and Client-owned development seed data for databases, applications, environments and source repositories;
 - the typed encrypted Credential Vault;
 - Credential -> Infrastructure Resource links with ownership validation;
 - Client and Resource contextual Credential registers;
@@ -603,8 +613,6 @@ The technical foundation now provides:
 
 It does **not** yet provide:
 
-- modern Database/Application/Application Environment/Source Repository
-  specialists;
 - mature Web/Domain/DNS/TLS specialist structures;
 - Monitoring checks/results/incidents;
 - redesigned KB folder/editor/resource links;
@@ -616,18 +624,14 @@ It does **not** yet provide:
 
 ## 16. Current technical-operations sequence
 
-1. Database Instance/Logical Database + Application/Application Environment +
-   Source Repository specialist structures;
-2. Website/Domain/DNS/TLS specialist structures;
-3. Monitoring checks/history/incidents + technical dashboards;
-4. Knowledge Base folder/editor/version/attachment work;
-5. KB/resource backlinks + contextual search foundations;
-6. Docker/Kubernetes structures;
-7. storage/backups/system services/scheduled jobs and remaining specialist
-   operations records;
-8. unified topology/search/activity/audit polish;
-9. Credential expiry/rotation health and bulk rotation tooling as operational
-   follow-up rather than a blocker for typed Infrastructure.
+1. Website/Domain/DNS/TLS specialist structures;
+2. Monitoring checks/history/incidents + technical dashboards;
+3. Knowledge Base folder/editor/version/attachment work;
+4. KB/resource backlinks + contextual search foundations;
+5. Docker/Kubernetes structures;
+6. storage/backups/system services/scheduled jobs and remaining specialist operations records;
+7. unified topology/search/activity/audit polish;
+8. Credential expiry/rotation health and bulk rotation tooling as operational follow-up rather than a blocker for typed Infrastructure.
 
 Client Command Centre integration should continue incrementally as these domains
 mature rather than waiting for one giant final integration PR.

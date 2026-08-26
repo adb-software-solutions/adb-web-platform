@@ -66,10 +66,10 @@ At normal scale, the development dataset covers realistic examples across:
 - active/inactive/archived Credential lifecycle examples where useful;
 - legacy Server, Database, Website, Domain, TLS, Licence, Application and
   related infrastructure specialist examples;
-- native structured Provider Account, Server, Network, Subnet, network-interface
-  and IP-address examples;
-- both Internal and Client-owned structured Server examples where an active demo
-  Client exists;
+- native structured Provider Account, Server, Network, Subnet, network-interface and IP-address examples;
+- native Database Instance, Logical Database, Application, Application Environment and Source Repository examples;
+- typed Application/Repository role links;
+- both Internal and Client-owned structured compute and data/application examples where an active demo Client exists;
 - Mobile App/API/Bot/Email-system examples;
 - Ticket Queues, configured demo Mailboxes, Tickets, Messages, Notes and
   attachment/scan-state examples;
@@ -98,11 +98,14 @@ for:
 - an Internal production VPC and subnet;
 - an Internal modern Server profile with a network interface and reserved demo
   IPv4 addresses;
-- a Client-owned Server using the shared Internal Provider Account when an active
-  demo Client is available.
+- a Client-owned Server using the shared Internal Provider Account when an active demo Client is available;
+- an Internal PostgreSQL Database Instance and Logical Database;
+- an Internal ADB Platform Application, production-like Application Environment, GitHub Provider Account and Source Repository;
+- a typed primary Application/Repository link;
+- matching Client-owned Database/Application/Environment/Repository examples using the same ownership-boundary rules.
 
-The IP addresses use documentation/reserved ranges and are never production
-addresses. Structured development resources are validated through the same
+The IP addresses use documentation/reserved ranges and are never production addresses. Database/application/repository metadata is fake operational context only; authentication material remains in fake encrypted Vault Credentials rather than specialist fields.
+Structured development resources are validated through the same
 model invariants as normal application records.
 
 Where a seeder creates structured resources/relationships directly, it must obey
