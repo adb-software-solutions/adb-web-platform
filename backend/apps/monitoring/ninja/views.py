@@ -10,6 +10,7 @@ from ninja import Router
 
 from apps.credentials.models import StoredCredential
 from apps.credentials.policies import scope_credentials_for_user
+from apps.infrastructure.models import InfrastructureResource
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
 from apps.monitoring.models import MonitorCheck, MonitorIncident, MonitorResult
 from apps.monitoring.services import acknowledge_incident
@@ -21,7 +22,9 @@ from .schemas import (
     MonitorCheckOut,
     MonitorCheckUpdateIn,
     MonitorIncidentOut,
+    MonitoringOptionsOut,
     MonitoringOverviewOut,
+    MonitorResourceOptionOut,
     MonitorResultOut,
 )
 
@@ -199,6 +202,39 @@ def _apply_check_config(
 
 
 @monitoring_router.get(
+    "/monitoring/options",
+    response={200: MonitoringOptionsOut, 401: ProblemDetail, 403: ProblemDetail},
+)
+def monitoring_options(request: HttpRequest) -> MonitoringOptionsOut | StaffProblem:
+    problem = _permission_problem(request, "monitoring.add_monitorcheck")
+    if problem:
+        return problem
+    resources = (
+        scope_infrastructure_resources_for_user(request.user)
+        .exclude(
+            lifecycle_status__in=[
+                InfrastructureResource.LifecycleStatus.RETIRED,
+                InfrastructureResource.LifecycleStatus.ARCHIVED,
+            ]
+        )
+        .select_related("client")
+        .order_by("name", "id")[:500]
+    )
+    return MonitoringOptionsOut(
+        resources=[
+            MonitorResourceOptionOut(
+                id=resource.id,
+                name=resource.name,
+                resource_type=resource.resource_type,
+                client_id=resource.client_id,
+                client_name=str(resource.client) if resource.client else None,
+            )
+            for resource in resources
+        ]
+    )
+
+
+@monitoring_router.get(
     "/monitoring/overview",
     response={200: MonitoringOverviewOut, 401: ProblemDetail, 403: ProblemDetail},
 )
@@ -327,9 +363,18 @@ def update_monitor_check(
     check = _visible_check(request, check_id)
     if check is None:
         return _problem(404, "Monitoring check not found.", "not_found")
-    credential = _resolve_credential(request, payload.credential_id)
-    if isinstance(credential, tuple):
-        return credential
+    credential: StoredCredential | None
+    if (
+        payload.credential_id is None
+        and check.credential_id is not None
+        and not request.user.has_perm("credentials.view_storedcredential")
+    ):
+        credential = check.credential
+    else:
+        resolved_credential = _resolve_credential(request, payload.credential_id)
+        if isinstance(resolved_credential, tuple):
+            return resolved_credential
+        credential = resolved_credential
     _apply_check_config(check, payload, credential)
     try:
         check.full_clean()
