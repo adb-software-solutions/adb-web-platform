@@ -13,17 +13,23 @@ from apps.clients.models import Client
 from apps.core.ownership import OwnershipType
 from apps.infrastructure.models import (
     API,
+    ApplicationEnvironment,
+    ApplicationProfile,
+    ApplicationRepositoryLink,
     Bot,
+    DatabaseInstance,
     Domain,
     EmailSystem,
     InfrastructureResource,
     IPAddress,
+    LogicalDatabase,
     MobileApp,
     Network,
     NetworkInterface,
     ProviderAccount,
     ServerProfile,
     ServiceProvider,
+    SourceRepository,
     SSLCertificate,
     Subnet,
     Website,
@@ -59,6 +65,7 @@ class Command(BaseCommand):
             if options["reset"]:
                 self._reset()
             self._seed_structured_compute()
+            self._seed_structured_data_applications()
             self._seed_website_technology(websites)
             self._seed_ssl(domains, rng)
             self._seed_mobile_apps(scale)
@@ -78,6 +85,11 @@ class Command(BaseCommand):
                 InfrastructureResource.ResourceType.SERVER,
                 InfrastructureResource.ResourceType.NETWORK,
                 InfrastructureResource.ResourceType.SUBNET,
+                InfrastructureResource.ResourceType.DATABASE_INSTANCE,
+                InfrastructureResource.ResourceType.LOGICAL_DATABASE,
+                InfrastructureResource.ResourceType.APPLICATION,
+                InfrastructureResource.ResourceType.APPLICATION_ENVIRONMENT,
+                InfrastructureResource.ResourceType.SOURCE_REPOSITORY,
             ],
         ).delete()
         WebsiteTechStack.objects.filter(website__name__startswith=DEMO_PREFIX).delete()
@@ -282,6 +294,298 @@ class Command(BaseCommand):
         )
         client_server.full_clean()
         client_server.save()
+
+    def _seed_structured_data_applications(self) -> None:
+        shared_cloud_account = ProviderAccount.objects.select_related("resource").get(
+            resource__name=f"{DEMO_PREFIX} ADB DigitalOcean"
+        )
+        internal_server = ServerProfile.objects.select_related("resource").get(
+            resource__name=f"{DEMO_PREFIX} ADB LON Web 01"
+        )
+
+        github_provider, _ = ServiceProvider.objects.update_or_create(
+            slug="github",
+            defaults={
+                "name": "GitHub",
+                "category": ServiceProvider.Category.SOURCE_CONTROL,
+                "website_url": "https://github.com",
+                "is_active": True,
+            },
+        )
+        github_resource = self._resource(
+            name=f"{DEMO_PREFIX} ADB GitHub",
+            resource_type=InfrastructureResource.ResourceType.PROVIDER_ACCOUNT,
+            environment=InfrastructureResource.Environment.SHARED,
+            description="Shared source-control provider account used by development applications.",
+        )
+        github_account, _ = ProviderAccount.objects.update_or_create(
+            resource=github_resource,
+            defaults={
+                "provider": github_provider,
+                "account_identifier": "adb-software-solutions-demo",
+                "portal_url": "https://github.com/adb-software-solutions",
+            },
+        )
+        github_account.full_clean()
+        github_account.save()
+
+        database_resource = self._resource(
+            name=f"{DEMO_PREFIX} ADB PostgreSQL",
+            resource_type=InfrastructureResource.ResourceType.DATABASE_INSTANCE,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Self-hosted PostgreSQL service for the structured application demo.",
+        )
+        database_instance, _ = DatabaseInstance.objects.update_or_create(
+            resource=database_resource,
+            defaults={
+                "engine": DatabaseInstance.Engine.POSTGRESQL,
+                "engine_version": "18",
+                "hosting_type": DatabaseInstance.HostingType.SELF_HOSTED,
+                "server": internal_server,
+                "provider_account": shared_cloud_account,
+                "endpoint": "10.42.10.10",
+                "port": 5432,
+                "region": "lon1",
+                "tls_mode": DatabaseInstance.TLSMode.REQUIRED,
+                "high_availability": False,
+                "replica_count": 0,
+                "backup_enabled": True,
+                "maintenance_window": "Sunday 02:00 Europe/London",
+            },
+        )
+        database_instance.full_clean()
+        database_instance.save()
+
+        logical_resource = self._resource(
+            name=f"{DEMO_PREFIX} ADB Platform Database",
+            resource_type=InfrastructureResource.ResourceType.LOGICAL_DATABASE,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Primary logical database for the ADB Platform demo application.",
+        )
+        logical_database, _ = LogicalDatabase.objects.update_or_create(
+            resource=logical_resource,
+            defaults={
+                "instance": database_instance,
+                "database_name": "adb_platform_demo",
+                "purpose": "Application data",
+                "default_schema": "public",
+                "charset": "UTF8",
+            },
+        )
+        logical_database.full_clean()
+        logical_database.save()
+
+        application_resource = self._resource(
+            name=f"{DEMO_PREFIX} ADB Platform",
+            resource_type=InfrastructureResource.ResourceType.APPLICATION,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Logical ADB Platform application used by structured infrastructure demos.",
+        )
+        application, _ = ApplicationProfile.objects.update_or_create(
+            resource=application_resource,
+            defaults={
+                "application_type": ApplicationProfile.ApplicationType.SAAS,
+                "owner_team": "ADB Software Solutions",
+                "primary_language": "Python / TypeScript",
+                "framework": "Django / Next.js",
+            },
+        )
+        application.full_clean()
+        application.save()
+
+        environment_resource = self._resource(
+            name=f"{DEMO_PREFIX} ADB Platform Production",
+            resource_type=InfrastructureResource.ResourceType.APPLICATION_ENVIRONMENT,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Production-like deployment context for the ADB Platform demo.",
+        )
+        application_environment, _ = ApplicationEnvironment.objects.update_or_create(
+            resource=environment_resource,
+            defaults={
+                "application": application,
+                "deployment_type": ApplicationEnvironment.DeploymentType.SERVER,
+                "server": internal_server,
+                "provider_account": shared_cloud_account,
+                "provider_resource_id": "demo-adb-platform-production",
+                "runtime": "Python / Node.js",
+                "runtime_version": "3.12 / 22",
+                "release_version": "demo-main",
+                "region": "lon1",
+                "branch_or_ref": "main",
+                "automatic_deployments": True,
+            },
+        )
+        application_environment.full_clean()
+        application_environment.save()
+
+        repository_resource = self._resource(
+            name=f"{DEMO_PREFIX} ADB Platform Repository",
+            resource_type=InfrastructureResource.ResourceType.SOURCE_REPOSITORY,
+            environment=InfrastructureResource.Environment.SHARED,
+            description="Primary source repository for the structured ADB Platform demo.",
+        )
+        repository, _ = SourceRepository.objects.update_or_create(
+            resource=repository_resource,
+            defaults={
+                "provider_account": github_account,
+                "web_url": "https://github.com/adb-software-solutions/adb-web-platform",
+                "clone_url": "git@github.com:adb-software-solutions/adb-web-platform.git",
+                "provider_repository_id": "demo-adb-web-platform",
+                "owner_name": "adb-software-solutions",
+                "repository_name": "adb-web-platform",
+                "default_branch": "main",
+                "visibility": SourceRepository.Visibility.PRIVATE,
+                "is_fork": False,
+            },
+        )
+        repository.full_clean()
+        repository.save()
+        repository_link, _ = ApplicationRepositoryLink.objects.update_or_create(
+            application=application,
+            repository=repository,
+            role=ApplicationRepositoryLink.Role.PRIMARY,
+            path="",
+            defaults={"notes": "Primary monorepo for the development application."},
+        )
+        repository_link.full_clean()
+        repository_link.save()
+
+        client = Client.objects.filter(status="active").order_by("id").first()
+        if client is None:
+            return
+        client_name = client.company or client.name
+        client_server = ServerProfile.objects.select_related("resource").get(
+            resource__name=f"{DEMO_PREFIX} {client_name} Web 01"
+        )
+        client_database_resource = self._resource(
+            name=f"{DEMO_PREFIX} {client_name} PostgreSQL",
+            resource_type=InfrastructureResource.ResourceType.DATABASE_INSTANCE,
+            ownership_type=OwnershipType.CLIENT,
+            client=client,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Client-owned PostgreSQL service using the Client demo server.",
+        )
+        client_database, _ = DatabaseInstance.objects.update_or_create(
+            resource=client_database_resource,
+            defaults={
+                "engine": DatabaseInstance.Engine.POSTGRESQL,
+                "engine_version": "18",
+                "hosting_type": DatabaseInstance.HostingType.SELF_HOSTED,
+                "server": client_server,
+                "provider_account": shared_cloud_account,
+                "endpoint": "demo-client-web01",
+                "port": 5432,
+                "region": "lon1",
+                "tls_mode": DatabaseInstance.TLSMode.REQUIRED,
+                "high_availability": False,
+                "backup_enabled": True,
+                "maintenance_window": "Saturday 02:00 Europe/London",
+            },
+        )
+        client_database.full_clean()
+        client_database.save()
+
+        client_logical_resource = self._resource(
+            name=f"{DEMO_PREFIX} {client_name} Application Database",
+            resource_type=InfrastructureResource.ResourceType.LOGICAL_DATABASE,
+            ownership_type=OwnershipType.CLIENT,
+            client=client,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Client-owned logical application database.",
+        )
+        client_logical, _ = LogicalDatabase.objects.update_or_create(
+            resource=client_logical_resource,
+            defaults={
+                "instance": client_database,
+                "database_name": "client_application_demo",
+                "purpose": "Client application data",
+                "default_schema": "public",
+                "charset": "UTF8",
+            },
+        )
+        client_logical.full_clean()
+        client_logical.save()
+
+        client_application_resource = self._resource(
+            name=f"{DEMO_PREFIX} {client_name} Application",
+            resource_type=InfrastructureResource.ResourceType.APPLICATION,
+            ownership_type=OwnershipType.CLIENT,
+            client=client,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Client-owned logical application in the structured infrastructure graph.",
+        )
+        client_application, _ = ApplicationProfile.objects.update_or_create(
+            resource=client_application_resource,
+            defaults={
+                "application_type": ApplicationProfile.ApplicationType.WEB_APP,
+                "owner_team": "ADB Software Solutions",
+                "primary_language": "Python / TypeScript",
+                "framework": "Django / Next.js",
+            },
+        )
+        client_application.full_clean()
+        client_application.save()
+
+        client_environment_resource = self._resource(
+            name=f"{DEMO_PREFIX} {client_name} Production",
+            resource_type=InfrastructureResource.ResourceType.APPLICATION_ENVIRONMENT,
+            ownership_type=OwnershipType.CLIENT,
+            client=client,
+            criticality=InfrastructureResource.Criticality.HIGH,
+            description="Client-owned production deployment using the Client demo server.",
+        )
+        client_environment, _ = ApplicationEnvironment.objects.update_or_create(
+            resource=client_environment_resource,
+            defaults={
+                "application": client_application,
+                "deployment_type": ApplicationEnvironment.DeploymentType.SERVER,
+                "server": client_server,
+                "provider_account": shared_cloud_account,
+                "provider_resource_id": "demo-client-production",
+                "runtime": "Python / Node.js",
+                "runtime_version": "3.12 / 22",
+                "release_version": "demo-production",
+                "region": "lon1",
+                "branch_or_ref": "main",
+                "automatic_deployments": True,
+            },
+        )
+        client_environment.full_clean()
+        client_environment.save()
+
+        client_repository_resource = self._resource(
+            name=f"{DEMO_PREFIX} {client_name} Repository",
+            resource_type=InfrastructureResource.ResourceType.SOURCE_REPOSITORY,
+            ownership_type=OwnershipType.CLIENT,
+            client=client,
+            environment=InfrastructureResource.Environment.SHARED,
+            description="Client-owned source repository managed through the shared ADB GitHub account.",
+        )
+        client_repository, _ = SourceRepository.objects.update_or_create(
+            resource=client_repository_resource,
+            defaults={
+                "provider_account": github_account,
+                "web_url": "https://github.com/example/client-application-demo",
+                "clone_url": "git@github.com:example/client-application-demo.git",
+                "provider_repository_id": "demo-client-application",
+                "owner_name": "example",
+                "repository_name": "client-application-demo",
+                "default_branch": "main",
+                "visibility": SourceRepository.Visibility.PRIVATE,
+                "is_fork": False,
+            },
+        )
+        client_repository.full_clean()
+        client_repository.save()
+        client_repository_link, _ = ApplicationRepositoryLink.objects.update_or_create(
+            application=client_application,
+            repository=client_repository,
+            role=ApplicationRepositoryLink.Role.PRIMARY,
+            path="",
+            defaults={"notes": "Primary Client application repository."},
+        )
+        client_repository_link.full_clean()
+        client_repository_link.save()
 
     def _seed_website_technology(self, websites: list[Website]) -> None:
         technologies = [
