@@ -458,7 +458,13 @@ def data_application_options(
 
 @data_application_specialist_router.post(
     "/infrastructure/database-instances",
-    response={201: DatabaseInstanceOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        201: DatabaseInstanceOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def create_database_instance(
     request: HttpRequest,
@@ -501,7 +507,13 @@ def create_database_instance(
 
 @data_application_specialist_router.put(
     "/infrastructure/database-instances/{resource_id}",
-    response={200: DatabaseInstanceOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: DatabaseInstanceOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def update_database_instance(
     request: HttpRequest,
@@ -566,7 +578,13 @@ def archive_database_instance(
 
 @data_application_specialist_router.post(
     "/infrastructure/logical-databases",
-    response={201: LogicalDatabaseOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        201: LogicalDatabaseOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def create_logical_database(
     request: HttpRequest,
@@ -614,7 +632,13 @@ def create_logical_database(
 
 @data_application_specialist_router.put(
     "/infrastructure/logical-databases/{resource_id}",
-    response={200: LogicalDatabaseOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: LogicalDatabaseOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def update_logical_database(
     request: HttpRequest,
@@ -686,7 +710,13 @@ def archive_logical_database(
 
 @data_application_specialist_router.post(
     "/infrastructure/applications",
-    response={201: ApplicationOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        201: ApplicationOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def create_application(
     request: HttpRequest,
@@ -723,7 +753,13 @@ def create_application(
 
 @data_application_specialist_router.put(
     "/infrastructure/applications/{resource_id}",
-    response={200: ApplicationOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: ApplicationOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def update_application(
     request: HttpRequest,
@@ -777,7 +813,13 @@ def archive_application(request: HttpRequest, resource_id: int) -> ApplicationOu
 
 @data_application_specialist_router.post(
     "/infrastructure/applications/{resource_id}/repositories",
-    response={201: ApplicationRepositoryLinkOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        201: ApplicationRepositoryLinkOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def create_application_repository_link(
     request: HttpRequest,
@@ -833,7 +875,13 @@ def delete_application_repository_link(
 
 @data_application_specialist_router.post(
     "/infrastructure/application-environments",
-    response={201: ApplicationEnvironmentOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        201: ApplicationEnvironmentOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def create_application_environment(
     request: HttpRequest,
@@ -890,7 +938,13 @@ def create_application_environment(
 
 @data_application_specialist_router.put(
     "/infrastructure/application-environments/{resource_id}",
-    response={200: ApplicationEnvironmentOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: ApplicationEnvironmentOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def update_application_environment(
     request: HttpRequest,
@@ -946,7 +1000,12 @@ def update_application_environment(
 
 @data_application_specialist_router.post(
     "/infrastructure/application-environments/{resource_id}/archive",
-    response={200: ApplicationEnvironmentOut, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: ApplicationEnvironmentOut,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def archive_application_environment(
     request: HttpRequest,
@@ -979,7 +1038,13 @@ def archive_application_environment(
 
 @data_application_specialist_router.post(
     "/infrastructure/source-repositories",
-    response={201: SourceRepositoryOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        201: SourceRepositoryOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def create_source_repository(
     request: HttpRequest,
@@ -1019,7 +1084,13 @@ def create_source_repository(
 
 @data_application_specialist_router.put(
     "/infrastructure/source-repositories/{resource_id}",
-    response={200: SourceRepositoryOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: SourceRepositoryOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def update_source_repository(
     request: HttpRequest,
