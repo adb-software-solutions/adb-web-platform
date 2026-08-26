@@ -15,6 +15,7 @@ import { API_URL } from "@/lib/config";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type SpecialistType = "server" | "network" | "subnet";
+type SpecialistEditValue = string | number | boolean | null | string[];
 
 interface ClientOption {
     id: number;
@@ -55,14 +56,30 @@ interface SpecialistOptions {
     subnets: SubnetOption[];
 }
 
-interface CreateResult {
+interface SpecialistEditDetails {
+    resource_id: number;
+    resource_type: SpecialistType;
+    ownership_type: "internal" | "client";
+    client_id: number | null;
+    client_name: string | null;
+    name: string;
+    lifecycle_status: string;
+    environment: string;
+    criticality: string;
+    description: string;
+    values: Record<string, SpecialistEditValue>;
+}
+
+interface SaveResult {
     resource_id: number;
 }
 
 interface StructuredInfrastructureFormProps {
     allowedTypes: SpecialistType[];
     onCancel: () => void;
-    onCreated: (resourceId: number) => void;
+    onCreated?: (resourceId: number) => void;
+    editResourceId?: number;
+    onSaved?: () => void;
 }
 
 function numberOrNull(value: string): number | null {
@@ -70,24 +87,55 @@ function numberOrNull(value: string): number | null {
     return trimmed ? Number(trimmed) : null;
 }
 
+function stringValue(value: SpecialistEditValue | undefined): string {
+    if (value === null || value === undefined || Array.isArray(value)) return "";
+    return String(value);
+}
+
+function numberValue(value: SpecialistEditValue | undefined): string {
+    return typeof value === "number" ? String(value) : "";
+}
+
+function booleanValue(value: SpecialistEditValue | undefined): string {
+    return value === true ? "yes" : value === false ? "no" : "";
+}
+
+function listValue(value: SpecialistEditValue | undefined): string {
+    return Array.isArray(value) ? value.join("\n") : "";
+}
+
+function dateTimeLocalValue(value: SpecialistEditValue | undefined): string {
+    const rendered = stringValue(value);
+    return rendered.includes("T") ? rendered.slice(0, 16) : rendered;
+}
+
 function label(value: SpecialistType): string {
     return value === "server" ? "Server" : value === "network" ? "Network" : "Subnet";
+}
+
+function collectionPath(type: SpecialistType): string {
+    return type === "subnet" ? "subnets" : `${type}s`;
 }
 
 export function StructuredInfrastructureForm({
     allowedTypes,
     onCancel,
     onCreated,
+    editResourceId,
+    onSaved,
 }: StructuredInfrastructureFormProps) {
+    const isEditing = editResourceId !== undefined;
     const [options, setOptions] = useState<SpecialistOptions | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const [type, setType] = useState<SpecialistType>(allowedTypes[0] ?? "server");
-    const [ownership, setOwnership] = useState("internal");
+    const [ownership, setOwnership] = useState<"internal" | "client">("internal");
     const [clientId, setClientId] = useState("");
+    const [clientName, setClientName] = useState<string | null>(null);
     const [name, setName] = useState("");
+    const [lifecycle, setLifecycle] = useState("active");
     const [environment, setEnvironment] = useState("production");
     const [criticality, setCriticality] = useState("normal");
     const [description, setDescription] = useState("");
@@ -105,12 +153,21 @@ export function StructuredInfrastructureForm({
     const [osFamily, setOsFamily] = useState("linux");
     const [distribution, setDistribution] = useState("");
     const [osVersion, setOsVersion] = useState("");
+    const [kernelVersion, setKernelVersion] = useState("");
     const [providerAccountId, setProviderAccountId] = useState("");
     const [providerResourceId, setProviderResourceId] = useState("");
     const [region, setRegion] = useState("");
     const [zone, setZone] = useState("");
+    const [datacenter, setDatacenter] = useState("");
+    const [virtualizationType, setVirtualizationType] = useState("");
+    const [hypervisor, setHypervisor] = useState("");
     const [sshPort, setSshPort] = useState("22");
     const [timezone, setTimezone] = useState("");
+    const [automaticUpdates, setAutomaticUpdates] = useState("");
+    const [patchWindow, setPatchWindow] = useState("");
+    const [lastPatchedAt, setLastPatchedAt] = useState("");
+    const [commissionedAt, setCommissionedAt] = useState("");
+    const [decommissionedAt, setDecommissionedAt] = useState("");
 
     const [networkType, setNetworkType] = useState("vpc");
     const [cidr, setCidr] = useState("");
@@ -123,14 +180,77 @@ export function StructuredInfrastructureForm({
 
     useEffect(() => {
         let active = true;
-        async function loadOptions() {
+
+        async function load() {
             try {
                 setIsLoading(true);
                 setError(null);
-                const result = (await fetchAPI(
-                    `${API_URL}/api/admin/infrastructure/specialist-options`,
-                )) as SpecialistOptions;
-                if (active) setOptions(result);
+                const [loadedOptions, editDetails] = await Promise.all([
+                    fetchAPI(`${API_URL}/api/admin/infrastructure/specialist-options`) as Promise<SpecialistOptions>,
+                    editResourceId === undefined
+                        ? Promise.resolve(null)
+                        : (fetchAPI(
+                              `${API_URL}/api/admin/infrastructure/resources/${editResourceId}/specialist-edit`,
+                          ) as Promise<SpecialistEditDetails>),
+                ]);
+                if (!active) return;
+                setOptions(loadedOptions);
+
+                if (!editDetails) return;
+                if (!allowedTypes.includes(editDetails.resource_type)) {
+                    setError("This resource type cannot be edited from this form.");
+                    return;
+                }
+
+                const values = editDetails.values;
+                setType(editDetails.resource_type);
+                setOwnership(editDetails.ownership_type);
+                setClientId(editDetails.client_id ? String(editDetails.client_id) : "");
+                setClientName(editDetails.client_name);
+                setName(editDetails.name);
+                setLifecycle(editDetails.lifecycle_status);
+                setEnvironment(editDetails.environment);
+                setCriticality(editDetails.criticality);
+                setDescription(editDetails.description);
+
+                setHostname(stringValue(values.hostname));
+                setFqdn(stringValue(values.fqdn));
+                setPurpose(stringValue(values.purpose));
+                setRole(stringValue(values.role));
+                setComputeType(stringValue(values.compute_type) || "cloud_vm");
+                setArchitecture(stringValue(values.architecture));
+                setCpuModel(stringValue(values.cpu_model));
+                setCpuCores(numberValue(values.cpu_cores));
+                setRamMb(numberValue(values.ram_mb));
+                setRootDiskGb(numberValue(values.root_disk_gb));
+                setOsFamily(stringValue(values.os_family) || "linux");
+                setDistribution(stringValue(values.distribution));
+                setOsVersion(stringValue(values.os_version));
+                setKernelVersion(stringValue(values.kernel_version));
+                setProviderAccountId(numberValue(values.provider_account_resource_id));
+                setProviderResourceId(
+                    stringValue(values.provider_resource_id) || stringValue(values.provider_network_id),
+                );
+                setRegion(stringValue(values.region));
+                setZone(stringValue(values.zone));
+                setDatacenter(stringValue(values.datacenter));
+                setVirtualizationType(stringValue(values.virtualization_type));
+                setHypervisor(stringValue(values.hypervisor));
+                setSshPort(numberValue(values.ssh_port));
+                setTimezone(stringValue(values.timezone));
+                setAutomaticUpdates(booleanValue(values.automatic_updates));
+                setPatchWindow(stringValue(values.patch_window));
+                setLastPatchedAt(dateTimeLocalValue(values.last_patched_at));
+                setCommissionedAt(stringValue(values.commissioned_at));
+                setDecommissionedAt(stringValue(values.decommissioned_at));
+
+                setNetworkType(stringValue(values.network_type) || "vpc");
+                setCidr(stringValue(values.cidr));
+                setGateway(stringValue(values.gateway));
+                setVlanId(numberValue(values.vlan_id));
+                setDnsServers(listValue(values.dns_servers));
+                setNetworkResourceId(numberValue(values.network_resource_id));
+                setAvailabilityZone(stringValue(values.availability_zone));
             } catch (loadError) {
                 if (active) {
                     setError(
@@ -143,17 +263,12 @@ export function StructuredInfrastructureForm({
                 if (active) setIsLoading(false);
             }
         }
-        void loadOptions();
+
+        void load();
         return () => {
             active = false;
         };
-    }, []);
-
-    useEffect(() => {
-        if (ownership === "internal") setClientId("");
-        setProviderAccountId("");
-        setNetworkResourceId("");
-    }, [ownership, clientId]);
+    }, [allowedTypes, editResourceId]);
 
     const providerAccounts = useMemo(
         () =>
@@ -179,13 +294,27 @@ export function StructuredInfrastructureForm({
         [clientId, options, ownership],
     );
 
+    function changeOwnership(value: "internal" | "client") {
+        setOwnership(value);
+        setClientId("");
+        setClientName(null);
+        setProviderAccountId("");
+        setNetworkResourceId("");
+    }
+
+    function changeClient(value: string) {
+        setClientId(value);
+        setProviderAccountId("");
+        setNetworkResourceId("");
+    }
+
     async function submit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         if (!name.trim()) {
             setError("Enter a resource name.");
             return;
         }
-        if (ownership === "client" && !clientId) {
+        if (!isEditing && ownership === "client" && !clientId) {
             setError("Choose the Client that owns this resource.");
             return;
         }
@@ -203,18 +332,21 @@ export function StructuredInfrastructureForm({
         }
 
         const common = {
-            ownership_type: ownership,
-            client_id: ownership === "client" ? Number(clientId) : null,
             name: name.trim(),
-            lifecycle_status: "active",
+            lifecycle_status: lifecycle,
             environment,
             criticality,
             description: description.trim(),
+        };
+        const createOwnership = {
+            ownership_type: ownership,
+            client_id: ownership === "client" ? Number(clientId) : null,
         };
         let payload: Record<string, unknown>;
         if (type === "server") {
             payload = {
                 ...common,
+                ...(!isEditing ? createOwnership : {}),
                 hostname: hostname.trim(),
                 fqdn: fqdn.trim(),
                 purpose: purpose.trim(),
@@ -228,16 +360,31 @@ export function StructuredInfrastructureForm({
                 os_family: osFamily,
                 distribution: distribution.trim(),
                 os_version: osVersion.trim(),
+                kernel_version: kernelVersion.trim(),
                 provider_account_resource_id: numberOrNull(providerAccountId),
                 provider_resource_id: providerResourceId.trim(),
                 region: region.trim(),
                 zone: zone.trim(),
+                datacenter: datacenter.trim(),
+                virtualization_type: virtualizationType.trim(),
+                hypervisor: hypervisor.trim(),
                 ssh_port: numberOrNull(sshPort),
                 timezone: timezone.trim(),
+                automatic_updates:
+                    automaticUpdates === "yes"
+                        ? true
+                        : automaticUpdates === "no"
+                          ? false
+                          : null,
+                patch_window: patchWindow.trim(),
+                last_patched_at: lastPatchedAt || null,
+                commissioned_at: commissionedAt || null,
+                decommissioned_at: decommissionedAt || null,
             };
         } else if (type === "network") {
             payload = {
                 ...common,
+                ...(!isEditing ? createOwnership : {}),
                 network_type: networkType,
                 provider_account_resource_id: numberOrNull(providerAccountId),
                 provider_network_id: providerResourceId.trim(),
@@ -253,6 +400,7 @@ export function StructuredInfrastructureForm({
         } else {
             payload = {
                 ...common,
+                ...(!isEditing ? createOwnership : {}),
                 network_resource_id: Number(networkResourceId),
                 cidr: cidr.trim(),
                 gateway: gateway.trim() || null,
@@ -265,19 +413,21 @@ export function StructuredInfrastructureForm({
         try {
             setIsSaving(true);
             setError(null);
-            const created = (await fetchAPI(
-                `${API_URL}/api/admin/infrastructure/${type === "subnet" ? "subnets" : `${type}s`}`,
-                {
-                    method: "POST",
-                    body: JSON.stringify(payload),
-                },
-            )) as CreateResult;
-            onCreated(created.resource_id);
+            const endpoint = `${API_URL}/api/admin/infrastructure/${collectionPath(type)}${isEditing ? `/${editResourceId}` : ""}`;
+            const saved = (await fetchAPI(endpoint, {
+                method: isEditing ? "PUT" : "POST",
+                body: JSON.stringify(payload),
+            })) as SaveResult;
+            if (isEditing) {
+                onSaved?.();
+            } else {
+                onCreated?.(saved.resource_id);
+            }
         } catch (saveError) {
             setError(
                 saveError instanceof Error
                     ? saveError.message
-                    : "Unable to create this infrastructure resource.",
+                    : `Unable to ${isEditing ? "update" : "create"} this infrastructure resource.`,
             );
         } finally {
             setIsSaving(false);
@@ -295,8 +445,12 @@ export function StructuredInfrastructureForm({
         <form className="space-y-6" onSubmit={submit}>
             <PageHeader
                 eyebrow="Structured infrastructure"
-                title={`Add ${label(type).toLowerCase()}`}
-                description="Create a native typed resource. Credentials remain separate Vault records linked after creation."
+                title={`${isEditing ? "Edit" : "Add"} ${label(type).toLowerCase()}`}
+                description={
+                    isEditing
+                        ? "Update native typed operational metadata. Resource type and ownership stay fixed to preserve scope and relationship integrity."
+                        : "Create a native typed resource. Credentials remain separate Vault records linked after creation."
+                }
             />
 
             <Card className="space-y-4 p-5">
@@ -307,7 +461,7 @@ export function StructuredInfrastructureForm({
                         <Select
                             value={type}
                             onChange={(event) => setType(event.target.value as SpecialistType)}
-                            disabled={isSaving}
+                            disabled={isSaving || isEditing}
                         >
                             {allowedTypes.map((value) => (
                                 <option key={value} value={value}>
@@ -320,8 +474,10 @@ export function StructuredInfrastructureForm({
                         Ownership
                         <Select
                             value={ownership}
-                            onChange={(event) => setOwnership(event.target.value)}
-                            disabled={isSaving}
+                            onChange={(event) =>
+                                changeOwnership(event.target.value as "internal" | "client")
+                            }
+                            disabled={isSaving || isEditing}
                         >
                             <option value="internal">ADB Internal</option>
                             <option value="client">Client-owned</option>
@@ -330,18 +486,22 @@ export function StructuredInfrastructureForm({
                     {ownership === "client" ? (
                         <label className="space-y-2 text-xs text-slate-400 md:col-span-2">
                             Client
-                            <Select
-                                value={clientId}
-                                onChange={(event) => setClientId(event.target.value)}
-                                disabled={isSaving}
-                            >
-                                <option value="">Choose client</option>
-                                {options?.clients.map((client) => (
-                                    <option key={client.id} value={client.id}>
-                                        {client.name}
-                                    </option>
-                                ))}
-                            </Select>
+                            {isEditing ? (
+                                <Input value={clientName ?? `Client #${clientId}`} disabled />
+                            ) : (
+                                <Select
+                                    value={clientId}
+                                    onChange={(event) => changeClient(event.target.value)}
+                                    disabled={isSaving}
+                                >
+                                    <option value="">Choose client</option>
+                                    {options?.clients.map((client) => (
+                                        <option key={client.id} value={client.id}>
+                                            {client.name}
+                                        </option>
+                                    ))}
+                                </Select>
+                            )}
                         </label>
                     ) : null}
                     <label className="space-y-2 text-xs text-slate-400 md:col-span-2">
@@ -352,6 +512,21 @@ export function StructuredInfrastructureForm({
                             placeholder="e.g. ADB LON Web 01"
                             disabled={isSaving}
                         />
+                    </label>
+                    <label className="space-y-2 text-xs text-slate-400">
+                        Lifecycle
+                        <Select
+                            value={lifecycle}
+                            onChange={(event) => setLifecycle(event.target.value)}
+                            disabled={isSaving}
+                        >
+                            <option value="planned">Planned</option>
+                            <option value="active">Active</option>
+                            <option value="maintenance">Maintenance</option>
+                            <option value="deprecated">Deprecated</option>
+                            <option value="retired">Retired</option>
+                            <option value="archived">Archived</option>
+                        </Select>
                     </label>
                     <label className="space-y-2 text-xs text-slate-400">
                         Environment
@@ -455,6 +630,10 @@ export function StructuredInfrastructureForm({
                             <Input value={zone} onChange={(event) => setZone(event.target.value)} disabled={isSaving} />
                         </label>
                         <label className="space-y-2 text-xs text-slate-400">
+                            Datacentre
+                            <Input value={datacenter} onChange={(event) => setDatacenter(event.target.value)} disabled={isSaving} />
+                        </label>
+                        <label className="space-y-2 text-xs text-slate-400">
                             CPU model
                             <Input value={cpuModel} onChange={(event) => setCpuModel(event.target.value)} disabled={isSaving} />
                         </label>
@@ -489,12 +668,48 @@ export function StructuredInfrastructureForm({
                             <Input value={osVersion} onChange={(event) => setOsVersion(event.target.value)} disabled={isSaving} />
                         </label>
                         <label className="space-y-2 text-xs text-slate-400">
+                            Kernel version
+                            <Input value={kernelVersion} onChange={(event) => setKernelVersion(event.target.value)} disabled={isSaving} />
+                        </label>
+                        <label className="space-y-2 text-xs text-slate-400">
+                            Virtualisation
+                            <Input value={virtualizationType} onChange={(event) => setVirtualizationType(event.target.value)} placeholder="KVM / Hyper-V / VMware" disabled={isSaving} />
+                        </label>
+                        <label className="space-y-2 text-xs text-slate-400">
+                            Hypervisor
+                            <Input value={hypervisor} onChange={(event) => setHypervisor(event.target.value)} disabled={isSaving} />
+                        </label>
+                        <label className="space-y-2 text-xs text-slate-400">
                             SSH port
                             <Input type="number" min="1" max="65535" value={sshPort} onChange={(event) => setSshPort(event.target.value)} disabled={isSaving} />
                         </label>
                         <label className="space-y-2 text-xs text-slate-400">
                             Timezone
                             <Input value={timezone} onChange={(event) => setTimezone(event.target.value)} placeholder="Europe/London" disabled={isSaving} />
+                        </label>
+                        <label className="space-y-2 text-xs text-slate-400">
+                            Automatic updates
+                            <Select value={automaticUpdates} onChange={(event) => setAutomaticUpdates(event.target.value)} disabled={isSaving}>
+                                <option value="">Not recorded</option>
+                                <option value="yes">Enabled</option>
+                                <option value="no">Disabled</option>
+                            </Select>
+                        </label>
+                        <label className="space-y-2 text-xs text-slate-400">
+                            Patch window
+                            <Input value={patchWindow} onChange={(event) => setPatchWindow(event.target.value)} placeholder="Sunday 03:00 Europe/London" disabled={isSaving} />
+                        </label>
+                        <label className="space-y-2 text-xs text-slate-400">
+                            Last patched
+                            <Input type="datetime-local" value={lastPatchedAt} onChange={(event) => setLastPatchedAt(event.target.value)} disabled={isSaving} />
+                        </label>
+                        <label className="space-y-2 text-xs text-slate-400">
+                            Commissioned
+                            <Input type="date" value={commissionedAt} onChange={(event) => setCommissionedAt(event.target.value)} disabled={isSaving} />
+                        </label>
+                        <label className="space-y-2 text-xs text-slate-400">
+                            Decommissioned
+                            <Input type="date" value={decommissionedAt} onChange={(event) => setDecommissionedAt(event.target.value)} disabled={isSaving} />
                         </label>
                     </div>
                 </Card>
@@ -600,7 +815,13 @@ export function StructuredInfrastructureForm({
                     Cancel
                 </Button>
                 <Button type="submit" disabled={isSaving || allowedTypes.length === 0}>
-                    {isSaving ? "Creating..." : `Create ${label(type).toLowerCase()}`}
+                    {isSaving
+                        ? isEditing
+                            ? "Saving..."
+                            : "Creating..."
+                        : isEditing
+                          ? "Save changes"
+                          : `Create ${label(type).toLowerCase()}`}
                 </Button>
             </div>
         </form>
