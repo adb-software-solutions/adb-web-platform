@@ -12,8 +12,8 @@ from apps.access_control.policies import scope_clients_for_user
 from apps.clients.models import Client
 from apps.core.ownership import OwnershipType
 from apps.infrastructure.models import (
-    IPAddress,
     InfrastructureResource,
+    IPAddress,
     Network,
     NetworkInterface,
     ProviderAccount,
@@ -25,10 +25,10 @@ from authentication.ninja.schemas import ProblemDetail
 
 from .specialist_schemas import (
     ClientOptionOut,
+    InfrastructureSpecialistOptionsOut,
     IPAddressCreateIn,
     IPAddressOut,
     IPAddressUpdateIn,
-    InfrastructureSpecialistOptionsOut,
     NetworkCreateIn,
     NetworkInterfaceCreateIn,
     NetworkInterfaceOut,
@@ -71,7 +71,11 @@ def _permission_problem(
     if not (request.user.is_staff or request.user.is_superuser):
         return _problem(403, "You do not have permission to access this resource.", "forbidden")
     if not all(request.user.has_perm(permission) for permission in permissions):
-        return _problem(403, "You do not have permission to manage this infrastructure.", "forbidden")
+        return _problem(
+            403,
+            "You do not have permission to manage this infrastructure.",
+            "forbidden",
+        )
     return None
 
 
@@ -105,11 +109,7 @@ def _resolve_client(
             "Client-owned infrastructure requires a Client.",
             "client_required",
         )
-    client = (
-        scope_clients_for_user(request.user, Client.objects.all())
-        .filter(id=client_id)
-        .first()
-    )
+    client = scope_clients_for_user(request.user, Client.objects.all()).filter(id=client_id).first()
     if client is None:
         return None, _problem(404, "Client not found.", "not_found")
     return client, None
@@ -207,9 +207,7 @@ def _archive_resource(request: HttpRequest, resource: InfrastructureResource) ->
     resource.lifecycle_status = InfrastructureResource.LifecycleStatus.ARCHIVED
     resource.archived_at = timezone.now()
     resource.updated_by_id = request.user.pk
-    resource.save(
-        update_fields=["lifecycle_status", "archived_at", "updated_by", "updated_at"]
-    )
+    resource.save(update_fields=["lifecycle_status", "archived_at", "updated_by", "updated_at"])
 
 
 def _ip_out(ip_address: IPAddress) -> IPAddressOut:
@@ -429,7 +427,10 @@ def infrastructure_specialist_options(
     ).filter(resource__in=visible, resource__lifecycle_status__in=CURRENT_LIFECYCLE_STATUSES)
 
     return InfrastructureSpecialistOptionsOut(
-        clients=[ClientOptionOut(id=item.id, name=str(item)) for item in clients.order_by("company", "name")],
+        clients=[
+            ClientOptionOut(id=item.id, name=str(item))
+            for item in clients.order_by("company", "name")
+        ],
         provider_accounts=[
             ProviderAccountOptionOut(
                 resource_id=item.resource_id,
@@ -468,7 +469,13 @@ def infrastructure_specialist_options(
 
 @infrastructure_specialist_router.post(
     "/infrastructure/servers",
-    response={201: ServerOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        201: ServerOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def create_server(
     request: HttpRequest,
@@ -526,7 +533,13 @@ def get_server(request: HttpRequest, resource_id: int) -> ServerOut | StaffProbl
 
 @infrastructure_specialist_router.put(
     "/infrastructure/servers/{resource_id}",
-    response={200: ServerOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: ServerOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def update_server(
     request: HttpRequest,
@@ -586,7 +599,13 @@ def archive_server(request: HttpRequest, resource_id: int) -> ServerOut | StaffP
 
 @infrastructure_specialist_router.post(
     "/infrastructure/networks",
-    response={201: NetworkOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        201: NetworkOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def create_network(
     request: HttpRequest,
@@ -625,7 +644,13 @@ def create_network(
 
 @infrastructure_specialist_router.put(
     "/infrastructure/networks/{resource_id}",
-    response={200: NetworkOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: NetworkOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def update_network(
     request: HttpRequest,
@@ -684,7 +709,13 @@ def archive_network(request: HttpRequest, resource_id: int) -> NetworkOut | Staf
 
 @infrastructure_specialist_router.post(
     "/infrastructure/subnets",
-    response={201: SubnetOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        201: SubnetOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def create_subnet(
     request: HttpRequest,
@@ -730,7 +761,13 @@ def create_subnet(
 
 @infrastructure_specialist_router.put(
     "/infrastructure/subnets/{resource_id}",
-    response={200: SubnetOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: SubnetOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def update_subnet(
     request: HttpRequest,
@@ -807,7 +844,13 @@ def _resolve_interface_links(
 
 @infrastructure_specialist_router.post(
     "/infrastructure/servers/{resource_id}/interfaces",
-    response={201: NetworkInterfaceOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        201: NetworkInterfaceOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def create_network_interface(
     request: HttpRequest,
@@ -844,7 +887,13 @@ def create_network_interface(
 
 @infrastructure_specialist_router.put(
     "/infrastructure/servers/{resource_id}/interfaces/{interface_id}",
-    response={200: NetworkInterfaceOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: NetworkInterfaceOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def update_network_interface(
     request: HttpRequest,
@@ -904,7 +953,13 @@ def delete_network_interface(
 
 @infrastructure_specialist_router.post(
     "/infrastructure/servers/{resource_id}/ip-addresses",
-    response={201: IPAddressOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        201: IPAddressOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def create_ip_address(
     request: HttpRequest,
@@ -919,9 +974,7 @@ def create_ip_address(
         return _problem(404, "Server not found.", "not_found")
     interface = None
     if payload.interface_id is not None:
-        interface = NetworkInterface.objects.filter(
-            id=payload.interface_id, server=server
-        ).first()
+        interface = NetworkInterface.objects.filter(id=payload.interface_id, server=server).first()
         if interface is None:
             return _problem(404, "Network interface not found.", "not_found")
     ip_address = IPAddress(
@@ -943,7 +996,13 @@ def create_ip_address(
 
 @infrastructure_specialist_router.put(
     "/infrastructure/servers/{resource_id}/ip-addresses/{ip_address_id}",
-    response={200: IPAddressOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: IPAddressOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def update_ip_address(
     request: HttpRequest,
@@ -962,9 +1021,7 @@ def update_ip_address(
         return _problem(404, "IP address not found.", "not_found")
     interface = None
     if payload.interface_id is not None:
-        interface = NetworkInterface.objects.filter(
-            id=payload.interface_id, server=server
-        ).first()
+        interface = NetworkInterface.objects.filter(id=payload.interface_id, server=server).first()
         if interface is None:
             return _problem(404, "Network interface not found.", "not_found")
     ip_address.interface = interface
