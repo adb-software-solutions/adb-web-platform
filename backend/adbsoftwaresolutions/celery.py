@@ -20,6 +20,10 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 
 app.conf.beat_schedule = {
+    "monitoring-due-check-dispatch": {
+        "task": "monitoring.enqueue_due_checks",
+        "schedule": 30,
+    },
     "ticketing-graph-mailbox-sync": {
         "task": "ticketing.enqueue_graph_mailbox_syncs",
         "schedule": graph_sync_interval_seconds(),

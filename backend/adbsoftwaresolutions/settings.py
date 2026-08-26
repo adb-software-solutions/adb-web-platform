@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     "apps.website",
     "apps.clients",
     "apps.infrastructure",
+    "apps.monitoring",
     "apps.crm",
     "apps.credentials",
     "apps.knowledge_base",
