@@ -288,9 +288,7 @@ class Command(BaseCommand):
                 MonitorResult(
                     monitor_check=check,
                     outcome=(
-                        MonitorResult.Outcome.FAILURE
-                        if failed
-                        else MonitorResult.Outcome.SUCCESS
+                        MonitorResult.Outcome.FAILURE if failed else MonitorResult.Outcome.SUCCESS
                     ),
                     started_at=started_at,
                     finished_at=started_at + timedelta(milliseconds=duration_ms),
@@ -338,7 +336,10 @@ class Command(BaseCommand):
                 failure_count=failure_tail,
                 summary="Synthetic development incident for the current failing check.",
             )
-        elif status == MonitorCheck.Status.HEALTHY and check.check_type == MonitorCheck.CheckType.HTTP:
+        elif (
+            status == MonitorCheck.Status.HEALTHY
+            and check.check_type == MonitorCheck.CheckType.HTTP
+        ):
             opened_at = now - timedelta(days=3, minutes=20)
             MonitorIncident.objects.create(
                 monitor_check=check,
