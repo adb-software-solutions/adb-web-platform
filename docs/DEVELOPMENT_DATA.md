@@ -64,8 +64,12 @@ At normal scale, the development dataset covers realistic examples across:
 - Knowledge Base documents and version-history foundations;
 - fake Credential metadata and encrypted demo secret values;
 - active/inactive/archived Credential lifecycle examples where useful;
-- Server, Database, Website, Domain, TLS, Licence, Application and related
-  infrastructure specialist examples;
+- legacy Server, Database, Website, Domain, TLS, Licence, Application and
+  related infrastructure specialist examples;
+- native structured Provider Account, Server, Network, Subnet, network-interface
+  and IP-address examples;
+- both Internal and Client-owned structured Server examples where an active demo
+  Client exists;
 - Mobile App/API/Bot/Email-system examples;
 - Ticket Queues, configured demo Mailboxes, Tickets, Messages, Notes and
   attachment/scan-state examples;
@@ -78,13 +82,28 @@ development seed command.
 
 ### Structured Infrastructure transition
 
-The platform has `InfrastructureResource`, Provider and relationship
-foundations plus explicit specialist reconciliation.
+The platform has `InfrastructureResource`, Provider and relationship foundations
+plus explicit specialist reconciliation and the first native typed
+compute/network specialists.
 
 Development data for older specialist records remains useful because the
-reconciliation workspace needs realistic legacy rows to review. Do not
-silently auto-assign Client/Internal ownership merely to make every seeded
-legacy row look reconciled.
+reconciliation workspace needs realistic legacy rows to review. Do not silently
+auto-assign Client/Internal ownership merely to make every seeded legacy row
+look reconciled.
+
+`seed_infrastructure_development` now also creates deterministic native examples
+for:
+
+- a shared Internal DigitalOcean Provider Account;
+- an Internal production VPC and subnet;
+- an Internal modern Server profile with a network interface and reserved demo
+  IPv4 addresses;
+- a Client-owned Server using the shared Internal Provider Account when an active
+  demo Client is available.
+
+The IP addresses use documentation/reserved ranges and are never production
+addresses. Structured development resources are validated through the same
+model invariants as normal application records.
 
 Where a seeder creates structured resources/relationships directly, it must obey
 the same ownership and cross-Client validation as normal application code.
