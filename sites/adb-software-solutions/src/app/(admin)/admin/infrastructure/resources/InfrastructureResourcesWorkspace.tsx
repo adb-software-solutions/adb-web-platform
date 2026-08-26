@@ -18,9 +18,13 @@ import { fetchAPI } from "@/lib/api/fetch";
 import { API_URL } from "@/lib/config";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { InfrastructureResourceWorkspace } from "./[id]/InfrastructureResourceWorkspace";
+import {
+    DataApplicationInfrastructureForm,
+    DataApplicationType,
+} from "./DataApplicationInfrastructureForm";
 import { StructuredInfrastructureForm } from "./StructuredInfrastructureForm";
 
-type SpecialistType = "server" | "network" | "subnet";
+type ComputeNetworkType = "server" | "network" | "subnet";
 
 interface ResourceSummary {
     id: number;
@@ -122,7 +126,10 @@ function label(value: string): string {
         email_system: "Email system",
         network_device: "Network device",
     };
-    return special[value] ?? `${value.charAt(0).toUpperCase()}${value.slice(1).replaceAll("_", " ")}`;
+    return (
+        special[value] ??
+        `${value.charAt(0).toUpperCase()}${value.slice(1).replaceAll("_", " ")}`
+    );
 }
 
 export function InfrastructureResourcesWorkspace() {
@@ -135,15 +142,32 @@ export function InfrastructureResourcesWorkspace() {
     const [resourceType, setResourceType] = useState("all");
     const [environment, setEnvironment] = useState("all");
     const [selectedResourceId, setSelectedResourceId] = useState<number | null>(null);
-    const [showCreate, setShowCreate] = useState(false);
+    const [showComputeCreate, setShowComputeCreate] = useState(false);
+    const [showDataCreate, setShowDataCreate] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const allowedTypes: SpecialistType[] = [];
+    const computeTypes: ComputeNetworkType[] = [];
+    const dataTypes: DataApplicationType[] = [];
     if (hasPermission("infrastructure.add_infrastructureresource")) {
-        if (hasPermission("infrastructure.add_serverprofile")) allowedTypes.push("server");
-        if (hasPermission("infrastructure.add_network")) allowedTypes.push("network");
-        if (hasPermission("infrastructure.add_subnet")) allowedTypes.push("subnet");
+        if (hasPermission("infrastructure.add_serverprofile")) computeTypes.push("server");
+        if (hasPermission("infrastructure.add_network")) computeTypes.push("network");
+        if (hasPermission("infrastructure.add_subnet")) computeTypes.push("subnet");
+        if (hasPermission("infrastructure.add_databaseinstance")) {
+            dataTypes.push("database_instance");
+        }
+        if (hasPermission("infrastructure.add_logicaldatabase")) {
+            dataTypes.push("logical_database");
+        }
+        if (hasPermission("infrastructure.add_applicationprofile")) {
+            dataTypes.push("application");
+        }
+        if (hasPermission("infrastructure.add_applicationenvironment")) {
+            dataTypes.push("application_environment");
+        }
+        if (hasPermission("infrastructure.add_sourcerepository")) {
+            dataTypes.push("source_repository");
+        }
     }
 
     const url = useMemo(() => {
@@ -183,6 +207,13 @@ export function InfrastructureResourcesWorkspace() {
         setPage(1);
     }
 
+    function openCreatedResource(resourceId: number) {
+        setShowComputeCreate(false);
+        setShowDataCreate(false);
+        setSelectedResourceId(resourceId);
+        void load();
+    }
+
     if (isLoading && !data) {
         return <DataLoading label="Loading structured infrastructure..." />;
     }
@@ -203,21 +234,38 @@ export function InfrastructureResourcesWorkspace() {
                 description="The shared operational resource graph across ADB Internal and Client infrastructure. Open a resource to see its technical details, credentials and relationships in context."
                 actions={
                     <>
-                        {allowedTypes.length > 0 ? (
+                        {computeTypes.length > 0 ? (
                             <Button
                                 type="button"
                                 onClick={() => {
                                     setSelectedResourceId(null);
-                                    setShowCreate(true);
+                                    setShowDataCreate(false);
+                                    setShowComputeCreate(true);
                                 }}
                             >
-                                Add structured resource
+                                Add compute / network
+                            </Button>
+                        ) : null}
+                        {dataTypes.length > 0 ? (
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => {
+                                    setSelectedResourceId(null);
+                                    setShowComputeCreate(false);
+                                    setShowDataCreate(true);
+                                }}
+                            >
+                                Add data / application
                             </Button>
                         ) : null}
                         <ButtonLink href="/admin/infrastructure" variant="secondary">
                             Infrastructure overview
                         </ButtonLink>
-                        <ButtonLink href="/admin/infrastructure/reconciliation" variant="secondary">
+                        <ButtonLink
+                            href="/admin/infrastructure/reconciliation"
+                            variant="secondary"
+                        >
                             Reconcile legacy records
                         </ButtonLink>
                     </>
@@ -302,7 +350,9 @@ export function InfrastructureResourcesWorkspace() {
                             {data.total.toLocaleString("en-GB")} resources match this view.
                         </p>
                     </div>
-                    {isLoading ? <span className="text-xs text-slate-600">Refreshing…</span> : null}
+                    {isLoading ? (
+                        <span className="text-xs text-slate-600">Refreshing…</span>
+                    ) : null}
                 </div>
 
                 {data.items.length === 0 ? (
@@ -327,7 +377,10 @@ export function InfrastructureResourcesWorkspace() {
                             </thead>
                             <tbody className="divide-y divide-slate-800/80">
                                 {data.items.map((resource) => (
-                                    <tr key={resource.id} className="bg-slate-900/20 hover:bg-slate-900/55">
+                                    <tr
+                                        key={resource.id}
+                                        className="bg-slate-900/20 hover:bg-slate-900/55"
+                                    >
                                         <td className="px-4 py-3">
                                             <button
                                                 type="button"
@@ -349,12 +402,18 @@ export function InfrastructureResourcesWorkspace() {
                                                 </div>
                                             ) : null}
                                         </td>
-                                        <td className="px-4 py-3 text-slate-400">{label(resource.resource_type)}</td>
+                                        <td className="px-4 py-3 text-slate-400">
+                                            {label(resource.resource_type)}
+                                        </td>
                                         <td className="px-4 py-3 text-slate-400">
                                             {resource.client_name || "ADB Internal"}
                                         </td>
-                                        <td className="px-4 py-3 text-slate-400">{label(resource.environment)}</td>
-                                        <td className="px-4 py-3 text-slate-400">{label(resource.lifecycle_status)}</td>
+                                        <td className="px-4 py-3 text-slate-400">
+                                            {label(resource.environment)}
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-400">
+                                            {label(resource.lifecycle_status)}
+                                        </td>
                                         <td className="px-4 py-3">
                                             <span
                                                 className={
@@ -384,16 +443,22 @@ export function InfrastructureResourcesWorkspace() {
                 />
             </Card>
 
-            {showCreate ? (
-                <RecordDrawer onClose={() => setShowCreate(false)}>
+            {showComputeCreate ? (
+                <RecordDrawer onClose={() => setShowComputeCreate(false)}>
                     <StructuredInfrastructureForm
-                        allowedTypes={allowedTypes}
-                        onCancel={() => setShowCreate(false)}
-                        onCreated={(resourceId) => {
-                            setShowCreate(false);
-                            setSelectedResourceId(resourceId);
-                            void load();
-                        }}
+                        allowedTypes={computeTypes}
+                        onCancel={() => setShowComputeCreate(false)}
+                        onCreated={openCreatedResource}
+                    />
+                </RecordDrawer>
+            ) : null}
+
+            {showDataCreate ? (
+                <RecordDrawer onClose={() => setShowDataCreate(false)}>
+                    <DataApplicationInfrastructureForm
+                        allowedTypes={dataTypes}
+                        onCancel={() => setShowDataCreate(false)}
+                        onCreated={openCreatedResource}
                     />
                 </RecordDrawer>
             ) : null}
