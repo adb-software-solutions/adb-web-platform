@@ -1,3 +1,4 @@
+import { KnowledgeBasePanel } from "@/components/admin/KnowledgeBasePanel";
 import { MonitoringHealthPanel } from "@/components/admin/MonitoringHealthPanel";
 import { Container } from "@/components/ui";
 import { InfrastructureResourceWorkspace } from "./InfrastructureResourceWorkspace";
@@ -18,6 +19,11 @@ export default async function InfrastructureResourcePage({
                     resourceId={resourceId}
                     title="Resource technical health"
                     description="Current monitoring state for this infrastructure resource."
+                />
+                <KnowledgeBasePanel
+                    resourceId={resourceId}
+                    title="Resource documentation"
+                    description="Current runbooks and Knowledge Base documents linked to this resource."
                 />
             </div>
         </Container>
