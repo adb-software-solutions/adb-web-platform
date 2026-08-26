@@ -215,9 +215,19 @@ comma-separated legacy metadata:
 - `TLSCertificate` stores non-secret certificate metadata only;
 - `TLSCertificateDomain` records typed Domain coverage and primary-name context.
 
-The shared Resource workspace exposes nested Website Endpoint, DNS Record and TLS Domain-coverage operations so these relationships are usable without returning to flat specialist registers. Normal selectors are permission-scoped and enforce the same Client/Internal boundaries as direct API mutations.
+The model enforces one primary Website Endpoint per Website, one primary DNS Zone
+per Domain and one primary Domain name per TLS Certificate. Additional endpoint,
+zone and certificate-domain relationships remain available as non-primary
+records.
 
-Private keys, certificate bundles, DNS/API tokens and registrar credentials are not fields on these models. They remain encrypted Vault Credentials linked to the relevant Website/Domain/Provider/TLS resource.
+The shared Resource workspace exposes nested Website Endpoint, DNS Record and
+TLS Domain-coverage operations so these relationships are usable without
+returning to flat specialist registers. Normal selectors are permission-scoped
+and enforce the same Client/Internal boundaries as direct API mutations.
+
+Private keys, certificate bundles, DNS/API tokens and registrar credentials are
+not fields on these models. They remain encrypted Vault Credentials linked to
+the relevant Website/Domain/Provider/TLS resource.
 
 ---
 
@@ -336,7 +346,11 @@ the exact name/expiry/auto-renew values; legacy SSL rows promote non-secret TLS
 metadata and link to a Domain only when that Domain has already been explicitly
 reconciled.
 
-Promotion deliberately does not infer Provider Accounts from legacy provider/registrar/CDN strings, parse comma-separated aliases or nameservers into new topology, infer ownership, or copy general free-text notes. The legacy identity bridge remains intact for provenance while the native specialist becomes the operational representation.
+Promotion deliberately does not infer Provider Accounts from legacy
+provider/registrar/CDN strings, parse comma-separated aliases or nameservers
+into new topology, infer ownership, or copy general free-text notes. The legacy
+identity bridge remains intact for provenance while the native specialist
+becomes the operational representation.
 
 Secret-bearing legacy fields such as licence keys, passwords/API material and
 general sensitive notes must not leak through the structured resource API.
@@ -494,13 +508,16 @@ records where they are operationally useful.
 Implemented foundation:
 
 - logical Applications through `ApplicationProfile`;
-- resource-backed `ApplicationEnvironment` records for deploy/runtime/release context;
+- resource-backed `ApplicationEnvironment` records for deploy/runtime/release
+  context;
 - resource-backed `SourceRepository` records with Provider Account metadata;
 - typed `ApplicationRepositoryLink` role/path relationships;
-- Client/Internal boundary validation and resource-centric create/edit/archive APIs;
+- Client/Internal boundary validation and resource-centric create/edit/archive
+  APIs;
 - Credentials remain Vault references rather than fields on these specialists.
 
-Later application specialists may add richer API/background-service/bot/mobile and technology/version relationships where operationally useful.
+Later application specialists may add richer API/background-service/bot/mobile
+and technology/version relationships where operationally useful.
 
 ### Databases
 
@@ -509,17 +526,27 @@ Implemented foundation:
 - `DatabaseInstance` for managed/self-hosted service context;
 - `LogicalDatabase` as an explicit child of a Database Instance;
 - Server/Provider/endpoint/port/TLS/HA/replica/backup/maintenance metadata;
-- Client/Internal boundary validation and resource-centric create/edit/archive APIs;
-- authentication material through linked Vault Credentials, never specialist secret fields.
+- Client/Internal boundary validation and resource-centric create/edit/archive
+  APIs;
+- authentication material through linked Vault Credentials, never specialist
+  secret fields.
 
 ### Web, domains and TLS
 
-- Websites/endpoints;
-- Domains;
-- DNS Zones/Records where useful;
-- TLS Certificates;
-- registrar/DNS/CDN/WAF Provider Account relationships;
-- administrative credentials/keypairs by Vault reference.
+Implemented foundation:
+
+- logical Websites through `WebsiteProfile`;
+- resource-backed concrete `WebsiteEndpoint` records;
+- Domains through `DomainProfile` with registrar/status/expiry context;
+- resource-backed DNS Zones and structured DNS Records;
+- non-secret TLS Certificate metadata and typed Domain coverage;
+- one-primary invariants for Website endpoints, Domain DNS zones and TLS names;
+- registrar/DNS/CDN/WAF/TLS Provider Account relationships;
+- Application Environment/Domain/TLS links from concrete Website endpoints;
+- resource-centric create/edit/archive flows plus nested endpoint/DNS/TLS
+  management;
+- administrative credentials, DNS/API tokens and keypairs through Vault
+  references rather than specialist fields.
 
 ### Containers and Kubernetes
 
@@ -563,7 +590,14 @@ Resource
 Overview remains specialist-specific. Cross-cutting sections use the shared
 resource identity.
 
-Native Server/Network/Subnet, Database/Logical Database, Application/Environment and Source Repository technical details are rendered directly in the shared Resource workspace alongside active linked Credentials. Application workspaces also surface typed Source Repository links separately from the generic topology graph. Reconciled resources retain their legacy-source provenance/back-link during migration.
+Native Server/Network/Subnet, Database/Logical Database,
+Application/Environment, Source Repository, Website/Endpoint, Domain/DNS and
+TLS technical details are rendered directly in the shared Resource workspace
+alongside active linked Credentials. Application workspaces surface typed Source
+Repository links separately from the generic topology graph, while Website,
+DNS Zone and TLS workspaces surface their useful nested technical records.
+Reconciled resources retain their legacy-source provenance/back-link during
+migration.
 
 The Credentials section is backed by the Vault's scoped resource-link API and
 retains independent secret-action permissions.
@@ -619,13 +653,26 @@ The technical foundation now provides:
   `IPAddress` specialist models;
 - resource-centric create/edit/archive APIs for Server/Network/Subnet plus
   interface/IP management;
-- native safe specialist projections in the Resource workspace;
 - deterministic development seed data for structured compute/network examples;
-- native `DatabaseInstance`, `LogicalDatabase`, `ApplicationProfile`, `ApplicationEnvironment` and `SourceRepository` specialists;
+- native `DatabaseInstance`, `LogicalDatabase`, `ApplicationProfile`,
+  `ApplicationEnvironment` and `SourceRepository` specialists;
 - typed `ApplicationRepositoryLink` role/path relationships;
-- resource-centric create/edit/archive APIs and scoped selectors for the data/application specialist family;
-- deterministic safe legacy Database/Application promotion without Provider Account, Server or free-text guessing;
-- deterministic Internal and Client-owned development seed data for databases, applications, environments and source repositories;
+- resource-centric create/edit/archive APIs and scoped selectors for the
+  data/application specialist family;
+- deterministic safe legacy Database/Application promotion without Provider
+  Account, Server or free-text guessing;
+- deterministic Internal and Client-owned development seed data for databases,
+  applications, environments and source repositories;
+- native `WebsiteProfile`, `WebsiteEndpoint`, `DomainProfile`, `DNSZone`,
+  `DNSRecord`, `TLSCertificate` and `TLSCertificateDomain` specialists;
+- resource-centric create/edit/archive APIs and scoped selectors for Web,
+  Domain, DNS and TLS resources;
+- nested Website Endpoint, DNS Record and TLS Domain-coverage management in the
+  shared Resource workspace;
+- deterministic safe legacy Website/Domain/SSL promotion without Provider
+  Account, alias/nameserver or ownership guessing;
+- deterministic Internal and Client-owned development seed data for Website,
+  Domain, DNS and TLS structures;
 - the typed encrypted Credential Vault;
 - Credential -> Infrastructure Resource links with ownership validation;
 - Client and Resource contextual Credential registers;
@@ -634,7 +681,6 @@ The technical foundation now provides:
 
 It does **not** yet provide:
 
-- mature Web/Domain/DNS/TLS specialist structures;
 - Monitoring checks/results/incidents;
 - redesigned KB folder/editor/resource links;
 - Docker/Kubernetes specialist structures;
@@ -645,17 +691,19 @@ It does **not** yet provide:
 
 ## 16. Current technical-operations sequence
 
-1. Website/Domain/DNS/TLS specialist structures;
-2. Monitoring checks/history/incidents + technical dashboards;
-3. Knowledge Base folder/editor/version/attachment work;
-4. KB/resource backlinks + contextual search foundations;
-5. Docker/Kubernetes structures;
-6. storage/backups/system services/scheduled jobs and remaining specialist operations records;
-7. unified topology/search/activity/audit polish;
-8. Credential expiry/rotation health and bulk rotation tooling as operational follow-up rather than a blocker for typed Infrastructure.
+1. Monitoring checks/history/incidents + technical dashboards;
+2. Knowledge Base folder/editor/version/attachment work;
+3. KB/resource backlinks + contextual search foundations;
+4. Docker/Kubernetes structures;
+5. storage/backups/system services/scheduled jobs and remaining specialist
+   operations records;
+6. unified topology/search/activity/audit polish;
+7. Credential expiry/rotation health and bulk rotation tooling as operational
+   follow-up rather than a blocker for typed Infrastructure.
 
 Client Command Centre integration should continue incrementally as these domains
 mature rather than waiting for one giant final integration PR.
 
-Every slice must preserve Client/Internal ownership, capability/scope, current-
-first UX, audit boundaries and the Credential Vault secret-handling contract.
+Every slice must preserve Client/Internal ownership, capability/scope,
+current-first UX, audit boundaries and the Credential Vault secret-handling
+contract.
