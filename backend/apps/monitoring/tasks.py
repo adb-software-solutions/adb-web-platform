@@ -21,7 +21,9 @@ def enqueue_due_checks() -> int:
 
 @shared_task(name="monitoring.run_check", queue="general")
 def run_monitor_check(check_id: int) -> None:
-    check = MonitorCheck.objects.select_related("resource", "credential").filter(id=check_id).first()
+    check = (
+        MonitorCheck.objects.select_related("resource", "credential").filter(id=check_id).first()
+    )
     if check is None or not check.enabled:
         return
     record_observation(check.id, execute_check(check))

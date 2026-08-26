@@ -5,8 +5,8 @@ import ssl
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Callable
 from urllib.parse import urlparse
 
 from django.utils import timezone
@@ -47,6 +47,7 @@ def execute_check(check: MonitorCheck) -> CheckObservation:
     timeout = check.timeout_seconds
 
     if check.check_type == MonitorCheck.CheckType.TCP:
+
         def tcp_probe() -> tuple[bool, str, int | None, str]:
             assert check.port is not None
             with socket.create_connection((check.target, check.port), timeout=timeout):
@@ -55,6 +56,7 @@ def execute_check(check: MonitorCheck) -> CheckObservation:
         return _timed_observation(tcp_probe)
 
     if check.check_type in [MonitorCheck.CheckType.HTTP, MonitorCheck.CheckType.CONTENT]:
+
         def http_probe() -> tuple[bool, str, int | None, str]:
             request = urllib.request.Request(
                 check.target,
@@ -74,15 +76,22 @@ def execute_check(check: MonitorCheck) -> CheckObservation:
         return _timed_observation(http_probe)
 
     if check.check_type == MonitorCheck.CheckType.DNS:
+
         def dns_probe() -> tuple[bool, str, int | None, str]:
-            addresses = sorted({item[4][0] for item in socket.getaddrinfo(check.target, None)})
+            addresses = sorted({str(item[4][0]) for item in socket.getaddrinfo(check.target, None)})
             observed = ", ".join(addresses)
             matches = not check.expected_value or check.expected_value in addresses
-            return matches, "DNS lookup succeeded." if matches else "DNS value did not match.", None, observed
+            return (
+                matches,
+                "DNS lookup succeeded." if matches else "DNS value did not match.",
+                None,
+                observed,
+            )
 
         return _timed_observation(dns_probe)
 
     if check.check_type == MonitorCheck.CheckType.TLS:
+
         def tls_probe() -> tuple[bool, str, int | None, str]:
             parsed = urlparse(check.target if "://" in check.target else f"https://{check.target}")
             hostname = parsed.hostname
@@ -90,9 +99,13 @@ def execute_check(check: MonitorCheck) -> CheckObservation:
                 raise ValueError("TLS target does not contain a hostname.")
             port = parsed.port or check.port or 443
             context = ssl.create_default_context()
-            with socket.create_connection((hostname, port), timeout=timeout) as raw_socket:
-                with context.wrap_socket(raw_socket, server_hostname=hostname) as tls_socket:
-                    certificate = tls_socket.getpeercert()
+            with (
+                socket.create_connection((hostname, port), timeout=timeout) as raw_socket,
+                context.wrap_socket(raw_socket, server_hostname=hostname) as tls_socket,
+            ):
+                certificate = tls_socket.getpeercert()
+            if certificate is None:
+                raise ValueError("TLS peer did not provide certificate metadata.")
             expiry_text = str(certificate.get("notAfter", ""))
             expiry = datetime.strptime(expiry_text, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=UTC)
             days = (expiry - timezone.now()).days

@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 from django.core.exceptions import ValidationError
+from django.db.models import QuerySet
 from django.http import HttpRequest
 from ninja import Router
 
 from apps.credentials.models import StoredCredential
 from apps.credentials.policies import scope_credentials_for_user
-from apps.infrastructure.models import InfrastructureResource
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
+from apps.monitoring.models import MonitorCheck, MonitorIncident
+from apps.monitoring.services import acknowledge_incident
 from authentication.ninja.schemas import ProblemDetail
 
-from ..models import MonitorCheck, MonitorIncident
-from ..services import acknowledge_incident
 from .schemas import (
     MonitorCheckCreateIn,
     MonitorCheckOut,
@@ -38,7 +38,7 @@ def _permission_problem(request: HttpRequest, *permissions: str) -> StaffProblem
     return None
 
 
-def _visible_checks(request: HttpRequest):
+def _visible_checks(request: HttpRequest) -> QuerySet[MonitorCheck]:
     return MonitorCheck.objects.select_related("resource", "resource__client").filter(
         resource__in=scope_infrastructure_resources_for_user(request.user)
     )
@@ -69,11 +69,11 @@ def _check_out(check: MonitorCheck) -> MonitorCheckOut:
 
 
 def _incident_out(incident: MonitorIncident) -> MonitorIncidentOut:
-    resource = incident.check.resource
+    resource = incident.monitor_check.resource
     return MonitorIncidentOut(
         id=incident.id,
-        check_id=incident.check_id,
-        check_name=incident.check.name,
+        check_id=incident.monitor_check_id,
+        check_name=incident.monitor_check.name,
         resource_id=resource.id,
         resource_name=resource.name,
         client_id=resource.client_id,
@@ -101,10 +101,16 @@ def monitoring_overview(request: HttpRequest) -> MonitoringOverviewOut | StaffPr
     if problem:
         return problem
     checks = _visible_checks(request)
-    current_checks = list(checks.filter(enabled=True).order_by("status", "resource__name", "name")[:100])
+    current_checks = list(
+        checks.filter(enabled=True).order_by("status", "resource__name", "name")[:100]
+    )
     incidents = list(
-        MonitorIncident.objects.select_related("check", "check__resource", "check__resource__client")
-        .filter(check__in=checks, status__in=["open", "acknowledged"])
+        MonitorIncident.objects.select_related(
+            "monitor_check",
+            "monitor_check__resource",
+            "monitor_check__resource__client",
+        )
+        .filter(monitor_check__in=checks, status__in=["open", "acknowledged"])
         .order_by("status", "-opened_at")[:100]
     )
     return MonitoringOverviewOut(
@@ -136,7 +142,9 @@ def create_monitor_check(
     problem = _permission_problem(request, "monitoring.add_monitorcheck")
     if problem:
         return problem
-    resource = scope_infrastructure_resources_for_user(request.user).filter(id=payload.resource_id).first()
+    resource = (
+        scope_infrastructure_resources_for_user(request.user).filter(id=payload.resource_id).first()
+    )
     if resource is None:
         return _problem(404, "Infrastructure resource not found.", "not_found")
     credential = None
@@ -144,10 +152,14 @@ def create_monitor_check(
         credential_problem = _permission_problem(request, "credentials.view_storedcredential")
         if credential_problem:
             return credential_problem
-        credential = scope_credentials_for_user(request.user).filter(
-            id=payload.credential_id,
-            status=StoredCredential.Status.ACTIVE,
-        ).first()
+        credential = (
+            scope_credentials_for_user(request.user)
+            .filter(
+                id=payload.credential_id,
+                status=StoredCredential.Status.ACTIVE,
+            )
+            .first()
+        )
         if credential is None:
             return _problem(404, "Credential not found.", "not_found")
     check = MonitorCheck(
@@ -190,8 +202,12 @@ def acknowledge_monitor_incident(
     if problem:
         return problem
     incident = (
-        MonitorIncident.objects.select_related("check", "check__resource", "check__resource__client")
-        .filter(id=incident_id, check__in=_visible_checks(request))
+        MonitorIncident.objects.select_related(
+            "monitor_check",
+            "monitor_check__resource",
+            "monitor_check__resource__client",
+        )
+        .filter(id=incident_id, monitor_check__in=_visible_checks(request))
         .first()
     )
     if incident is None:
