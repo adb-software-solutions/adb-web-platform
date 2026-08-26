@@ -14,7 +14,12 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="ApplicationProfile",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
                 (
                     "application_type",
                     models.CharField(
@@ -53,7 +58,12 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="DatabaseInstance",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
                 (
                     "engine",
                     models.CharField(
@@ -151,15 +161,24 @@ class Migration(migrations.Migration):
             options={
                 "ordering": ["resource__name", "id"],
                 "indexes": [
-                    models.Index(fields=["engine", "hosting_type"], name="infra_db_engine_host_idx"),
-                    models.Index(fields=["provider_account", "region"], name="infra_db_provider_idx"),
+                    models.Index(
+                        fields=["engine", "hosting_type"], name="infra_db_engine_host_idx"
+                    ),
+                    models.Index(
+                        fields=["provider_account", "region"], name="infra_db_provider_idx"
+                    ),
                 ],
             },
         ),
         migrations.CreateModel(
             name="SourceRepository",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
                 ("web_url", models.URLField(blank=True)),
                 ("clone_url", models.CharField(blank=True, max_length=500)),
                 ("provider_repository_id", models.CharField(blank=True, max_length=200)),
@@ -213,7 +232,12 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="ApplicationEnvironment",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
                 (
                     "deployment_type",
                     models.CharField(
@@ -288,7 +312,12 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="LogicalDatabase",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
                 ("database_name", models.CharField(max_length=200)),
                 ("purpose", models.CharField(blank=True, max_length=255)),
                 ("default_schema", models.CharField(blank=True, max_length=100)),
@@ -326,7 +355,12 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="ApplicationRepositoryLink",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
                 (
                     "role",
                     models.CharField(
