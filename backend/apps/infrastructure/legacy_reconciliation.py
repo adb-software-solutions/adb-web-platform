@@ -8,6 +8,7 @@ from django.db import models, transaction
 
 from apps.clients.models import Client
 
+from .legacy_specialist_promotion import promote_legacy_specialist
 from .models import (
     API,
     APIResourceIdentity,
@@ -277,6 +278,7 @@ def reconcile_legacy_resource(
     identity.full_clean()
     identity.save()
 
+    promote_legacy_specialist(definition.key, legacy, resource)
     return resource
 
 
