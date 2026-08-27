@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 from django.contrib.auth.models import Group, Permission
 from django.test import TestCase
 
-from apps.access_control.models import StaffAccessProfile
+from apps.access_control.models import StaffAccessProfile, TicketQueueAccessGrant
 from apps.clients.models import Client
 from apps.core.models import AuditEvent, Brand
 from apps.ticketing.models import TicketQueue
@@ -92,6 +92,23 @@ class StaffAccessAPITests(TestCase):
         response = self.client.get("/api/admin/access/users")
 
         self.assertEqual(response.status_code, 403)
+
+    def test_auth_me_projects_restricted_ticket_queue_scope(self) -> None:
+        TicketQueueAccessGrant.objects.create(
+            profile=self.target.access_profile,
+            queue=self.queue_a,
+            granted_by=self.operator,
+        )
+        self.client.force_login(self.target)
+
+        response = self.client.get("/api/auth/me")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["user"]["scope"]["ticket_queues"]["all"])
+        self.assertEqual(
+            response.json()["user"]["scope"]["ticket_queues"]["ids"],
+            [self.queue_a.id],
+        )
 
     def test_options_include_sensitive_business_capabilities_only(self) -> None:
         response = self.client.get("/api/admin/access/options")
