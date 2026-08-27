@@ -6,10 +6,7 @@ from django.core.exceptions import ValidationError
 from django.http import HttpRequest
 from ninja import Router
 
-from apps.core.dashboard import (
-    build_dashboard_workspace,
-    save_dashboard_layout,
-)
+from apps.core.dashboard import build_dashboard_workspace, save_dashboard_layout
 from authentication.models import User
 from authentication.ninja.schemas import ProblemDetail
 
