@@ -1,43 +1,44 @@
-import { KnowledgeBasePanel } from "@/components/admin/KnowledgeBasePanel";
-import { CredentialVault } from "@/app/(admin)/admin/credentials/CredentialVault";
-import { ButtonLink, Container } from "@/components/ui";
-import { ClientWorkspace } from "./ClientWorkspace";
+import { Container } from "@/components/ui";
+import { ClientCommandCentre } from "./ClientCommandCentre";
+
+const SECTIONS = new Set([
+    "overview",
+    "contacts",
+    "projects",
+    "tasks",
+    "tickets",
+    "time",
+    "infrastructure",
+    "credentials",
+    "knowledge",
+    "activity",
+]);
+const PERIODS = new Set([7, 30, 90, 365]);
+
+type CommandCentreProps = Parameters<typeof ClientCommandCentre>[0];
 
 export default async function ClientPage({
     params,
+    searchParams,
 }: {
     params: Promise<{ id: string }>;
+    searchParams: Promise<{ section?: string; period_days?: string }>;
 }) {
-    const { id } = await params;
+    const [{ id }, query] = await Promise.all([params, searchParams]);
     const clientId = Number(id);
+    const initialSection = SECTIONS.has(query.section ?? "")
+        ? (query.section as CommandCentreProps["initialSection"])
+        : "overview";
+    const requestedPeriod = Number(query.period_days ?? "30");
+    const initialPeriodDays = PERIODS.has(requestedPeriod) ? requestedPeriod : 30;
 
     return (
         <Container className="py-8">
-            <div className="mb-4 flex flex-wrap justify-end gap-2">
-                <ButtonLink
-                    href={`/admin/clients/${clientId}/infrastructure`}
-                    variant="secondary"
-                >
-                    Infrastructure
-                </ButtonLink>
-                <ButtonLink href={`/admin/clients/${clientId}/contacts/new`}>
-                    Add contact
-                </ButtonLink>
-                <ButtonLink href={`/admin/clients/${clientId}/edit`} variant="secondary">
-                    Edit client
-                </ButtonLink>
-            </div>
-            <ClientWorkspace clientId={clientId} />
-            <div className="mt-8 border-t border-slate-800 pt-8">
-                <KnowledgeBasePanel
-                    clientId={clientId}
-                    title="Client knowledge"
-                    description="Current runbooks and documentation owned by this client."
-                />
-            </div>
-            <div className="mt-8 border-t border-slate-800 pt-8">
-                <CredentialVault initialClientId={clientId} compact />
-            </div>
+            <ClientCommandCentre
+                clientId={clientId}
+                initialSection={initialSection}
+                initialPeriodDays={initialPeriodDays}
+            />
         </Container>
     );
 }

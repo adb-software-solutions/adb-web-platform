@@ -5,7 +5,18 @@ export const metadata = {
     title: "New Project",
 };
 
-export default function NewProjectPage() {
+export default async function NewProjectPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ client_id?: string }>;
+}) {
+    const { client_id: clientIdParam } = await searchParams;
+    const parsedClientId = clientIdParam ? Number(clientIdParam) : undefined;
+    const initialClientId =
+        parsedClientId && Number.isInteger(parsedClientId) && parsedClientId > 0
+            ? parsedClientId
+            : undefined;
+
     return (
         <Container className="py-8">
             <PageHeader
@@ -14,7 +25,7 @@ export default function NewProjectPage() {
                 description="Create a client delivery project or an internal ADB project."
             />
             <Card className="mt-6 p-6">
-                <ProjectForm />
+                <ProjectForm initialClientId={initialClientId} />
             </Card>
         </Container>
     );
