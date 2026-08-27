@@ -33,12 +33,7 @@ from .operational_schemas import (
     KubernetesServiceIn,
     KubernetesServiceOut,
 )
-from .specialist_views import (
-    StaffProblem,
-    _permission_problem,
-    _problem,
-    _validation_problem,
-)
+from .specialist_views import StaffProblem, _permission_problem, _problem, _validation_problem
 
 operational_nested_router = Router(tags=["admin-infrastructure-operation-children"])
 
