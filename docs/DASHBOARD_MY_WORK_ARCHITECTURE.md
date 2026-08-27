@@ -126,12 +126,16 @@ My Tasks rather than creating an artificial Dashboard-only permission.
 
 Requires `core.view_auditevent`.
 
-Shows only safe AuditEvent metadata: action, target label and timestamp. Audit
-metadata dictionaries are not projected through this widget and Credential
-secret values are never surfaced.
+Shows only the current staff user's own recent AuditEvent metadata: action,
+target label and timestamp. Other users' audit events are deliberately excluded
+because the generic audit record does not carry a reliable Client/object-scope
+projection that could safely support a global scoped feed here. Audit metadata
+dictionaries are not projected through this widget and Credential secret values
+are never surfaced.
 
-Richer Client/resource activity belongs to Stage 9 rather than being invented
-inside the Dashboard.
+Richer Client/resource and cross-domain activity belongs to Stage 9, where it
+can be built from explicitly scoped domain events rather than weakening the
+Dashboard boundary.
 
 ## Preference writes and audit
 
@@ -165,6 +169,7 @@ The Dashboard must not:
 - treat stored layout as authorisation;
 - query data for a widget after the required capability is lost;
 - bypass Client/Internal, Ticket Queue or Infrastructure scope;
+- project another staff user's generic audit labels through Recent activity;
 - surface Credential secret payloads;
 - store widget data or secrets in browser persistence;
 - expose Monitoring metadata with weaker permissions than the normal
