@@ -169,3 +169,19 @@ class DashboardWorkspaceAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["layout"], [{"key": "my_tasks", "span": 6}])
         self.assertIsNone(response.json()["my_tickets"])
+
+    def test_technical_health_requires_check_and_incident_capabilities(self) -> None:
+        self._grant("monitoring", "view_monitorincident")
+
+        response = self.client.get("/api/admin/dashboard")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("technical_health", [item["key"] for item in response.json()["layout"]])
+        self.assertIsNone(response.json()["technical_health"])
+
+        self._grant("monitoring", "view_monitorcheck")
+        response = self.client.get("/api/admin/dashboard")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("technical_health", [item["key"] for item in response.json()["layout"]])
+        self.assertEqual(response.json()["technical_health"]["active_incident_count"], 0)
