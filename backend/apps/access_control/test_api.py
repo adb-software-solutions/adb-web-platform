@@ -105,6 +105,38 @@ class StaffAccessAPITests(TestCase):
         self.assertNotIn("authentication.change_user", capabilities)
         self.assertNotIn("access_control.change_staffaccessprofile", capabilities)
 
+    def test_groups_with_excluded_permissions_are_hidden_and_rejected(self) -> None:
+        raw_permission = Permission.objects.get(
+            content_type__app_label="auth",
+            codename="change_permission",
+        )
+        unsafe_group = Group.objects.create(name="Unsafe legacy group")
+        unsafe_group.permissions.add(self.task_view, raw_permission)
+
+        options = self.client.get("/api/admin/access/options")
+        group_ids = {group["id"] for group in options.json()["groups"]}
+
+        self.assertEqual(options.status_code, 200)
+        self.assertNotIn(unsafe_group.id, group_ids)
+
+        payload = {
+            "group_ids": [unsafe_group.id],
+            "direct_permission_ids": [],
+            "all_clients": True,
+            "client_ids": [],
+            "all_ticket_queues": True,
+            "ticket_queue_ids": [],
+            "default_ticket_queue_ids": [],
+        }
+        response = self.client.put(
+            f"/api/admin/access/users/{self.target.id}/access",
+            data=payload,
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.target.groups.count(), 0)
+
     def test_update_access_sets_groups_permissions_and_scopes_atomically(self) -> None:
         payload = {
             "group_ids": [self.operations_group.id],
