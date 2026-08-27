@@ -162,7 +162,7 @@ const navigation: NavigationGroup[] = [
                 label: "Users & access",
                 href: "/admin/access",
                 icon: UsersIcon,
-                permissions: ["authentication.view_user"],
+                permissions: ["access_control.manage_staff_access"],
             },
             {
                 label: "Settings",
