@@ -48,7 +48,7 @@ class WidgetSpec:
     title: str
     description: str
     default_span: int
-    permission: str
+    permissions: tuple[str, ...]
 
 
 WIDGET_SPECS = (
@@ -57,56 +57,56 @@ WIDGET_SPECS = (
         "My tasks",
         "Your current assigned work, with today and overdue attention counts.",
         6,
-        "tasks.view_task",
+        ("tasks.view_task",),
     ),
     WidgetSpec(
         "my_tickets",
         "My tickets",
         "Your actionable Ticket work inside your authorised/default Queue scope.",
         6,
-        "ticketing.view_ticket",
+        ("ticketing.view_ticket",),
     ),
     WidgetSpec(
         "active_timer",
         "Time",
         "Your running timer and personal tracked hours for the current week.",
         4,
-        "clients.view_timeentry",
+        ("clients.view_timeentry",),
     ),
     WidgetSpec(
         "lead_follow_up",
         "Lead follow-up",
         "Open Leads currently assigned to you.",
         4,
-        "crm.view_lead",
+        ("crm.view_lead",),
     ),
     WidgetSpec(
         "current_projects",
         "Current projects",
         "Planning, active and paused Projects in your access scope.",
         4,
-        "clients.view_project",
+        ("clients.view_project",),
     ),
     WidgetSpec(
         "technical_health",
         "Technical health",
         "Active Monitoring incidents and failing checks in your resource scope.",
         6,
-        "monitoring.view_monitorincident",
+        ("monitoring.view_monitorcheck", "monitoring.view_monitorincident"),
     ),
     WidgetSpec(
         "agenda",
         "Agenda",
         "Your dated Tasks due today and during the next seven days.",
         6,
-        "tasks.view_task",
+        ("tasks.view_task",),
     ),
     WidgetSpec(
         "recent_activity",
         "Recent activity",
         "Safe operational audit events available to your account.",
         12,
-        "core.view_auditevent",
+        ("core.view_auditevent",),
     ),
 )
 WIDGET_BY_KEY = {spec.key: spec for spec in WIDGET_SPECS}
@@ -122,7 +122,11 @@ CURRENT_PROJECT_STATUSES = ("planning", "active", "paused")
 
 
 def available_widget_specs(user: User) -> list[WidgetSpec]:
-    return [spec for spec in WIDGET_SPECS if user.has_perm(spec.permission)]
+    return [
+        spec
+        for spec in WIDGET_SPECS
+        if all(user.has_perm(permission) for permission in spec.permissions)
+    ]
 
 
 def widget_options(user: User) -> list[DashboardWidgetOptionOut]:
@@ -155,8 +159,7 @@ def dashboard_layout(user: User) -> list[DashboardWidgetPreferenceOut]:
     preference = DashboardPreference.objects.filter(user=user).first()
     if preference is None or not preference.layout:
         return [
-            DashboardWidgetPreferenceOut(key=spec.key, span=spec.default_span)
-            for spec in available
+            DashboardWidgetPreferenceOut(key=spec.key, span=spec.default_span) for spec in available
         ]
 
     result: list[DashboardWidgetPreferenceOut] = []
