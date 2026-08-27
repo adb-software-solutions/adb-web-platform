@@ -167,7 +167,9 @@ def _activity(
         )
 
     if capabilities.knowledge_base:
-        documents = KnowledgeBaseDocument.objects.filter(client=client).order_by("-updated_at")[:3]
+        documents = KnowledgeBaseDocument.objects.filter(client=client).order_by(
+            "-updated_at"
+        )[:3]
         items.extend(
             ClientCommandCentreActivityOut(
                 kind="knowledge",
