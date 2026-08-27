@@ -72,6 +72,17 @@ def assignable_permissions_queryset() -> QuerySet[Permission]:
     )
 
 
+def assignable_groups_queryset() -> QuerySet[Group]:
+    excluded_permissions = Permission.objects.exclude(
+        id__in=assignable_permissions_queryset().values_list("id", flat=True)
+    )
+    return (
+        Group.objects.exclude(permissions__in=excluded_permissions)
+        .distinct()
+        .order_by("name")
+    )
+
+
 def _validate_target(actor: User, target: User) -> None:
     if not target.is_staff and not target.is_superuser:
         raise ValidationError("Only staff identities can be managed here.")
@@ -120,7 +131,7 @@ def _snapshot(user: User) -> dict[str, object]:
 
 
 def _apply_staff_access(*, target: User, write: StaffAccessWrite, actor: User) -> None:
-    groups = _objects_for_ids(Group.objects.all(), write.group_ids, "groups")
+    groups = _objects_for_ids(assignable_groups_queryset(), write.group_ids, "groups")
     permissions = _objects_for_ids(
         assignable_permissions_queryset(),
         write.direct_permission_ids,
