@@ -82,9 +82,7 @@ class Command(BaseCommand):
             self._seed_scaled_jobs(server, scale)
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Specialist operations development data ready (scale={scale})."
-            )
+            self.style.SUCCESS(f"Specialist operations development data ready (scale={scale}).")
         )
 
     def _resource(
@@ -371,7 +369,7 @@ class Command(BaseCommand):
             resource=service_resource,
             defaults={
                 "host_resource": server.resource,
-                "manager": SystemServiceProfile.ServiceManager.SYSTEMD,
+                "manager": SystemServiceProfile.Manager.SYSTEMD,
                 "unit_name": "caddy.service",
                 "display_name": "Caddy",
                 "expected_state": "active",
