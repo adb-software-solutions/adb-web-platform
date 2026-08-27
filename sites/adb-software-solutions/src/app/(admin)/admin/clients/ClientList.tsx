@@ -20,7 +20,7 @@ import {
 import { fetchAPI } from "@/lib/api/fetch";
 import { OverviewAPI } from "@/lib/api/overview";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ClientWorkspace } from "./[id]/ClientWorkspace";
+import { ClientCommandCentre } from "./[id]/ClientCommandCentre";
 
 interface ClientOverviewItem {
     id: number;
@@ -259,7 +259,7 @@ export function ClientList() {
                         void loadClients();
                     }}
                 >
-                    <ClientWorkspace clientId={selectedClientId} presentation="drawer" />
+                    <ClientCommandCentre clientId={selectedClientId} />
                 </RecordDrawer>
             ) : null}
         </div>
