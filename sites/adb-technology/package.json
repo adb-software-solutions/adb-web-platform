@@ -67,7 +67,7 @@
         "stylelint-config-standard": "^39.0.1",
         "stylelint-config-tailwindcss": "^1.0.0",
         "stylelint-order": "^8.1.1",
-        "svgo": "^4.0.2",
+        "svgo": "^4.1.0",
         "tailwindcss": "^4.3.3"
     },
     "packageManager": "pnpm@10.15.0"
