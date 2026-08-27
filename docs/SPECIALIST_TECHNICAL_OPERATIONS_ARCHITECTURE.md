@@ -33,16 +33,16 @@ resource taxonomy.
 
 The following models extend top-level `InfrastructureResource` identities.
 
-| Resource type | Specialist model | Purpose |
-| --- | --- | --- |
-| `storage` | `StorageProfile` | Block, object, file, volume, disk, bucket and NAS metadata. |
-| `backup_plan` | `BackupPlanProfile` | Backup policy, retention, destination and recovery-health metadata. |
-| `container_stack` | `ContainerStackProfile` | Docker Compose, Swarm, Nomad or other stack context. |
-| `kubernetes_cluster` | `KubernetesClusterProfile` | Cluster distribution, version, provider and operational metadata. |
-| `kubernetes_namespace` | `KubernetesNamespaceProfile` | Namespace identity and quota/purpose context. |
-| `kubernetes_workload` | `KubernetesWorkloadProfile` | Deployment, StatefulSet, DaemonSet, Job, CronJob and similar workloads. |
-| `system_service` | `SystemServiceProfile` | systemd, Supervisor, Windows Service, launchd and similar services. |
-| `scheduled_job` | `ScheduledJobProfile` | cron, systemd timer, Celery Beat, Kubernetes CronJob and similar schedules. |
+| Resource type          | Specialist model             | Purpose                                                                     |
+| ---------------------- | ---------------------------- | --------------------------------------------------------------------------- |
+| `storage`              | `StorageProfile`             | Block, object, file, volume, disk, bucket and NAS metadata.                 |
+| `backup_plan`          | `BackupPlanProfile`          | Backup policy, retention, destination and recovery-health metadata.         |
+| `container_stack`      | `ContainerStackProfile`      | Docker Compose, Swarm, Nomad or other stack context.                        |
+| `kubernetes_cluster`   | `KubernetesClusterProfile`   | Cluster distribution, version, provider and operational metadata.           |
+| `kubernetes_namespace` | `KubernetesNamespaceProfile` | Namespace identity and quota/purpose context.                               |
+| `kubernetes_workload`  | `KubernetesWorkloadProfile`  | Deployment, StatefulSet, DaemonSet, Job, CronJob and similar workloads.     |
+| `system_service`       | `SystemServiceProfile`       | systemd, Supervisor, Windows Service, launchd and similar services.         |
+| `scheduled_job`        | `ScheduledJobProfile`        | cron, systemd timer, Celery Beat, Kubernetes CronJob and similar schedules. |
 
 These records use the ordinary Infrastructure lifecycle, environment,
 criticality, ownership, tagging, Credential links, Knowledge Base links and
