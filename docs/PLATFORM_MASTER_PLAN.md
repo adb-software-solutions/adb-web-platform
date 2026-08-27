@@ -229,8 +229,8 @@ Never create a fake ADB Client to represent internal work.
 
 ### 4.3 Client is the command-centre context
 
-Client is not merely a company row. The mature Client Command Centre should
-converge on:
+Client is not merely a company row. The implemented Client Command Centre is
+organised around:
 
 ```text
 Client
@@ -281,6 +281,9 @@ The following are established platform architecture, not future-only ideas:
 - append-only AuditEvent foundation;
 - combined ADB Software Solutions public + `/admin` Next.js application;
 - Client/Contact CRUD and lifecycle management;
+- Client Command Centre with permission-aware section navigation, current-first
+  cross-domain summaries, contextual actions, period Time totals and safe
+  Activity metadata;
 - Lead CRUD, assignment, outcome semantics and Lead -> Client/Contact
   conversion retaining communication history;
 - Project CRUD with Client/Internal ownership and current/history views;
@@ -314,8 +317,9 @@ The following are established platform architecture, not future-only ideas:
 - deterministic development data and CI/container foundations.
 
 Users & Access and the configurable Dashboard remain incomplete. Monitoring,
-Knowledge Base and specialist technical operations have implemented foundations;
-later unified search/activity/notification polish remains planned.
+Knowledge Base, specialist technical operations and the Client Command Centre
+have implemented foundations; later unified search/activity/notification polish
+remains planned.
 
 Credential-specific security and lifecycle rules are authoritative in
 `CREDENTIAL_VAULT_ARCHITECTURE.md`.
@@ -391,17 +395,19 @@ invoicing a dependency of current Time Tracking.
 Global Client views are current-first and default to Active. Inactive/Archived
 Clients are explicit history.
 
-The next major Client pass is the **Client Command Centre**: a coherent single
-workspace where authorised staff can move between Contacts, Projects, Tasks,
-Tickets, Time, Infrastructure, Credentials, Knowledge and Activity without
-repeatedly returning to global registers.
+The **Client Command Centre** is the coherent Client-local operations workspace.
+Authorised staff can move between Contacts, Projects, Tasks, Tickets, Time,
+Infrastructure, Credentials, Knowledge and Activity without repeatedly returning
+to global registers.
 
-It should include contextual create actions and useful summaries, especially
-current work, open communication and time by period.
+Its server-authoritative projection provides permission-aware current-work counts,
+open communication, selected-period Time summaries and safe recent Activity. The
+frontend provides current/history section behaviour and contextual create/deep-link
+actions while reusing the mature domain workspaces instead of duplicating them.
 
-Active Client-owned Credentials already appear in Client context; the Command
-Centre pass should integrate that existing capability into the final navigation
-model rather than inventing another password view.
+Active Client-owned Credential metadata is integrated through the existing Vault
+capability; secret values remain behind the Vault's separate reveal/copy/download
+boundaries. See `CLIENT_COMMAND_CENTRE_ARCHITECTURE.md` for the Stage 6 contract.
 
 ### Leads
 
@@ -513,9 +519,9 @@ The merged foundation includes:
 - nested Website endpoint, DNS record and TLS Domain-coverage operations in the shared resource workspace;
 - safe resource-centric create/edit/archive workflows and conservative legacy promotion.
 
-Monitoring, Knowledge Base and specialist technical operations now extend the
-same shared resource identity. The next major ordered implementation stage is
-the Client Command Centre integration pass.
+Monitoring, Knowledge Base and specialist technical operations extend the same
+shared resource identity and are now integrated into the Client Command Centre.
+The next major ordered implementation stage is Users & Access.
 
 ### 9.2 Credential Vault
 
@@ -762,9 +768,9 @@ model and portal design says otherwise.
 
 ## 16. Current ordered build plan
 
-The Credential Vault and structured technical-operations stack are complete
-through Stage 5. The next sustained implementation stage is Stage 6 — Client
-Command Centre integration.
+The Credential Vault, structured technical-operations stack and Client Command
+Centre are complete through Stage 6. The next sustained implementation stage is
+Stage 7 — Users & Access.
 
 ### Stage 1 — Core typed Infrastructure — implemented
 
@@ -823,19 +829,20 @@ The platform now has:
 - scheduled jobs/cron/systemd timers;
 - remaining specialist operations records.
 
-### Stage 6 — Client Command Centre integration pass
+### Stage 6 — Client Command Centre integration pass — implemented
 
-Bring the now-mature operational and technical domains together in the Client
-workspace:
+- permission-aware Overview/Contacts/Projects/Tasks/Tickets/Time/Infrastructure/
+  Credentials/Knowledge/Activity navigation;
+- server-authoritative cross-domain summary and capability projection;
+- current-first section defaults with explicit Project/Task history;
+- contextual quick actions and Client-prefilled Project/Task creation;
+- selected-period tracked/billable Time summaries and Client-scoped Time deep links;
+- Ticket Queue-scoped Client communication summaries and history deep links;
+- embedded Infrastructure, Monitoring, Credential Vault and Knowledge context;
+- bounded safe Activity metadata foundation with no Credential secret values.
 
-- Overview/Contacts/Projects/Tasks/Tickets/Time/Infrastructure/Credentials/KB;
-- current-first section defaults;
-- contextual quick actions;
-- period summaries;
-- Activity/history foundation.
-
-Parts of this integration already exist and should continue to be added as
-individual domains mature rather than waiting for one giant rewrite.
+See `CLIENT_COMMAND_CENTRE_ARCHITECTURE.md` for the integration and security
+boundary. Richer unified Activity/search remains deliberately part of Stage 9.
 
 ### Stage 7 — Users & Access
 
