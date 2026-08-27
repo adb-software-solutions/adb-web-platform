@@ -3,7 +3,7 @@ from django.test import TestCase
 
 from apps.access_control.models import StaffAccessProfile
 from apps.clients.models import Client
-from apps.core.models import Brand, DashboardPreference
+from apps.core.models import AuditEvent, Brand, DashboardPreference
 from apps.core.ownership import OwnershipType
 from apps.tasks.models import Task, TaskStatus
 from apps.ticketing.models import Ticket, TicketQueue
@@ -201,3 +201,30 @@ class DashboardWorkspaceAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("technical_health", [item["key"] for item in response.json()["layout"]])
         self.assertEqual(response.json()["technical_health"]["active_incident_count"], 0)
+
+    def test_recent_activity_only_exposes_current_users_audit_events(self) -> None:
+        self._grant("core", "view_auditevent")
+        other_user = User.objects.create_user(
+            email="other.dashboard.staff@example.com",
+            password="test-password",
+            is_staff=True,
+        )
+        AuditEvent.record(
+            actor=self.user,
+            action="dashboard.personal_action",
+            target_label="Visible personal action",
+        )
+        AuditEvent.record(
+            actor=other_user,
+            action="client.sensitive_action",
+            target_label="Hidden client label",
+        )
+
+        response = self.client.get("/api/admin/dashboard")
+
+        self.assertEqual(response.status_code, 200)
+        activity = response.json()["recent_activity"]
+        self.assertIsNotNone(activity)
+        labels = {item["target_label"] for item in activity}
+        self.assertIn("Visible personal action", labels)
+        self.assertNotIn("Hidden client label", labels)
