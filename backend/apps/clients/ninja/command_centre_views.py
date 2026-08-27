@@ -157,9 +157,7 @@ def _activity(
             ClientCommandCentreActivityOut(
                 kind="infrastructure",
                 label=resource.name,
-                description=(
-                    f"Infrastructure updated · {resource.get_resource_type_display()}"
-                ),
+                description=(f"Infrastructure updated · {resource.get_resource_type_display()}"),
                 occurred_at=resource.updated_at,
                 href=f"/admin/infrastructure/resources/{resource.id}",
             )
@@ -167,9 +165,7 @@ def _activity(
         )
 
     if capabilities.knowledge_base:
-        documents = KnowledgeBaseDocument.objects.filter(client=client).order_by(
-            "-updated_at"
-        )[:3]
+        documents = KnowledgeBaseDocument.objects.filter(client=client).order_by("-updated_at")[:3]
         items.extend(
             ClientCommandCentreActivityOut(
                 kind="knowledge",
