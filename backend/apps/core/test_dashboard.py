@@ -207,6 +207,8 @@ class DashboardWorkspaceAPITests(TestCase):
         other_user = User.objects.create_user(
             email="other.dashboard.staff@example.com",
             password="test-password",
+            first_name="Other",
+            last_name="Staff",
             is_staff=True,
         )
         AuditEvent.record(
