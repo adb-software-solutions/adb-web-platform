@@ -5,6 +5,7 @@ from typing import Any
 from .data_application_snapshot import data_application_resource_snapshot
 from .legacy_resource_snapshot import SpecialistField, SpecialistFieldKind
 from .models import InfrastructureResource, Network, ServerProfile, Subnet
+from .operational_snapshot import operational_resource_snapshot
 from .web_domain_snapshot import web_domain_resource_snapshot
 
 
@@ -182,6 +183,9 @@ def specialist_resource_snapshot(
         return _network_fields(resource)
     if resource.resource_type == InfrastructureResource.ResourceType.SUBNET:
         return _subnet_fields(resource)
+    snapshot = operational_resource_snapshot(resource)
+    if snapshot:
+        return snapshot
     snapshot = data_application_resource_snapshot(resource)
     if snapshot:
         return snapshot
