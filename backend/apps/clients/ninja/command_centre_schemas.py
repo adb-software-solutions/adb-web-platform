@@ -26,8 +26,8 @@ class ClientCommandCentreStatsOut(Schema):
     overdue_tasks: int = 0
     actionable_tickets: int = 0
     waiting_customer_tickets: int = 0
-    period_hours: Decimal = Decimal("0")
-    period_billable_hours: Decimal = Decimal("0")
+    period_hours: Decimal = Decimal(0)
+    period_billable_hours: Decimal = Decimal(0)
     current_resources: int = 0
     active_credentials: int = 0
     knowledge_documents: int = 0

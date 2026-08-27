@@ -28,9 +28,7 @@ class ClientCommandCentreApiTests(TestCase):
         )
 
     def _request(self, user: User) -> HttpRequest:
-        request = self.factory.get(
-            f"/api/admin/clients/{self.client_record.id}/command-centre"
-        )
+        request = self.factory.get(f"/api/admin/clients/{self.client_record.id}/command-centre")
         request.user = user
         return request
 
@@ -118,7 +116,11 @@ class ClientCommandCentreApiTests(TestCase):
 
         result = cast(
             ClientCommandCentreOut,
-            client_command_centre(self._request(user), self.client_record.id, period_days=30),
+            client_command_centre(
+                self._request(user),
+                self.client_record.id,
+                period_days=30,
+            ),
         )
 
         self.assertEqual(result.stats.active_contacts, 1)

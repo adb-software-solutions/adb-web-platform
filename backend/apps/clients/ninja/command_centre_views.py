@@ -10,7 +10,7 @@ from django.utils import timezone
 from ninja import Router
 
 from apps.access_control.policies import scope_clients_for_user, scope_ticket_queues_for_user
-from apps.clients.models import Client, Project, TimeEntry
+from apps.clients.models import Client, TimeEntry
 from apps.credentials.models import StoredCredential
 from apps.credentials.policies import scope_credentials_for_user
 from apps.infrastructure.models import InfrastructureResource
@@ -47,7 +47,9 @@ def _problem(status: int, message: str, code: str) -> StaffProblem:
 
 
 def _visible_client(request: HttpRequest, client_id: int) -> Client | None:
-    if not request.user.is_authenticated or not (request.user.is_staff or request.user.is_superuser):
+    if not request.user.is_authenticated or not (
+        request.user.is_staff or request.user.is_superuser
+    ):
         return None
     if not request.user.has_perm("clients.view_client"):
         return None
@@ -101,98 +103,106 @@ def _activity(
     ]
 
     if capabilities.contacts:
-        for contact in client.contacts.order_by("-updated_at")[:3]:
-            items.append(
-                ClientCommandCentreActivityOut(
-                    kind="contact",
-                    label=contact.name,
-                    description="Contact updated",
-                    occurred_at=contact.updated_at,
-                    href=f"/admin/clients/{client.id}/contacts/{contact.id}",
-                )
+        items.extend(
+            ClientCommandCentreActivityOut(
+                kind="contact",
+                label=contact.name,
+                description="Contact updated",
+                occurred_at=contact.updated_at,
+                href=f"/admin/clients/{client.id}/contacts/{contact.id}",
             )
+            for contact in client.contacts.order_by("-updated_at")[:3]
+        )
 
     if capabilities.projects:
-        for project in client.projects.order_by("-updated_at")[:3]:
-            items.append(
-                ClientCommandCentreActivityOut(
-                    kind="project",
-                    label=project.name,
-                    description=f"Project updated · {project.status}",
-                    occurred_at=project.updated_at,
-                    href=f"/admin/projects/{project.id}",
-                )
+        items.extend(
+            ClientCommandCentreActivityOut(
+                kind="project",
+                label=project.name,
+                description=f"Project updated · {project.status}",
+                occurred_at=project.updated_at,
+                href=f"/admin/projects/{project.id}",
             )
+            for project in client.projects.order_by("-updated_at")[:3]
+        )
 
     if capabilities.tasks:
-        for task in client.tasks.order_by("-updated_at")[:3]:
-            items.append(
-                ClientCommandCentreActivityOut(
-                    kind="task",
-                    label=task.title,
-                    description="Task updated",
-                    occurred_at=task.updated_at,
-                    href=f"/admin/tasks/{task.id}",
-                )
+        items.extend(
+            ClientCommandCentreActivityOut(
+                kind="task",
+                label=task.title,
+                description="Task updated",
+                occurred_at=task.updated_at,
+                href=f"/admin/tasks/{task.id}",
             )
+            for task in client.tasks.order_by("-updated_at")[:3]
+        )
 
     if capabilities.tickets:
         queues = scope_ticket_queues_for_user(request.user)
-        for ticket in client.tickets.filter(queue__in=queues).order_by("-updated_at")[:3]:
-            items.append(
-                ClientCommandCentreActivityOut(
-                    kind="ticket",
-                    label=ticket.reference,
-                    description=ticket.subject,
-                    occurred_at=ticket.updated_at,
-                    href=f"/admin/tickets/{ticket.id}",
-                )
+        items.extend(
+            ClientCommandCentreActivityOut(
+                kind="ticket",
+                label=ticket.reference,
+                description=ticket.subject,
+                occurred_at=ticket.updated_at,
+                href=f"/admin/tickets/{ticket.id}",
             )
+            for ticket in client.tickets.filter(queue__in=queues).order_by("-updated_at")[:3]
+        )
 
     if capabilities.infrastructure:
         resources = scope_infrastructure_resources_for_user(request.user).filter(client=client)
-        for resource in resources.order_by("-updated_at")[:3]:
-            items.append(
-                ClientCommandCentreActivityOut(
-                    kind="infrastructure",
-                    label=resource.name,
-                    description=f"Infrastructure updated · {resource.get_resource_type_display()}",
-                    occurred_at=resource.updated_at,
-                    href=f"/admin/infrastructure/resources/{resource.id}",
-                )
+        items.extend(
+            ClientCommandCentreActivityOut(
+                kind="infrastructure",
+                label=resource.name,
+                description=(
+                    f"Infrastructure updated · {resource.get_resource_type_display()}"
+                ),
+                occurred_at=resource.updated_at,
+                href=f"/admin/infrastructure/resources/{resource.id}",
             )
+            for resource in resources.order_by("-updated_at")[:3]
+        )
 
     if capabilities.knowledge_base:
-        for document in KnowledgeBaseDocument.objects.filter(client=client).order_by("-updated_at")[:3]:
-            items.append(
-                ClientCommandCentreActivityOut(
-                    kind="knowledge",
-                    label=document.title,
-                    description="Knowledge Base document updated",
-                    occurred_at=document.updated_at,
-                    href=f"/admin/knowledge-base/documents/{document.id}",
-                )
+        documents = KnowledgeBaseDocument.objects.filter(client=client).order_by("-updated_at")[:3]
+        items.extend(
+            ClientCommandCentreActivityOut(
+                kind="knowledge",
+                label=document.title,
+                description="Knowledge Base document updated",
+                occurred_at=document.updated_at,
+                href=f"/admin/knowledge-base/documents/{document.id}",
             )
+            for document in documents
+        )
 
     if capabilities.credentials:
         credentials = scope_credentials_for_user(request.user).filter(client=client)
-        for credential in credentials.order_by("-updated_at")[:3]:
-            items.append(
-                ClientCommandCentreActivityOut(
-                    kind="credential",
-                    label=credential.name,
-                    description="Credential metadata updated",
-                    occurred_at=credential.updated_at,
-                    href="/admin/credentials",
-                )
+        items.extend(
+            ClientCommandCentreActivityOut(
+                kind="credential",
+                label=credential.name,
+                description="Credential metadata updated",
+                occurred_at=credential.updated_at,
+                href="/admin/credentials",
             )
+            for credential in credentials.order_by("-updated_at")[:3]
+        )
 
     return sorted(items, key=lambda item: item.occurred_at, reverse=True)[:12]
 
 
 @client_command_centre_router.get(
     "/clients/{client_id}/command-centre",
-    response={200: ClientCommandCentreOut, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: ClientCommandCentreOut,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def client_command_centre(
     request: HttpRequest,
@@ -202,7 +212,11 @@ def client_command_centre(
     if not request.user.is_authenticated:
         return _problem(401, "User not authenticated", "unauthenticated")
     if not (request.user.is_staff or request.user.is_superuser):
-        return _problem(403, "You do not have permission to access this resource.", "forbidden")
+        return _problem(
+            403,
+            "You do not have permission to access this resource.",
+            "forbidden",
+        )
     if not request.user.has_perm("clients.view_client"):
         return _problem(403, "You do not have permission to view clients.", "forbidden")
 
@@ -215,7 +229,9 @@ def client_command_centre(
     period_start = period_end - timedelta(days=period_days - 1)
     capabilities = _capabilities(request)
     stats = ClientCommandCentreStatsOut(
-        active_contacts=client.contacts.filter(is_active=True).count() if capabilities.contacts else 0
+        active_contacts=(
+            client.contacts.filter(is_active=True).count() if capabilities.contacts else 0
+        )
     )
 
     projects: list[ClientCommandCentreProjectOut] = []
@@ -264,7 +280,9 @@ def client_command_centre(
             client=client,
             queue__in=queues,
         )
-        stats.actionable_tickets = visible_tickets.filter(status__in=ACTIONABLE_TICKET_STATUSES).count()
+        stats.actionable_tickets = visible_tickets.filter(
+            status__in=ACTIONABLE_TICKET_STATUSES
+        ).count()
         stats.waiting_customer_tickets = visible_tickets.filter(
             status=Ticket.Status.WAITING_CUSTOMER
         ).count()
@@ -295,8 +313,8 @@ def client_command_centre(
             hours=Sum("duration_hours"),
             billable_hours=Sum("duration_hours", filter=Q(billable=True)),
         )
-        stats.period_hours = totals["hours"] or Decimal("0")
-        stats.period_billable_hours = totals["billable_hours"] or Decimal("0")
+        stats.period_hours = totals["hours"] or Decimal(0)
+        stats.period_billable_hours = totals["billable_hours"] or Decimal(0)
 
     if capabilities.infrastructure:
         resources = scope_infrastructure_resources_for_user(request.user).filter(client=client)
@@ -309,14 +327,21 @@ def client_command_centre(
         if capabilities.monitoring:
             stats.active_monitor_incidents = MonitorIncident.objects.filter(
                 monitor_check__resource__in=resources,
-                status__in=[MonitorIncident.Status.OPEN, MonitorIncident.Status.ACKNOWLEDGED],
+                status__in=[
+                    MonitorIncident.Status.OPEN,
+                    MonitorIncident.Status.ACKNOWLEDGED,
+                ],
             ).count()
 
     if capabilities.credentials:
-        stats.active_credentials = scope_credentials_for_user(request.user).filter(
-            client=client,
-            status=StoredCredential.Status.ACTIVE,
-        ).count()
+        stats.active_credentials = (
+            scope_credentials_for_user(request.user)
+            .filter(
+                client=client,
+                status=StoredCredential.Status.ACTIVE,
+            )
+            .count()
+        )
 
     if capabilities.knowledge_base:
         stats.knowledge_documents = KnowledgeBaseDocument.objects.filter(

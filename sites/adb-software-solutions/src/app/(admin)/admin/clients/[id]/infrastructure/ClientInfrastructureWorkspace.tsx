@@ -54,6 +54,12 @@ const RESOURCE_TYPES = [
     "network",
     "storage",
     "backup_plan",
+    "container_stack",
+    "kubernetes_cluster",
+    "kubernetes_namespace",
+    "kubernetes_workload",
+    "system_service",
+    "scheduled_job",
     "other",
 ] as const;
 
@@ -66,11 +72,23 @@ function label(value: string): string {
         email_system: "Email system",
         provider_account: "Provider account",
         backup_plan: "Backup plan",
+        container_stack: "Container stack",
+        kubernetes_cluster: "Kubernetes cluster",
+        kubernetes_namespace: "Kubernetes namespace",
+        kubernetes_workload: "Kubernetes workload",
+        system_service: "System service",
+        scheduled_job: "Scheduled job",
     };
     return special[value] ?? `${value.charAt(0).toUpperCase()}${value.slice(1).replaceAll("_", " ")}`;
 }
 
-export function ClientInfrastructureWorkspace({ clientId }: { clientId: number }) {
+export function ClientInfrastructureWorkspace({
+    clientId,
+    presentation = "page",
+}: {
+    clientId: number;
+    presentation?: "page" | "embedded";
+}) {
     const [data, setData] = useState<ResourcePage | null>(null);
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
@@ -127,21 +145,39 @@ export function ClientInfrastructureWorkspace({ clientId }: { clientId: number }
 
     return (
         <div className="space-y-6">
-            <PageHeader
-                eyebrow="Client workspace"
-                title={data.items[0]?.client_name ? `${data.items[0].client_name} infrastructure` : "Client infrastructure"}
-                description="Structured technical resources owned by this client, using the same access scope and resource graph as the global Infrastructure workspace."
-                actions={
-                    <>
-                        <ButtonLink href={`/admin/clients/${clientId}`} variant="secondary">
-                            Back to client
-                        </ButtonLink>
-                        <ButtonLink href="/admin/infrastructure/resources" variant="ghost">
-                            Global resources
-                        </ButtonLink>
-                    </>
-                }
-            />
+            {presentation === "page" ? (
+                <PageHeader
+                    eyebrow="Client workspace"
+                    title={
+                        data.items[0]?.client_name
+                            ? `${data.items[0].client_name} infrastructure`
+                            : "Client infrastructure"
+                    }
+                    description="Structured technical resources owned by this client, using the same access scope and resource graph as the global Infrastructure workspace."
+                    actions={
+                        <>
+                            <ButtonLink href={`/admin/clients/${clientId}`} variant="secondary">
+                                Back to client
+                            </ButtonLink>
+                            <ButtonLink href="/admin/infrastructure/resources" variant="ghost">
+                                Global resources
+                            </ButtonLink>
+                        </>
+                    }
+                />
+            ) : (
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h2 className="text-sm font-semibold text-white">Client infrastructure</h2>
+                        <p className="mt-1 text-xs text-slate-500">
+                            Structured resources owned by this client. Open a resource without leaving the Client Command Centre.
+                        </p>
+                    </div>
+                    <ButtonLink href={`/admin/clients/${clientId}/infrastructure`} size="sm" variant="secondary">
+                        Full infrastructure workspace
+                    </ButtonLink>
+                </div>
+            )}
 
             <Card className="p-4">
                 <div className="grid gap-3 md:grid-cols-[minmax(14rem,2fr)_minmax(10rem,1fr)_minmax(12rem,1fr)]">
@@ -219,7 +255,10 @@ export function ClientInfrastructureWorkspace({ clientId }: { clientId: number }
                                         <span>·</span>
                                         <span>{label(resource.environment)}</span>
                                         {resource.tags.map((tag) => (
-                                            <span key={tag.id} className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400">
+                                            <span
+                                                key={tag.id}
+                                                className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400"
+                                            >
                                                 {tag.name}
                                             </span>
                                         ))}
