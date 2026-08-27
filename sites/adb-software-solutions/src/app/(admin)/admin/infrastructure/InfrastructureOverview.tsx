@@ -35,6 +35,16 @@ interface InfrastructureSummary {
 
 const inventoryLinks = [
     [
+        "Structured resources",
+        "/admin/infrastructure/resources",
+        "Shared Client/Internal resource graph with relationships, credentials, monitoring and documentation.",
+    ],
+    [
+        "Specialist operations",
+        "/admin/infrastructure/operations",
+        "Storage, backups, container stacks, Kubernetes, host services and scheduled jobs.",
+    ],
+    [
         "Servers",
         "/admin/infrastructure/servers",
         "Physical, virtual and container hosts.",
