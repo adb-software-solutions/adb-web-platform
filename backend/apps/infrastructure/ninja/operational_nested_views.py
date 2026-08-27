@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from typing import Any
+
 from django.core.exceptions import ValidationError
-from django.db import transaction
 from django.http import HttpRequest
 from ninja import Router
 
@@ -32,12 +33,17 @@ from .operational_schemas import (
     KubernetesServiceIn,
     KubernetesServiceOut,
 )
-from .specialist_views import StaffProblem, _permission_problem, _problem, _validation_problem
+from .specialist_views import (
+    StaffProblem,
+    _permission_problem,
+    _problem,
+    _validation_problem,
+)
 
 operational_nested_router = Router(tags=["admin-infrastructure-operation-children"])
 
 
-def _visible_resources(request: HttpRequest):
+def _visible_resources(request: HttpRequest) -> Any:
     return scope_infrastructure_resources_for_user(request.user)
 
 
@@ -49,7 +55,10 @@ def _stack(request: HttpRequest, resource_id: int) -> ContainerStackProfile | No
     )
 
 
-def _namespace(request: HttpRequest, resource_id: int) -> KubernetesNamespaceProfile | None:
+def _namespace(
+    request: HttpRequest,
+    resource_id: int,
+) -> KubernetesNamespaceProfile | None:
     return (
         KubernetesNamespaceProfile.objects.select_related(
             "resource",
@@ -112,7 +121,9 @@ def _helm_out(release: HelmRelease) -> HelmReleaseOut:
     )
 
 
-def _persistent_storage_out(item: KubernetesPersistentStorage) -> KubernetesPersistentStorageOut:
+def _persistent_storage_out(
+    item: KubernetesPersistentStorage,
+) -> KubernetesPersistentStorageOut:
     return KubernetesPersistentStorageOut(
         id=item.id,
         name=item.name,
@@ -129,7 +140,12 @@ def _persistent_storage_out(item: KubernetesPersistentStorage) -> KubernetesPers
 
 @operational_nested_router.get(
     "/infrastructure/operations/container-stacks/{resource_id}/services",
-    response={200: list[ContainerServiceOut], 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: list[ContainerServiceOut],
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def list_container_services(
     request: HttpRequest,
@@ -239,7 +255,12 @@ def update_container_service(
 
 @operational_nested_router.delete(
     "/infrastructure/operations/container-stacks/{resource_id}/services/{service_id}",
-    response={204: None, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        204: None,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def delete_container_service(
     request: HttpRequest,
@@ -351,7 +372,11 @@ def create_kubernetes_service(
         return _problem(404, "Kubernetes namespace not found.", "not_found")
     workload = _visible_workload(request, namespace, payload.workload_resource_id)
     if payload.workload_resource_id is not None and workload is None:
-        return _problem(404, "Kubernetes workload not found in this namespace.", "not_found")
+        return _problem(
+            404,
+            "Kubernetes workload not found in this namespace.",
+            "not_found",
+        )
     service = KubernetesService(
         namespace=namespace,
         workload=workload,
@@ -396,7 +421,11 @@ def update_kubernetes_service(
         return _problem(404, "Kubernetes service not found.", "not_found")
     workload = _visible_workload(request, namespace, payload.workload_resource_id)
     if payload.workload_resource_id is not None and workload is None:
-        return _problem(404, "Kubernetes workload not found in this namespace.", "not_found")
+        return _problem(
+            404,
+            "Kubernetes workload not found in this namespace.",
+            "not_found",
+        )
     service.workload = workload
     service.name = payload.name.strip()
     service.service_type = payload.service_type
@@ -413,7 +442,12 @@ def update_kubernetes_service(
 
 @operational_nested_router.delete(
     "/infrastructure/operations/kubernetes/namespaces/{resource_id}/services/{item_id}",
-    response={204: None, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        204: None,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def delete_kubernetes_service(
     request: HttpRequest,
@@ -454,7 +488,11 @@ def create_kubernetes_ingress(
     namespace = _namespace(request, resource_id)
     if namespace is None:
         return _problem(404, "Kubernetes namespace not found.", "not_found")
-    target = namespace.services.filter(id=payload.target_service_id).first() if payload.target_service_id else None
+    target = (
+        namespace.services.filter(id=payload.target_service_id).first()
+        if payload.target_service_id
+        else None
+    )
     if payload.target_service_id is not None and target is None:
         return _problem(404, "Ingress target service not found.", "not_found")
     ingress = KubernetesIngress(
@@ -499,7 +537,11 @@ def update_kubernetes_ingress(
     ingress = namespace.ingresses.filter(id=item_id).first()
     if ingress is None:
         return _problem(404, "Kubernetes ingress not found.", "not_found")
-    target = namespace.services.filter(id=payload.target_service_id).first() if payload.target_service_id else None
+    target = (
+        namespace.services.filter(id=payload.target_service_id).first()
+        if payload.target_service_id
+        else None
+    )
     if payload.target_service_id is not None and target is None:
         return _problem(404, "Ingress target service not found.", "not_found")
     ingress.name = payload.name.strip()
@@ -518,7 +560,12 @@ def update_kubernetes_ingress(
 
 @operational_nested_router.delete(
     "/infrastructure/operations/kubernetes/namespaces/{resource_id}/ingresses/{item_id}",
-    response={204: None, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        204: None,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def delete_kubernetes_ingress(
     request: HttpRequest,
@@ -619,7 +666,12 @@ def update_helm_release(
 
 @operational_nested_router.delete(
     "/infrastructure/operations/kubernetes/namespaces/{resource_id}/helm-releases/{item_id}",
-    response={204: None, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        204: None,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def delete_helm_release(
     request: HttpRequest,
@@ -654,7 +706,10 @@ def create_kubernetes_persistent_storage(
     resource_id: int,
     payload: KubernetesPersistentStorageIn,
 ) -> tuple[int, KubernetesPersistentStorageOut | dict[str, object]]:
-    problem = _permission_problem(request, "infrastructure.add_kubernetespersistentstorage")
+    problem = _permission_problem(
+        request,
+        "infrastructure.add_kubernetespersistentstorage",
+    )
     if problem:
         return problem
     namespace = _namespace(request, resource_id)
@@ -706,7 +761,10 @@ def update_kubernetes_persistent_storage(
     item_id: int,
     payload: KubernetesPersistentStorageIn,
 ) -> KubernetesPersistentStorageOut | StaffProblem:
-    problem = _permission_problem(request, "infrastructure.change_kubernetespersistentstorage")
+    problem = _permission_problem(
+        request,
+        "infrastructure.change_kubernetespersistentstorage",
+    )
     if problem:
         return problem
     namespace = _namespace(request, resource_id)
@@ -714,7 +772,11 @@ def update_kubernetes_persistent_storage(
         return _problem(404, "Kubernetes namespace not found.", "not_found")
     item = namespace.persistent_storage.filter(id=item_id).first()
     if item is None:
-        return _problem(404, "Kubernetes persistent storage not found.", "not_found")
+        return _problem(
+            404,
+            "Kubernetes persistent storage not found.",
+            "not_found",
+        )
     backing = (
         StorageProfile.objects.select_related("resource")
         .filter(
@@ -744,14 +806,22 @@ def update_kubernetes_persistent_storage(
 
 @operational_nested_router.delete(
     "/infrastructure/operations/kubernetes/namespaces/{resource_id}/persistent-storage/{item_id}",
-    response={204: None, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        204: None,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def delete_kubernetes_persistent_storage(
     request: HttpRequest,
     resource_id: int,
     item_id: int,
 ) -> tuple[int, None] | StaffProblem:
-    problem = _permission_problem(request, "infrastructure.delete_kubernetespersistentstorage")
+    problem = _permission_problem(
+        request,
+        "infrastructure.delete_kubernetespersistentstorage",
+    )
     if problem:
         return problem
     namespace = _namespace(request, resource_id)
@@ -759,6 +829,10 @@ def delete_kubernetes_persistent_storage(
         return _problem(404, "Kubernetes namespace not found.", "not_found")
     item = namespace.persistent_storage.filter(id=item_id).first()
     if item is None:
-        return _problem(404, "Kubernetes persistent storage not found.", "not_found")
+        return _problem(
+            404,
+            "Kubernetes persistent storage not found.",
+            "not_found",
+        )
     item.delete()
     return 204, None
