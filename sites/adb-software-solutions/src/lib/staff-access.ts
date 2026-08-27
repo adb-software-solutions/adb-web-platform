@@ -116,13 +116,17 @@ export interface StaffStatusResponse {
 }
 
 export const StaffAccessAPI = {
-    list: (query = "") => `${API_URL}/api/admin/access/users${query ? `?${query}` : ""}`,
+    list: (query = "") =>
+        `${API_URL}/api/admin/access/users${query ? `?${query}` : ""}`,
     options: `${API_URL}/api/admin/access/options`,
     invite: `${API_URL}/api/admin/access/users/invite`,
     detail: (userId: string) => `${API_URL}/api/admin/access/users/${userId}`,
-    update: (userId: string) => `${API_URL}/api/admin/access/users/${userId}/access`,
-    activate: (userId: string) => `${API_URL}/api/admin/access/users/${userId}/activate`,
-    deactivate: (userId: string) => `${API_URL}/api/admin/access/users/${userId}/deactivate`,
+    update: (userId: string) =>
+        `${API_URL}/api/admin/access/users/${userId}/access`,
+    activate: (userId: string) =>
+        `${API_URL}/api/admin/access/users/${userId}/activate`,
+    deactivate: (userId: string) =>
+        `${API_URL}/api/admin/access/users/${userId}/deactivate`,
     resendInvitation: (userId: string) =>
         `${API_URL}/api/admin/access/users/${userId}/resend-invitation`,
 };
