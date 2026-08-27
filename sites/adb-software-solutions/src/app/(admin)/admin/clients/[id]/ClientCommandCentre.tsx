@@ -177,6 +177,7 @@ type Section =
     | "activity";
 
 type HistoryMode = "current" | "history";
+type Presentation = "page" | "drawer";
 
 const CURRENT_PROJECT_STATUSES = new Set(["planning", "active", "paused"]);
 const PERIODS = [7, 30, 90, 365] as const;
@@ -262,10 +263,12 @@ export function ClientCommandCentre({
     clientId,
     initialSection = "overview",
     initialPeriodDays = 30,
+    presentation = "page",
 }: {
     clientId: number;
     initialSection?: Section;
     initialPeriodDays?: number;
+    presentation?: Presentation;
 }) {
     const { hasPermission } = useAuth();
     const router = useRouter();
@@ -335,17 +338,19 @@ export function ClientCommandCentre({
     const navigate = useCallback(
         (nextSection: Section, nextPeriod = periodDays) => {
             setSection(nextSection);
+            if (presentation === "drawer") return;
             const params = new URLSearchParams({
                 section: nextSection,
                 period_days: String(nextPeriod),
             });
             router.replace(`${pathname}?${params.toString()}`, { scroll: false });
         },
-        [pathname, periodDays, router],
+        [pathname, periodDays, presentation, router],
     );
 
     const changePeriod = (value: number) => {
         setPeriodDays(value);
+        if (presentation === "drawer") return;
         const params = new URLSearchParams({ section, period_days: String(value) });
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     };
@@ -437,10 +442,12 @@ export function ClientCommandCentre({
 
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                    <Link href="/admin/clients" className="text-xs text-slate-500 hover:text-slate-300">
-                        ← Clients
-                    </Link>
-                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                    {presentation === "page" ? (
+                        <Link href="/admin/clients" className="text-xs text-slate-500 hover:text-slate-300">
+                            ← Clients
+                        </Link>
+                    ) : null}
+                    <div className={`${presentation === "page" ? "mt-2 " : ""}flex flex-wrap items-center gap-3`}>
                         <h1 className="text-2xl font-semibold text-white">{client.company || client.name}</h1>
                         <Badge>{client.status}</Badge>
                     </div>
