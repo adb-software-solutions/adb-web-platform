@@ -227,7 +227,7 @@ class StaffAccessAPITests(TestCase):
         self, mocked_send_mail: MagicMock
     ) -> None:
         payload = {
-            "email": "new.staff@example.test",
+            "email": "new.staff@example.com",
             "first_name": "New",
             "last_name": "Staff",
             "group_ids": [self.operations_group.id],
@@ -246,7 +246,7 @@ class StaffAccessAPITests(TestCase):
         )
 
         self.assertEqual(response.status_code, 201)
-        invited = User.objects.get(email="new.staff@example.test")
+        invited = User.objects.get(email="new.staff@example.com")
         self.assertTrue(invited.is_staff)
         self.assertTrue(invited.is_active)
         self.assertFalse(invited.email_verified)
@@ -273,6 +273,7 @@ class StaffAccessAPITests(TestCase):
     def test_pending_invitation_can_be_resent(self, mocked_send_mail: MagicMock) -> None:
         invited = User.objects.create_user(
             email="pending.staff@example.test",
+            password="unused-test-password",
             first_name="Pending",
             last_name="Staff",
             is_staff=True,
@@ -282,9 +283,7 @@ class StaffAccessAPITests(TestCase):
         StaffAccessProfile.objects.create(user=invited)
         old_token = invited.password_reset_token
 
-        response = self.client.post(
-            f"/api/admin/access/users/{invited.id}/resend-invitation"
-        )
+        response = self.client.post(f"/api/admin/access/users/{invited.id}/resend-invitation")
 
         self.assertEqual(response.status_code, 200)
         invited.refresh_from_db()
@@ -299,9 +298,7 @@ class StaffAccessAPITests(TestCase):
         )
 
     def test_configured_account_cannot_use_invitation_resend(self) -> None:
-        response = self.client.post(
-            f"/api/admin/access/users/{self.target.id}/resend-invitation"
-        )
+        response = self.client.post(f"/api/admin/access/users/{self.target.id}/resend-invitation")
 
         self.assertEqual(response.status_code, 400)
 
