@@ -3,7 +3,6 @@ from __future__ import annotations
 from math import ceil
 from typing import Any, cast
 
-from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db.models import Q, QuerySet
 from django.http import HttpRequest
@@ -12,6 +11,7 @@ from ninja import Router
 from apps.access_control.models import StaffAccessProfile
 from apps.access_control.services import (
     StaffAccessWrite,
+    assignable_groups_queryset,
     assignable_permissions_queryset,
     invite_staff_user,
     is_sensitive_permission,
@@ -309,7 +309,7 @@ def staff_access_options(
                 .values_list("id", flat=True)
             ),
         )
-        for group in Group.objects.prefetch_related("permissions").order_by("name")
+        for group in assignable_groups_queryset().prefetch_related("permissions")
     ]
     capabilities = [
         CapabilityOptionOut(
