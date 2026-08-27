@@ -7,6 +7,7 @@ from ninja import NinjaAPI, Router
 from ninja.errors import HttpError
 from pydantic import ValidationError
 
+from apps.access_control.ninja.views import staff_access_router
 from apps.clients.ninja.admin_views import clients_admin_router
 from apps.clients.ninja.command_centre_views import client_command_centre_router
 from apps.clients.ninja.overview_views import client_overview_router
@@ -75,6 +76,7 @@ website_router.add_router("", website_misc_router)
 api.add_router("/website", website_router)
 
 admin_router = Router(tags=["admin"])
+admin_router.add_router("", staff_access_router)
 admin_router.add_router("", core_admin_router)
 admin_router.add_router("", clients_admin_router)
 admin_router.add_router("", client_overview_router)
