@@ -16,6 +16,7 @@ from apps.access_control.services import (
     invite_staff_user,
     is_sensitive_permission,
     permission_code,
+    resend_staff_invitation,
     set_staff_active,
     update_staff_access,
 )
@@ -117,6 +118,7 @@ def _summary(user: User) -> StaffUserSummaryOut:
         is_staff=user.is_staff,
         is_superuser=user.is_superuser,
         email_verified=user.email_verified,
+        setup_pending=not user.has_usable_password(),
         date_joined=user.date_joined,
         last_login=user.last_login,
         group_names=list(user.groups.order_by("name").values_list("name", flat=True)),
@@ -166,9 +168,7 @@ def _detail(actor: User, user: User) -> StaffUserDetailOut:
     except StaffAccessProfile.DoesNotExist:
         profile = None
 
-    direct_permission_ids = set(
-        assignable_permissions_queryset().values_list("id", flat=True)
-    )
+    direct_permission_ids = set(assignable_permissions_queryset().values_list("id", flat=True))
     selected_direct_ids = list(
         user.user_permissions.filter(id__in=direct_permission_ids)
         .order_by("id")
@@ -186,9 +186,7 @@ def _detail(actor: User, user: User) -> StaffUserDetailOut:
             ids=[]
             if profile.all_clients
             else list(
-                profile.client_grants.order_by("client_id").values_list(
-                    "client_id", flat=True
-                )
+                profile.client_grants.order_by("client_id").values_list("client_id", flat=True)
             ),
         )
         queue_scope = ObjectAccessScopeOut(
@@ -196,9 +194,7 @@ def _detail(actor: User, user: User) -> StaffUserDetailOut:
             ids=[]
             if profile.all_ticket_queues
             else list(
-                profile.ticket_queue_grants.order_by("queue_id").values_list(
-                    "queue_id", flat=True
-                )
+                profile.ticket_queue_grants.order_by("queue_id").values_list("queue_id", flat=True)
             ),
         )
         default_queue_ids = list(
@@ -276,9 +272,7 @@ def list_staff_users(
             | Q(last_name__icontains=search)
         )
 
-    queryset = queryset.prefetch_related("groups").order_by(
-        "first_name", "last_name", "email"
-    )
+    queryset = queryset.prefetch_related("groups").order_by("first_name", "last_name", "email")
     total = queryset.count()
     start = (page - 1) * page_size
     items = [_summary(user) for user in queryset[start : start + page_size]]
@@ -345,9 +339,7 @@ def staff_access_options(
             brand_name=queue.brand.name if queue.brand else None,
             enabled=queue.enabled,
         )
-        for queue in TicketQueue.objects.select_related("brand").order_by(
-            "ordering", "name"
-        )
+        for queue in TicketQueue.objects.select_related("brand").order_by("ordering", "name")
     ]
     return 200, StaffAccessOptionsOut(
         groups=groups,
@@ -511,3 +503,40 @@ def deactivate_staff(
     user_id: str,
 ) -> tuple[int, StaffStatusOut | dict[str, Any]]:
     return _change_status(request, user_id, False)
+
+
+@staff_access_router.post(
+    "/access/users/{user_id}/resend-invitation",
+    response={
+        200: StaffInviteOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
+)
+def resend_invitation(
+    request: HttpRequest,
+    user_id: str,
+) -> tuple[int, StaffInviteOut | dict[str, Any]]:
+    problem = _access_problem(request)
+    if problem:
+        return problem
+    user = _get_staff_user(user_id)
+    if user is None:
+        return _not_found_problem()
+    actor = _actor(request)
+    try:
+        email_sent = resend_staff_invitation(
+            actor=actor,
+            target=user,
+            ip_address=_request_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        )
+    except ValidationError as error:
+        return _validation_problem(error)
+    refreshed = User.objects.get(pk=user.pk)
+    return 200, StaffInviteOut(
+        user=_detail(actor, refreshed),
+        invitation_email_sent=email_sent,
+    )
