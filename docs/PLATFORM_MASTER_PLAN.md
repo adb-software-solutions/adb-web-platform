@@ -305,10 +305,17 @@ The following are established platform architecture, not future-only ideas:
 - full typed Credential Vault with encrypted/versioned secrets, independent
   reveal/copy/download permissions, Client/Infrastructure context and atomic
   legacy-secret reconciliation;
+- structured Monitoring checks/results/incidents with global, Client and
+  resource-context technical-health views;
+- Client/Internal Knowledge Base with hierarchical sections, Markdown editing,
+  immutable versions, protected attachments and Infrastructure/Vault links;
+- specialist technical operations for storage/backups, containers, Kubernetes,
+  system services and scheduled jobs;
 - deterministic development data and CI/container foundations.
 
-Knowledge Base, Users & Access, configurable Dashboard and mature Monitoring
-remain incomplete.
+Users & Access and the configurable Dashboard remain incomplete. Monitoring,
+Knowledge Base and specialist technical operations have implemented foundations;
+later unified search/activity/notification polish remains planned.
 
 Credential-specific security and lifecycle rules are authoritative in
 `CREDENTIAL_VAULT_ARCHITECTURE.md`.
@@ -506,7 +513,9 @@ The merged foundation includes:
 - nested Website endpoint, DNS record and TLS Domain-coverage operations in the shared resource workspace;
 - safe resource-centric create/edit/archive workflows and conservative legacy promotion.
 
-The next sustained technical-operations slice is Monitoring. Web/Domain/DNS/TLS is part of the native structured resource model rather than a continuation of the legacy flat registers.
+Monitoring, Knowledge Base and specialist technical operations now extend the
+same shared resource identity. The next major ordered implementation stage is
+the Client Command Centre integration pass.
 
 ### 9.2 Credential Vault
 
@@ -536,45 +545,47 @@ Credentials instead of duplicating secret material.
 
 ### 9.3 Monitoring
 
-Monitoring is a cross-cutting subsystem attached to structured resources, not
-an `is_up` flag on Server/Website.
+Monitoring is an implemented cross-cutting subsystem attached to structured
+resources, not an `is_up` flag on Server/Website.
 
-Planned initial checks include:
+The current check types include:
 
 - ICMP/ping;
 - TCP port;
 - HTTP/HTTPS;
-- expected/forbidden text/regex;
+- expected/forbidden text;
 - TLS validity/expiry;
 - DNS record checks;
 - domain registration expiry.
 
-Checks produce history and incidents with failure/recovery semantics. Celery
-Beat/workers schedule execution through reusable services. Global and
-Client-scoped health dashboards should show current problems first.
+Checks produce result history and incidents with failure/recovery semantics.
+Celery Beat/workers schedule execution through reusable services. Global,
+Client-scoped and resource-context technical-health views surface current
+problems first.
 
-Checks requiring authentication reference Credentials through the Vault rather
-than storing their own plaintext usernames/tokens.
+Authenticated monitoring remains deliberately deferred until explicit
+authentication schemes are modelled. A Credential type alone must not be used
+to guess Basic/Bearer or another wire-authentication contract.
 
 ### 9.4 Knowledge Base
 
-The agreed KB direction is a Client/Internal documentation workspace with a
-filesystem-like folder/section structure rather than a flat list.
+The Knowledge Base is an implemented Client/Internal documentation workspace
+with a filesystem-like folder/section structure rather than a flat list.
 
-Target behaviour includes:
+Implemented behaviour includes:
 
-- Markdown or controlled rich-text editing;
+- Markdown editing;
 - immutable/versioned history;
 - author/editor metadata;
-- attachments where appropriate;
-- tags/search metadata;
-- links to Infrastructure Resources, Credentials, Tickets and Projects;
-- resource workspaces surfacing related runbooks/documentation;
-- global and Client-context permission-aware search;
+- protected attachments;
+- tags/search metadata and server-side search foundations;
+- links to Infrastructure Resources and Credential metadata;
+- resource and Client-context documentation projections;
 - future portal visibility explicit and private by default.
 
-The KB must not become an alternative plaintext credential store. It links to
-Vault records when a runbook needs access context.
+The KB is not an alternative plaintext credential store. It links to Vault
+records when a runbook needs access context and does not duplicate secret
+payloads.
 
 ---
 
@@ -751,7 +762,9 @@ model and portal design says otherwise.
 
 ## 16. Current ordered build plan
 
-The Credential Vault and Core typed Infrastructure are complete through compute/network, Database/Application/Source Repository and Web/Domain/DNS/TLS. The next sustained implementation stage is Monitoring and technical health.
+The Credential Vault and structured technical-operations stack are complete
+through Stage 5. The next sustained implementation stage is Stage 6 — Client
+Command Centre integration.
 
 ### Stage 1 — Core typed Infrastructure — implemented
 
@@ -778,27 +791,29 @@ The platform now has:
 - conservative legacy Website/Domain/SSL promotion with no ownership/provider/alias/nameserver guessing;
 - Credential links through the shared resource identity for administrative/authentication material.
 
-### Stage 3 — Monitoring and technical dashboards
+### Stage 3 — Monitoring and technical dashboards — implemented
 
 - checks/results/incidents;
 - current health views;
 - uptime/response history;
 - expiring TLS/domain alerts;
 - global and Client-scoped technical dashboards;
-- Vault-backed authentication for monitored endpoints where required.
+- resource-context technical-health panels;
+- authenticated checks deliberately deferred until explicit authentication
+  schemes are modelled rather than inferred from Credential type.
 
-### Stage 4 — Knowledge Base
+### Stage 4 — Knowledge Base — implemented
 
 - folder/section tree;
-- Markdown/controlled editor;
-- attachments;
+- Markdown editor;
+- protected attachments;
 - immutable versions;
 - Client/Internal ownership;
 - Infrastructure/resource backlinks;
 - Credential links without secret duplication;
 - contextual and global search foundations.
 
-### Stage 5 — Specialist technical operations
+### Stage 5 — Specialist technical operations — implemented
 
 - Docker/container structures;
 - Kubernetes clusters/namespaces/workloads/services/ingresses/Helm/storage at a
