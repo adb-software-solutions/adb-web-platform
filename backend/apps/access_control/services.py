@@ -11,7 +11,11 @@ from django.core.mail import send_mail
 from django.db import transaction
 from django.utils import timezone
 
-from apps.access_control.models import ClientAccessGrant, StaffAccessProfile, TicketQueueAccessGrant
+from apps.access_control.models import (
+    ClientAccessGrant,
+    StaffAccessProfile,
+    TicketQueueAccessGrant,
+)
 from apps.clients.models import Client
 from apps.core.models import AuditEvent
 from apps.ticketing.models import TicketQueue
@@ -92,20 +96,30 @@ def _snapshot(user: User) -> dict[str, object]:
     )
     return {
         "groups": list(user.groups.order_by("name").values_list("name", flat=True)),
-        "direct_permissions": [permission_code(permission) for permission in direct_permissions],
+        "direct_permissions": [
+            permission_code(permission) for permission in direct_permissions
+        ],
         "all_clients": bool(profile and profile.all_clients),
         "client_ids": []
         if profile is None or profile.all_clients
-        else list(profile.client_grants.order_by("client_id").values_list("client_id", flat=True)),
+        else list(
+            profile.client_grants.order_by("client_id").values_list(
+                "client_id", flat=True
+            )
+        ),
         "all_ticket_queues": bool(profile and profile.all_ticket_queues),
         "ticket_queue_ids": []
         if profile is None or profile.all_ticket_queues
         else list(
-            profile.ticket_queue_grants.order_by("queue_id").values_list("queue_id", flat=True)
+            profile.ticket_queue_grants.order_by("queue_id").values_list(
+                "queue_id", flat=True
+            )
         ),
         "default_ticket_queue_ids": []
         if profile is None
-        else list(profile.default_ticket_queues.order_by("id").values_list("id", flat=True)),
+        else list(
+            profile.default_ticket_queues.order_by("id").values_list("id", flat=True)
+        ),
     }
 
 
@@ -116,11 +130,17 @@ def _apply_staff_access(*, target: User, write: StaffAccessWrite, actor: User) -
         write.direct_permission_ids,
         "capabilities",
     )
-    clients = [] if write.all_clients else _objects_for_ids(Client.objects.all(), write.client_ids, "clients")
+    clients = (
+        []
+        if write.all_clients
+        else _objects_for_ids(Client.objects.all(), write.client_ids, "clients")
+    )
     queues = (
         []
         if write.all_ticket_queues
-        else _objects_for_ids(TicketQueue.objects.all(), write.ticket_queue_ids, "ticket queues")
+        else _objects_for_ids(
+            TicketQueue.objects.all(), write.ticket_queue_ids, "ticket queues"
+        )
     )
 
     if write.all_ticket_queues:
@@ -148,7 +168,10 @@ def _apply_staff_access(*, target: User, write: StaffAccessWrite, actor: User) -
     profile.client_grants.all().delete()
     if not write.all_clients:
         ClientAccessGrant.objects.bulk_create(
-            [ClientAccessGrant(profile=profile, client=client, granted_by=actor) for client in clients]
+            [
+                ClientAccessGrant(profile=profile, client=client, granted_by=actor)
+                for client in clients
+            ]
         )
 
     profile.ticket_queue_grants.all().delete()
@@ -216,7 +239,9 @@ def set_staff_active(
 
 
 def _send_staff_invitation(user: User) -> bool:
-    auth_frontend_url = getattr(settings, "AUTH_FRONTEND_URL", settings.FRONTEND_URL).rstrip("/")
+    auth_frontend_url = getattr(
+        settings, "AUTH_FRONTEND_URL", settings.FRONTEND_URL
+    ).rstrip("/")
     reset_url = f"{auth_frontend_url}/reset-password/{user.password_reset_token}"
     try:
         send_mail(

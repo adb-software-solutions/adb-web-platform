@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from math import ceil
-from typing import Any
+from typing import Any, cast
 
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db.models import Q, QuerySet
 from django.http import HttpRequest
@@ -69,6 +69,10 @@ def _access_problem(request: HttpRequest) -> StaffProblem | None:
     return None
 
 
+def _actor(request: HttpRequest) -> User:
+    return cast(User, request.user)
+
+
 def _validation_problem(error: ValidationError) -> StaffProblem:
     return 400, {
         "message": "; ".join(error.messages) or "Invalid staff access configuration.",
@@ -122,7 +126,9 @@ def _summary(user: User) -> StaffUserSummaryOut:
 def _effective_permissions(user: User) -> list[EffectiveCapabilityOut]:
     permissions = list(assignable_permissions_queryset())
     by_code = {permission_code(permission): permission for permission in permissions}
-    effective_codes = set(by_code) if user.is_superuser else set(user.get_all_permissions()) & set(by_code)
+    effective_codes = (
+        set(by_code) if user.is_superuser else set(user.get_all_permissions()) & set(by_code)
+    )
     direct_codes = {
         permission_code(permission)
         for permission in user.user_permissions.select_related("content_type").all()
@@ -160,9 +166,13 @@ def _detail(actor: User, user: User) -> StaffUserDetailOut:
     except StaffAccessProfile.DoesNotExist:
         profile = None
 
-    direct_permission_ids = set(assignable_permissions_queryset().values_list("id", flat=True))
+    direct_permission_ids = set(
+        assignable_permissions_queryset().values_list("id", flat=True)
+    )
     selected_direct_ids = list(
-        user.user_permissions.filter(id__in=direct_permission_ids).order_by("id").values_list("id", flat=True)
+        user.user_permissions.filter(id__in=direct_permission_ids)
+        .order_by("id")
+        .values_list("id", flat=True)
     )
     client_scope = ObjectAccessScopeOut()
     queue_scope = ObjectAccessScopeOut()
@@ -175,14 +185,20 @@ def _detail(actor: User, user: User) -> StaffUserDetailOut:
             all=profile.all_clients,
             ids=[]
             if profile.all_clients
-            else list(profile.client_grants.order_by("client_id").values_list("client_id", flat=True)),
+            else list(
+                profile.client_grants.order_by("client_id").values_list(
+                    "client_id", flat=True
+                )
+            ),
         )
         queue_scope = ObjectAccessScopeOut(
             all=profile.all_ticket_queues,
             ids=[]
             if profile.all_ticket_queues
             else list(
-                profile.ticket_queue_grants.order_by("queue_id").values_list("queue_id", flat=True)
+                profile.ticket_queue_grants.order_by("queue_id").values_list(
+                    "queue_id", flat=True
+                )
             ),
         )
         default_queue_ids = list(
@@ -218,7 +234,12 @@ def _write(payload: StaffAccessUpdateIn) -> StaffAccessWrite:
 
 @staff_access_router.get(
     "/access/users",
-    response={200: StaffUserListOut, 401: ProblemDetail, 403: ProblemDetail},
+    response={
+        200: StaffUserListOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+    },
 )
 def list_staff_users(
     request: HttpRequest,
@@ -255,7 +276,9 @@ def list_staff_users(
             | Q(last_name__icontains=search)
         )
 
-    queryset = queryset.prefetch_related("groups").order_by("first_name", "last_name", "email")
+    queryset = queryset.prefetch_related("groups").order_by(
+        "first_name", "last_name", "email"
+    )
     total = queryset.count()
     start = (page - 1) * page_size
     items = [_summary(user) for user in queryset[start : start + page_size]]
@@ -287,7 +310,9 @@ def staff_access_options(
             id=group.id,
             name=group.name,
             permission_ids=list(
-                group.permissions.filter(id__in=assignable_ids).order_by("id").values_list("id", flat=True)
+                group.permissions.filter(id__in=assignable_ids)
+                .order_by("id")
+                .values_list("id", flat=True)
             ),
         )
         for group in Group.objects.prefetch_related("permissions").order_by("name")
@@ -320,7 +345,9 @@ def staff_access_options(
             brand_name=queue.brand.name if queue.brand else None,
             enabled=queue.enabled,
         )
-        for queue in TicketQueue.objects.select_related("brand").order_by("ordering", "name")
+        for queue in TicketQueue.objects.select_related("brand").order_by(
+            "ordering", "name"
+        )
     ]
     return 200, StaffAccessOptionsOut(
         groups=groups,
@@ -332,7 +359,12 @@ def staff_access_options(
 
 @staff_access_router.post(
     "/access/users/invite",
-    response={201: StaffInviteOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail},
+    response={
+        201: StaffInviteOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+    },
 )
 def invite_staff(
     request: HttpRequest,
@@ -341,9 +373,10 @@ def invite_staff(
     problem = _access_problem(request)
     if problem:
         return problem
+    actor = _actor(request)
     try:
         user, email_sent = invite_staff_user(
-            actor=request.user,
+            actor=actor,
             email=str(payload.email),
             first_name=payload.first_name,
             last_name=payload.last_name,
@@ -354,14 +387,19 @@ def invite_staff(
     except ValidationError as error:
         return _validation_problem(error)
     return 201, StaffInviteOut(
-        user=_detail(request.user, user),
+        user=_detail(actor, user),
         invitation_email_sent=email_sent,
     )
 
 
 @staff_access_router.get(
     "/access/users/{user_id}",
-    response={200: StaffUserDetailOut, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: StaffUserDetailOut,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def get_staff_user(
     request: HttpRequest,
@@ -373,12 +411,18 @@ def get_staff_user(
     user = _get_staff_user(user_id)
     if user is None:
         return _not_found_problem()
-    return 200, _detail(request.user, user)
+    return 200, _detail(_actor(request), user)
 
 
 @staff_access_router.put(
     "/access/users/{user_id}/access",
-    response={200: StaffUserDetailOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: StaffUserDetailOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def change_staff_access(
     request: HttpRequest,
@@ -391,9 +435,10 @@ def change_staff_access(
     user = _get_staff_user(user_id)
     if user is None:
         return _not_found_problem()
+    actor = _actor(request)
     try:
         update_staff_access(
-            actor=request.user,
+            actor=actor,
             target=user,
             write=_write(payload),
             ip_address=_request_ip(request),
@@ -402,7 +447,7 @@ def change_staff_access(
     except ValidationError as error:
         return _validation_problem(error)
     refreshed = User.objects.get(pk=user.pk)
-    return 200, _detail(request.user, refreshed)
+    return 200, _detail(actor, refreshed)
 
 
 def _change_status(
@@ -416,9 +461,10 @@ def _change_status(
     user = _get_staff_user(user_id)
     if user is None:
         return _not_found_problem()
+    actor = _actor(request)
     try:
         set_staff_active(
-            actor=request.user,
+            actor=actor,
             target=user,
             is_active=is_active,
             ip_address=_request_ip(request),
@@ -428,14 +474,20 @@ def _change_status(
         return _validation_problem(error)
     refreshed = User.objects.get(pk=user.pk)
     return 200, StaffStatusOut(
-        user=_detail(request.user, refreshed),
+        user=_detail(actor, refreshed),
         message="Staff account activated." if is_active else "Staff account deactivated.",
     )
 
 
 @staff_access_router.post(
     "/access/users/{user_id}/activate",
-    response={200: StaffStatusOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: StaffStatusOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def activate_staff(
     request: HttpRequest,
@@ -446,7 +498,13 @@ def activate_staff(
 
 @staff_access_router.post(
     "/access/users/{user_id}/deactivate",
-    response={200: StaffStatusOut, 400: ProblemDetail, 401: ProblemDetail, 403: ProblemDetail, 404: ProblemDetail},
+    response={
+        200: StaffStatusOut,
+        400: ProblemDetail,
+        401: ProblemDetail,
+        403: ProblemDetail,
+        404: ProblemDetail,
+    },
 )
 def deactivate_staff(
     request: HttpRequest,
