@@ -1,9 +1,9 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth.models import Group, Permission
 from django.test import TestCase
 
-from apps.access_control.models import ClientAccessGrant, StaffAccessProfile, TicketQueueAccessGrant
+from apps.access_control.models import StaffAccessProfile
 from apps.clients.models import Client
 from apps.core.models import AuditEvent, Brand
 from apps.ticketing.models import TicketQueue
@@ -97,7 +97,9 @@ class StaffAccessAPITests(TestCase):
         response = self.client.get("/api/admin/access/options")
 
         self.assertEqual(response.status_code, 200)
-        capabilities = {item["code"]: item for item in response.json()["capabilities"]}
+        capabilities = {
+            item["code"]: item for item in response.json()["capabilities"]
+        }
         reveal = capabilities["credentials.reveal_storedcredential"]
         self.assertTrue(reveal["sensitive"])
         self.assertIn("access_control.manage_staff_access", capabilities)
@@ -122,7 +124,10 @@ class StaffAccessAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.target.refresh_from_db()
         profile = self.target.access_profile
-        self.assertEqual(list(self.target.groups.values_list("id", flat=True)), [self.operations_group.id])
+        self.assertEqual(
+            list(self.target.groups.values_list("id", flat=True)),
+            [self.operations_group.id],
+        )
         self.assertEqual(
             list(self.target.user_permissions.values_list("id", flat=True)),
             [self.credential_reveal.id],
@@ -139,13 +144,20 @@ class StaffAccessAPITests(TestCase):
             list(profile.default_ticket_queues.values_list("id", flat=True)),
             [self.queue_a.id],
         )
-        effective = {item["code"]: item for item in response.json()["access"]["effective_permissions"]}
+        effective = {
+            item["code"]: item
+            for item in response.json()["access"]["effective_permissions"]
+        }
         self.assertIn("tasks.view_task", effective)
         self.assertIn("Group: Operations Test", effective["tasks.view_task"]["sources"])
         self.assertIn("credentials.reveal_storedcredential", effective)
-        self.assertEqual(effective["credentials.reveal_storedcredential"]["sources"], ["Direct"])
+        self.assertEqual(
+            effective["credentials.reveal_storedcredential"]["sources"], ["Direct"]
+        )
         self.assertTrue(
-            AuditEvent.objects.filter(action="staff_access.updated", target_id=str(self.target.id)).exists()
+            AuditEvent.objects.filter(
+                action="staff_access.updated", target_id=str(self.target.id)
+            ).exists()
         )
 
     def test_default_queue_must_be_enabled_and_inside_new_scope(self) -> None:
@@ -214,7 +226,9 @@ class StaffAccessAPITests(TestCase):
         self.assertEqual(response.status_code, 400)
 
     @patch("apps.access_control.services.send_mail", return_value=1)
-    def test_invite_creates_staff_account_with_access_and_setup_token(self, mocked_send_mail) -> None:
+    def test_invite_creates_staff_account_with_access_and_setup_token(
+        self, mocked_send_mail: MagicMock
+    ) -> None:
         payload = {
             "email": "new.staff@example.test",
             "first_name": "New",
@@ -246,17 +260,25 @@ class StaffAccessAPITests(TestCase):
             [self.client_b.id],
         )
         self.assertEqual(
-            list(invited.access_profile.ticket_queue_grants.values_list("queue_id", flat=True)),
+            list(
+                invited.access_profile.ticket_queue_grants.values_list(
+                    "queue_id", flat=True
+                )
+            ),
             [self.queue_b.id],
         )
         self.assertTrue(response.json()["invitation_email_sent"])
         mocked_send_mail.assert_called_once()
         self.assertTrue(
-            AuditEvent.objects.filter(action="staff_access.invited", target_id=str(invited.id)).exists()
+            AuditEvent.objects.filter(
+                action="staff_access.invited", target_id=str(invited.id)
+            ).exists()
         )
 
     def test_deactivate_and_activate_are_audited(self) -> None:
-        deactivate = self.client.post(f"/api/admin/access/users/{self.target.id}/deactivate")
+        deactivate = self.client.post(
+            f"/api/admin/access/users/{self.target.id}/deactivate"
+        )
         self.target.refresh_from_db()
         self.assertEqual(deactivate.status_code, 200)
         self.assertFalse(self.target.is_active)
@@ -271,5 +293,7 @@ class StaffAccessAPITests(TestCase):
         self.assertEqual(activate.status_code, 200)
         self.assertTrue(self.target.is_active)
         self.assertTrue(
-            AuditEvent.objects.filter(action="staff_access.activated", target_id=str(self.target.id)).exists()
+            AuditEvent.objects.filter(
+                action="staff_access.activated", target_id=str(self.target.id)
+            ).exists()
         )
