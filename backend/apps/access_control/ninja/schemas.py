@@ -13,6 +13,7 @@ class StaffUserSummaryOut(Schema):
     is_staff: bool
     is_superuser: bool
     email_verified: bool
+    setup_pending: bool
     date_joined: datetime
     last_login: datetime | None = None
     group_names: list[str] = Field(default_factory=list)

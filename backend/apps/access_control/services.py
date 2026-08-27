@@ -9,13 +9,10 @@ from django.contrib.auth.models import Group, Permission
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
-from apps.access_control.models import (
-    ClientAccessGrant,
-    StaffAccessProfile,
-    TicketQueueAccessGrant,
-)
+from apps.access_control.models import ClientAccessGrant, StaffAccessProfile, TicketQueueAccessGrant
 from apps.clients.models import Client
 from apps.core.models import AuditEvent
 from apps.ticketing.models import TicketQueue
@@ -25,7 +22,13 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
 
 
-EXCLUDED_PERMISSION_APP_LABELS = {"admin", "contenttypes", "sessions"}
+EXCLUDED_PERMISSION_APP_LABELS = {
+    "admin",
+    "auth",
+    "authentication",
+    "contenttypes",
+    "sessions",
+}
 SENSITIVE_PERMISSION_CODES = {
     "access_control.manage_staff_access",
     "core.view_sensitive_audit_metadata",
@@ -61,7 +64,10 @@ def is_sensitive_permission(code: str) -> bool:
 def assignable_permissions_queryset() -> QuerySet[Permission]:
     return (
         Permission.objects.select_related("content_type")
-        .exclude(content_type__app_label__in=EXCLUDED_PERMISSION_APP_LABELS)
+        .filter(
+            ~Q(content_type__app_label__in=EXCLUDED_PERMISSION_APP_LABELS),
+            ~Q(content_type__app_label="access_control") | Q(codename="manage_staff_access"),
+        )
         .order_by("content_type__app_label", "content_type__model", "codename")
     )
 
@@ -96,30 +102,20 @@ def _snapshot(user: User) -> dict[str, object]:
     )
     return {
         "groups": list(user.groups.order_by("name").values_list("name", flat=True)),
-        "direct_permissions": [
-            permission_code(permission) for permission in direct_permissions
-        ],
+        "direct_permissions": [permission_code(permission) for permission in direct_permissions],
         "all_clients": bool(profile and profile.all_clients),
         "client_ids": []
         if profile is None or profile.all_clients
-        else list(
-            profile.client_grants.order_by("client_id").values_list(
-                "client_id", flat=True
-            )
-        ),
+        else list(profile.client_grants.order_by("client_id").values_list("client_id", flat=True)),
         "all_ticket_queues": bool(profile and profile.all_ticket_queues),
         "ticket_queue_ids": []
         if profile is None or profile.all_ticket_queues
         else list(
-            profile.ticket_queue_grants.order_by("queue_id").values_list(
-                "queue_id", flat=True
-            )
+            profile.ticket_queue_grants.order_by("queue_id").values_list("queue_id", flat=True)
         ),
         "default_ticket_queue_ids": []
         if profile is None
-        else list(
-            profile.default_ticket_queues.order_by("id").values_list("id", flat=True)
-        ),
+        else list(profile.default_ticket_queues.order_by("id").values_list("id", flat=True)),
     }
 
 
@@ -138,9 +134,7 @@ def _apply_staff_access(*, target: User, write: StaffAccessWrite, actor: User) -
     queues = (
         []
         if write.all_ticket_queues
-        else _objects_for_ids(
-            TicketQueue.objects.all(), write.ticket_queue_ids, "ticket queues"
-        )
+        else _objects_for_ids(TicketQueue.objects.all(), write.ticket_queue_ids, "ticket queues")
     )
 
     if write.all_ticket_queues:
@@ -239,9 +233,7 @@ def set_staff_active(
 
 
 def _send_staff_invitation(user: User) -> bool:
-    auth_frontend_url = getattr(
-        settings, "AUTH_FRONTEND_URL", settings.FRONTEND_URL
-    ).rstrip("/")
+    auth_frontend_url = getattr(settings, "AUTH_FRONTEND_URL", settings.FRONTEND_URL).rstrip("/")
     reset_url = f"{auth_frontend_url}/reset-password/{user.password_reset_token}"
     try:
         send_mail(
@@ -304,3 +296,35 @@ def invite_staff_user(
         user_agent=user_agent,
     )
     return user, email_sent
+
+
+def resend_staff_invitation(
+    *,
+    actor: User,
+    target: User,
+    ip_address: str | None = None,
+    user_agent: str = "",
+) -> bool:
+    _validate_target(actor, target)
+    with transaction.atomic():
+        locked_target = User.objects.select_for_update().get(pk=target.pk)
+        if locked_target.has_usable_password():
+            raise ValidationError(
+                "This account already has a password; use the normal password-reset flow instead."
+            )
+        locked_target.password_reset_token = uuid.uuid4()
+        locked_target.password_reset_token_created = timezone.now()
+        locked_target.save(
+            update_fields=["password_reset_token", "password_reset_token_created"]
+        )
+
+    email_sent = _send_staff_invitation(locked_target)
+    AuditEvent.record(
+        action="staff_access.invitation_resent",
+        actor=actor,
+        target=locked_target,
+        metadata={"invitation_email_sent": email_sent},
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+    return email_sent
