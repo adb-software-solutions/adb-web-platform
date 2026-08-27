@@ -15,7 +15,7 @@ from authentication.ninja.schemas import ProblemDetail
 
 infrastructure_specialist_edit_router = Router(tags=["admin-infrastructure-specialist-edit"])
 StaffProblem = tuple[int, dict[str, object]]
-SpecialistEditValue: TypeAlias = str | int | bool | list[str] | None
+SpecialistEditValue: TypeAlias = str | int | bool | list[str] | list[int] | None
 
 
 class InfrastructureSpecialistEditOut(Schema):
