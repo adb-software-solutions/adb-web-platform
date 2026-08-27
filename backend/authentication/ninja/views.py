@@ -46,7 +46,9 @@ def transform_user_to_response(user: User) -> UserResponse:
         )
         ticket_queue_scope = ObjectScopeResponse(
             all=profile.all_ticket_queues,
-            ids=[],
+            ids=[]
+            if profile.all_ticket_queues
+            else list(profile.ticket_queue_grants.values_list("queue_id", flat=True)),
         )
 
     return UserResponse(
