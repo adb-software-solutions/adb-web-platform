@@ -9,6 +9,7 @@ from .models import (
     InfrastructureResource,
     KubernetesClusterProfile,
     KubernetesNamespaceProfile,
+    KubernetesService,
     KubernetesWorkloadProfile,
     ProviderAccount,
     ServiceProvider,
@@ -64,6 +65,22 @@ class OperationalSpecialistAPITests(TestCase):
             name=name,
             resource_type=resource_type,
             lifecycle_status=InfrastructureResource.LifecycleStatus.ACTIVE,
+        )
+
+    def _namespace(self) -> KubernetesNamespaceProfile:
+        cluster_resource = self._resource(
+            InfrastructureResource.ResourceType.KUBERNETES_CLUSTER,
+            "Internal cluster",
+        )
+        cluster = KubernetesClusterProfile.objects.create(resource=cluster_resource)
+        namespace_resource = self._resource(
+            InfrastructureResource.ResourceType.KUBERNETES_NAMESPACE,
+            "Internal namespace",
+        )
+        return KubernetesNamespaceProfile.objects.create(
+            resource=namespace_resource,
+            cluster=cluster,
+            namespace="internal",
         )
 
     def test_options_only_return_visible_resources(self) -> None:
@@ -185,3 +202,46 @@ class OperationalSpecialistAPITests(TestCase):
         )
 
         self.assertEqual(response.status_code, 404)
+
+    def test_nested_kubernetes_creates_require_parent_change_permission(self) -> None:
+        namespace = self._namespace()
+        self._grant(
+            "add_kubernetesingress",
+            "add_helmrelease",
+            "add_kubernetespersistentstorage",
+        )
+        change_permission = Permission.objects.get(
+            content_type__app_label="infrastructure",
+            codename="change_infrastructureresource",
+        )
+        self.user.user_permissions.remove(change_permission)
+
+        requests = [
+            (
+                f"/api/admin/infrastructure/operations/kubernetes/namespaces/{namespace.resource_id}/services",
+                {"name": "api", "service_type": "cluster_ip"},
+            ),
+            (
+                f"/api/admin/infrastructure/operations/kubernetes/namespaces/{namespace.resource_id}/ingresses",
+                {"name": "public"},
+            ),
+            (
+                f"/api/admin/infrastructure/operations/kubernetes/namespaces/{namespace.resource_id}/helm-releases",
+                {"name": "ingress", "chart": "ingress-nginx/ingress-nginx"},
+            ),
+            (
+                f"/api/admin/infrastructure/operations/kubernetes/namespaces/{namespace.resource_id}/persistent-storage",
+                {"name": "data"},
+            ),
+        ]
+
+        for path, payload in requests:
+            with self.subTest(path=path):
+                response = self.client.post(
+                    path,
+                    data=payload,
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 403)
+
+        self.assertFalse(KubernetesService.objects.exists())
