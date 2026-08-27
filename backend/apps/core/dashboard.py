@@ -157,7 +157,7 @@ def dashboard_layout(user: User) -> list[DashboardWidgetPreferenceOut]:
     available = available_widget_specs(user)
     available_keys = {spec.key for spec in available}
     preference = DashboardPreference.objects.filter(user=user).first()
-    if preference is None or not preference.layout:
+    if preference is None:
         return [
             DashboardWidgetPreferenceOut(key=spec.key, span=spec.default_span) for spec in available
         ]
