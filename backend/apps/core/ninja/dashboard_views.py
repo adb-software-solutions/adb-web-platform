@@ -11,6 +11,8 @@ from authentication.models import User
 from authentication.ninja.schemas import ProblemDetail
 
 from .schemas import DashboardPreferencesIn, DashboardWorkspaceOut
+
+
 dashboard_router = Router(tags=["admin-dashboard"])
 StaffProblem = tuple[int, dict[str, Any]]
 
