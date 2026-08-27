@@ -314,9 +314,12 @@ The following are established platform architecture, not future-only ideas:
   immutable versions, protected attachments and Infrastructure/Vault links;
 - specialist technical operations for storage/backups, containers, Kubernetes,
   system services and scheduled jobs;
+- custom Users & Access administration with Groups, direct business capabilities,
+  Client/Ticket Queue scope, effective-access visibility, invitations and audited
+  activation/access changes;
 - deterministic development data and CI/container foundations.
 
-Users & Access and the configurable Dashboard remain incomplete. Monitoring,
+The configurable Dashboard remains incomplete. Users & Access, Monitoring,
 Knowledge Base, specialist technical operations and the Client Command Centre
 have implemented foundations; later unified search/activity/notification polish
 remains planned.
@@ -521,7 +524,8 @@ The merged foundation includes:
 
 Monitoring, Knowledge Base and specialist technical operations extend the same
 shared resource identity and are now integrated into the Client Command Centre.
-The next major ordered implementation stage is Users & Access.
+Users & Access is also implemented; the next major ordered implementation stage
+is Dashboard / My Work.
 
 ### 9.2 Credential Vault
 
@@ -597,27 +601,32 @@ payloads.
 
 ## 10. Users & Access
 
-Users & Access remains a required first-class custom operations area.
+Users & Access is an implemented first-class custom operations area over the
+existing Django Groups/Permissions and `StaffAccessProfile` scope model.
 
-It must support authorised administration of:
+Implemented behaviour includes:
 
-- staff list/detail;
-- create/invite/activate/deactivate according to the identity model;
-- Django Group membership;
-- capability permissions;
+- active-first staff list/detail with search and pagination;
+- staff invitation through the existing one-hour password-setup token flow;
+- safe invitation resend while an account still has an unusable password;
+- activate/deactivate lifecycle without deleting access history;
+- Django Group membership as reusable capability bundles;
+- additive direct business capabilities;
 - Client scope;
-- Ticket Queue scope;
-- effective access display;
-- audit of access changes.
+- Ticket Queue scope and server-backed default Queue preferences;
+- effective capability display with Group/Direct/Superuser sources;
+- explicit sensitive capability presentation, including Credential secret actions;
+- `access_control.manage_staff_access` as the routine administration boundary;
+- non-superuser self-edit and superuser-target safeguards;
+- exclusion of raw framework/identity permissions from the assignable catalogue;
+- rejection of Groups containing excluded permissions;
+- audit of invitation, access and activation lifecycle changes without secret/token data.
 
-Routine staff administration must not require Django superuser access.
+Routine staff administration therefore does not require Django superuser access.
+Django remains authoritative for identity, permission and superuser semantics.
 
-The backend permission/scope model already exists; this phase is primarily the
-safe operational administration experience plus any missing backend endpoints
-and boundary tests.
-
-Credential reveal/copy/download capabilities remain separately grantable and
-must be visible clearly in effective-access administration.
+See `USERS_ACCESS_ARCHITECTURE.md` and `PERMISSIONS_AND_ACCESS_MODEL.md` for the
+full capability/scope and security boundaries.
 
 ---
 
@@ -768,9 +777,9 @@ model and portal design says otherwise.
 
 ## 16. Current ordered build plan
 
-The Credential Vault, structured technical-operations stack and Client Command
-Centre are complete through Stage 6. The next sustained implementation stage is
-Stage 7 — Users & Access.
+The Credential Vault, structured technical-operations stack, Client Command
+Centre and Users & Access are complete through Stage 7. The next sustained
+implementation stage is Stage 8 — Dashboard / My Work.
 
 ### Stage 1 — Core typed Infrastructure — implemented
 
@@ -844,11 +853,18 @@ The platform now has:
 See `CLIENT_COMMAND_CENTRE_ARCHITECTURE.md` for the integration and security
 boundary. Richer unified Activity/search remains deliberately part of Stage 9.
 
-### Stage 7 — Users & Access
+### Stage 7 — Users & Access — implemented
 
-Complete safe custom staff administration for Groups, capabilities, Client
-scope, Ticket Queue scope, Credential secret-action capabilities and effective
-access.
+- active-first staff register/detail and invitation lifecycle;
+- Django Groups as reusable capability bundles;
+- additive direct business capabilities with sensitive-action visibility;
+- Client and Ticket Queue scope administration;
+- server-backed default Ticket Queue preferences;
+- effective capability/source display;
+- audited activation/deactivation and access changes;
+- self/superuser safeguards and unsafe Group/framework-permission rejection.
+
+See `USERS_ACCESS_ARCHITECTURE.md` for the implementation and security boundary.
 
 ### Stage 8 — Dashboard / My Work
 
