@@ -314,9 +314,7 @@ def resend_staff_invitation(
             )
         locked_target.password_reset_token = uuid.uuid4()
         locked_target.password_reset_token_created = timezone.now()
-        locked_target.save(
-            update_fields=["password_reset_token", "password_reset_token_created"]
-        )
+        locked_target.save(update_fields=["password_reset_token", "password_reset_token_created"])
 
     email_sent = _send_staff_invitation(locked_target)
     AuditEvent.record(
