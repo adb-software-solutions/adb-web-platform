@@ -76,11 +76,7 @@ def assignable_groups_queryset() -> QuerySet[Group]:
     excluded_permissions = Permission.objects.exclude(
         id__in=assignable_permissions_queryset().values_list("id", flat=True)
     )
-    return (
-        Group.objects.exclude(permissions__in=excluded_permissions)
-        .distinct()
-        .order_by("name")
-    )
+    return Group.objects.exclude(permissions__in=excluded_permissions).distinct().order_by("name")
 
 
 def _validate_target(actor: User, target: User) -> None:
