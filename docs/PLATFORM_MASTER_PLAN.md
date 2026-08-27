@@ -115,8 +115,8 @@ For data-heavy screens, the backend should own:
 - business-state transitions.
 
 User preferences that should follow a staff user between browsers/devices
-belong server-side. Ticket default queues already follow this rule; Dashboard
-layout/configuration should follow it later.
+belong server-side. Ticket default queues and Dashboard layout/configuration
+both follow this rule.
 
 ### 2.4 Dark internal console, independent public Brands
 
@@ -317,12 +317,13 @@ The following are established platform architecture, not future-only ideas:
 - custom Users & Access administration with Groups, direct business capabilities,
   Client/Ticket Queue scope, effective-access visibility, invitations and audited
   activation/access changes;
+- configurable server-persisted Dashboard/My Work with permission-aware widgets,
+  scoped current-work projections and personal audit activity;
 - deterministic development data and CI/container foundations.
 
-The configurable Dashboard remains incomplete. Users & Access, Monitoring,
-Knowledge Base, specialist technical operations and the Client Command Centre
-have implemented foundations; later unified search/activity/notification polish
-remains planned.
+The operational foundations through Dashboard/My Work are implemented. Stage 9
+now owns the remaining unified search, richer activity, notification and related
+operational-polish work.
 
 Credential-specific security and lifecycle rules are authoritative in
 `CREDENTIAL_VAULT_ARCHITECTURE.md`.
@@ -524,8 +525,8 @@ The merged foundation includes:
 
 Monitoring, Knowledge Base and specialist technical operations extend the same
 shared resource identity and are now integrated into the Client Command Centre.
-Users & Access is also implemented; the next major ordered implementation stage
-is Dashboard / My Work.
+Users & Access and Dashboard/My Work are also implemented; the next major
+ordered implementation stage is Stage 9 unified operational polish.
 
 ### 9.2 Credential Vault
 
@@ -632,25 +633,38 @@ full capability/scope and security boundaries.
 
 ## 11. Dashboard / My Work
 
-The Dashboard should become a configurable, server-persisted personal
-operations surface rather than a fixed stats page.
+Dashboard/My Work is an implemented configurable, server-persisted personal
+operations surface rather than a fixed statistics page.
 
-Target widget categories include:
+The current widget catalogue includes:
 
-- My Tickets / selected Ticket Queue / unassigned urgent work;
-- My Tasks / overdue / upcoming;
-- active timer and recent Time;
-- Lead follow-up;
-- current Project work/milestones;
-- Infrastructure/Monitoring incidents and expiries;
-- Calendar agenda;
-- authorised audit/security summaries.
+- My Tasks with open/today/overdue focus;
+- My Tickets using normal Client/Queue scope and server-backed default Queues;
+- active timer and personal weekly Time;
+- assigned Lead follow-up;
+- current scoped Projects;
+- Infrastructure-scoped Monitoring technical health;
+- a seven-day Task agenda;
+- the current user's own safe audit activity metadata.
 
-Widget visibility and data obey normal backend capability/scope policies.
-Layout/configuration should follow the staff user across browsers.
+The browser stores no Dashboard layout in local storage. One server-side
+`DashboardPreference` row stores only ordered known widget keys and supported
+column spans. Widget definitions and data queries remain code-owned.
 
-Do not surface Credential secret values in Dashboard widgets; at most show safe
-metadata/health indicators when a user has the relevant metadata permission.
+Widget visibility and data obey live backend capabilities and ordinary domain
+scope on every request. Stored preferences never grant access, and widgets are
+removed from the effective layout immediately when their required capability is
+lost. Technical Health uses the same Monitoring check + incident capability
+boundary as the normal Monitoring overview.
+
+The generic AuditEvent model does not currently provide reliable cross-domain
+Client/object scope. Recent Activity is therefore deliberately limited to the
+current staff user's own audit events. Richer scoped activity is Stage 9 work.
+
+Credential secret values are never surfaced through Dashboard widgets.
+
+See `DASHBOARD_MY_WORK_ARCHITECTURE.md` for the Stage 8 implementation and
+security boundary.
 
 ---
 
@@ -778,8 +792,8 @@ model and portal design says otherwise.
 ## 16. Current ordered build plan
 
 The Credential Vault, structured technical-operations stack, Client Command
-Centre and Users & Access are complete through Stage 7. The next sustained
-implementation stage is Stage 8 — Dashboard / My Work.
+Centre, Users & Access and Dashboard/My Work are complete through Stage 8. The
+next sustained implementation stage is Stage 9 — Unified operational polish.
 
 ### Stage 1 — Core typed Infrastructure — implemented
 
@@ -866,10 +880,22 @@ boundary. Richer unified Activity/search remains deliberately part of Stage 9.
 
 See `USERS_ACCESS_ARCHITECTURE.md` for the implementation and security boundary.
 
-### Stage 8 — Dashboard / My Work
+### Stage 8 — Dashboard / My Work — implemented
 
-Add the configurable, permission-aware, server-persisted widget system and
-make the personal Dashboard a useful cross-domain starting point.
+- one server-persisted personal layout per staff user;
+- permission-filtered code-owned widget catalogue;
+- My Tasks, My Tickets, Time, Lead follow-up, current Projects, Technical Health,
+  Agenda and personal Recent Activity widgets;
+- normal Client/Internal, Ticket Queue and Infrastructure scope reused inside
+  each relevant projection;
+- live permission loss immediately removes saved widgets from the effective
+  layout;
+- configurable ordering and 4/6/8/12-column widths in the `/admin` workspace;
+- no browser-persisted layout and no Credential secret projection;
+- audit of preference changes without storing widget data or secret values.
+
+See `DASHBOARD_MY_WORK_ARCHITECTURE.md` for the implementation and security
+boundary. Richer cross-domain Activity, search and notifications remain Stage 9.
 
 ### Stage 9 — Unified operational polish
 
