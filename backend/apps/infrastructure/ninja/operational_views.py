@@ -81,7 +81,11 @@ def _visible_provider_account(
     if resource_id is None:
         return None
     return (
-        ProviderAccount.objects.select_related("resource", "resource__client", "provider")
+        ProviderAccount.objects.select_related(
+            "resource",
+            "resource__client",
+            "provider",
+        )
         .filter(resource__in=_visible_resources(request), resource_id=resource_id)
         .first()
     )
@@ -169,7 +173,11 @@ def _sync_backup_sources(
         .order_by("id")
     )
     if len(sources) != len(source_ids):
-        return _problem(404, "One or more backup source resources were not found.", "not_found")
+        return _problem(
+            404,
+            "One or more backup source resources were not found.",
+            "not_found",
+        )
     if any(not _same_scope(plan.resource, source) for source in sources):
         return _problem(
             400,
@@ -194,14 +202,19 @@ def operational_options(request: HttpRequest) -> OperationalOptionsOut | StaffPr
     problem = _permission_problem(request, "infrastructure.view_infrastructureresource")
     if problem:
         return problem
-    visible = _visible_resources(request).filter(
-        lifecycle_status__in=CURRENT_LIFECYCLE_STATUSES
-    ).select_related("client")
+    visible = (
+        _visible_resources(request)
+        .filter(lifecycle_status__in=CURRENT_LIFECYCLE_STATUSES)
+        .select_related("client")
+    )
     resources = list(visible.order_by("name", "id")[:2000])
     return OperationalOptionsOut(
         provider_accounts=[
             _option(item.resource)
-            for item in ProviderAccount.objects.select_related("resource", "resource__client")
+            for item in ProviderAccount.objects.select_related(
+                "resource",
+                "resource__client",
+            )
             .filter(resource__in=resources)
             .order_by("resource__name")
         ],
@@ -409,7 +422,11 @@ def create_backup_plan(
             )
             profile.full_clean()
             profile.save()
-            source_problem = _sync_backup_sources(request, profile, payload.source_resource_ids)
+            source_problem = _sync_backup_sources(
+                request,
+                profile,
+                payload.source_resource_ids,
+            )
             if source_problem:
                 transaction.set_rollback(True)
                 return source_problem
@@ -441,7 +458,10 @@ def update_backup_plan(
     if problem:
         return problem
     profile = (
-        BackupPlanProfile.objects.select_related("resource", "destination_storage__resource")
+        BackupPlanProfile.objects.select_related(
+            "resource",
+            "destination_storage__resource",
+        )
         .filter(resource__in=_visible_resources(request), resource_id=resource_id)
         .first()
     )
@@ -478,7 +498,11 @@ def update_backup_plan(
                 return resource_problem
             profile.full_clean()
             profile.save()
-            source_problem = _sync_backup_sources(request, profile, payload.source_resource_ids)
+            source_problem = _sync_backup_sources(
+                request,
+                profile,
+                payload.source_resource_ids,
+            )
             if source_problem:
                 transaction.set_rollback(True)
                 return source_problem
@@ -492,7 +516,11 @@ def _container_stack(
     resource_id: int,
 ) -> ContainerStackProfile | None:
     return (
-        ContainerStackProfile.objects.select_related("resource", "resource__client", "host_resource")
+        ContainerStackProfile.objects.select_related(
+            "resource",
+            "resource__client",
+            "host_resource",
+        )
         .filter(resource__in=_visible_resources(request), resource_id=resource_id)
         .first()
     )
@@ -519,7 +547,11 @@ def create_container_stack(
     )
     if problem:
         return problem
-    host = _visible_resource(request, payload.host_resource_id, InfrastructureResource.ResourceType.SERVER)
+    host = _visible_resource(
+        request,
+        payload.host_resource_id,
+        InfrastructureResource.ResourceType.SERVER,
+    )
     if payload.host_resource_id is not None and host is None:
         return _problem(404, "Container host server not found.", "not_found")
     try:
@@ -578,7 +610,11 @@ def update_container_stack(
     profile = _container_stack(request, resource_id)
     if profile is None:
         return _problem(404, "Container stack not found.", "not_found")
-    host = _visible_resource(request, payload.host_resource_id, InfrastructureResource.ResourceType.SERVER)
+    host = _visible_resource(
+        request,
+        payload.host_resource_id,
+        InfrastructureResource.ResourceType.SERVER,
+    )
     if payload.host_resource_id is not None and host is None:
         return _problem(404, "Container host server not found.", "not_found")
     profile.host_resource = host
@@ -641,7 +677,10 @@ def create_kubernetes_cluster(
             if resource_problem:
                 return resource_problem
             assert resource is not None
-            profile = KubernetesClusterProfile(resource=resource, provider_account=provider)
+            profile = KubernetesClusterProfile(
+                resource=resource,
+                provider_account=provider,
+            )
             _populate(
                 profile,
                 payload,
@@ -757,7 +796,11 @@ def create_kubernetes_namespace(
                 return resource_problem
             assert resource is not None
             profile = KubernetesNamespaceProfile(resource=resource, cluster=cluster)
-            _populate(profile, payload, ("namespace", "purpose", "resource_quota_summary"))
+            _populate(
+                profile,
+                payload,
+                ("namespace", "purpose", "resource_quota_summary"),
+            )
             profile.full_clean()
             profile.save()
     except ValidationError as error:
@@ -794,7 +837,11 @@ def update_kubernetes_namespace(
     if cluster is None:
         return _problem(404, "Kubernetes cluster not found.", "not_found")
     profile.cluster = cluster
-    _populate(profile, payload, ("namespace", "purpose", "resource_quota_summary"))
+    _populate(
+        profile,
+        payload,
+        ("namespace", "purpose", "resource_quota_summary"),
+    )
     try:
         with transaction.atomic():
             resource_problem = _update_resource(request, profile.resource, payload)
@@ -885,7 +932,10 @@ def update_kubernetes_workload(
     if problem:
         return problem
     profile = (
-        KubernetesWorkloadProfile.objects.select_related("resource", "namespace__resource")
+        KubernetesWorkloadProfile.objects.select_related(
+            "resource",
+            "namespace__resource",
+        )
         .filter(resource__in=_visible_resources(request), resource_id=resource_id)
         .first()
     )
@@ -941,7 +991,11 @@ def create_system_service(
     )
     if problem:
         return problem
-    host = _visible_resource(request, payload.host_resource_id, InfrastructureResource.ResourceType.SERVER)
+    host = _visible_resource(
+        request,
+        payload.host_resource_id,
+        InfrastructureResource.ResourceType.SERVER,
+    )
     if host is None:
         return _problem(404, "System service host server not found.", "not_found")
     try:
@@ -1008,7 +1062,11 @@ def update_system_service(
     )
     if profile is None:
         return _problem(404, "System service not found.", "not_found")
-    host = _visible_resource(request, payload.host_resource_id, InfrastructureResource.ResourceType.SERVER)
+    host = _visible_resource(
+        request,
+        payload.host_resource_id,
+        InfrastructureResource.ResourceType.SERVER,
+    )
     if host is None:
         return _problem(404, "System service host server not found.", "not_found")
     profile.host_resource = host
