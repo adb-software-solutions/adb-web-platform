@@ -104,7 +104,7 @@ WIDGET_SPECS = (
     WidgetSpec(
         "recent_activity",
         "Recent activity",
-        "Safe operational audit events available to your account.",
+        "Your recent audited actions, without sensitive audit metadata.",
         12,
         ("core.view_auditevent",),
     ),
@@ -431,7 +431,7 @@ def build_agenda(user: User) -> DashboardAgendaOut:
     )
 
 
-def build_activity() -> list[DashboardActivityOut]:
+def build_activity(user: User) -> list[DashboardActivityOut]:
     return [
         DashboardActivityOut(
             id=event.id,
@@ -439,7 +439,7 @@ def build_activity() -> list[DashboardActivityOut]:
             target_label=event.target_label,
             created_at=event.created_at,
         )
-        for event in AuditEvent.objects.order_by("-created_at")[:10]
+        for event in AuditEvent.objects.filter(actor=user).order_by("-created_at")[:10]
     ]
 
 
@@ -456,5 +456,5 @@ def build_dashboard_workspace(user: User) -> DashboardWorkspaceOut:
         current_projects=build_projects(user) if "current_projects" in enabled else None,
         technical_health=(build_technical_health(user) if "technical_health" in enabled else None),
         agenda=build_agenda(user) if "agenda" in enabled else None,
-        recent_activity=build_activity() if "recent_activity" in enabled else None,
+        recent_activity=build_activity(user) if "recent_activity" in enabled else None,
     )
