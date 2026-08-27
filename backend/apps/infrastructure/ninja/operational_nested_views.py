@@ -359,7 +359,11 @@ def create_kubernetes_service(
     resource_id: int,
     payload: KubernetesServiceIn,
 ) -> tuple[int, KubernetesServiceOut | dict[str, object]]:
-    problem = _permission_problem(request, "infrastructure.add_kubernetesservice")
+    problem = _permission_problem(
+        request,
+        "infrastructure.change_infrastructureresource",
+        "infrastructure.add_kubernetesservice",
+    )
     if problem:
         return problem
     namespace = _namespace(request, resource_id)
@@ -405,7 +409,11 @@ def update_kubernetes_service(
     item_id: int,
     payload: KubernetesServiceIn,
 ) -> KubernetesServiceOut | StaffProblem:
-    problem = _permission_problem(request, "infrastructure.change_kubernetesservice")
+    problem = _permission_problem(
+        request,
+        "infrastructure.change_infrastructureresource",
+        "infrastructure.change_kubernetesservice",
+    )
     if problem:
         return problem
     namespace = _namespace(request, resource_id)
@@ -449,7 +457,11 @@ def delete_kubernetes_service(
     resource_id: int,
     item_id: int,
 ) -> tuple[int, None] | StaffProblem:
-    problem = _permission_problem(request, "infrastructure.delete_kubernetesservice")
+    problem = _permission_problem(
+        request,
+        "infrastructure.change_infrastructureresource",
+        "infrastructure.delete_kubernetesservice",
+    )
     if problem:
         return problem
     namespace = _namespace(request, resource_id)
@@ -477,7 +489,11 @@ def create_kubernetes_ingress(
     resource_id: int,
     payload: KubernetesIngressIn,
 ) -> tuple[int, KubernetesIngressOut | dict[str, object]]:
-    problem = _permission_problem(request, "infrastructure.add_kubernetesingress")
+    problem = _permission_problem(
+        request,
+        "infrastructure.change_infrastructureresource",
+        "infrastructure.add_kubernetesingress",
+    )
     if problem:
         return problem
     namespace = _namespace(request, resource_id)
@@ -523,7 +539,11 @@ def update_kubernetes_ingress(
     item_id: int,
     payload: KubernetesIngressIn,
 ) -> KubernetesIngressOut | StaffProblem:
-    problem = _permission_problem(request, "infrastructure.change_kubernetesingress")
+    problem = _permission_problem(
+        request,
+        "infrastructure.change_infrastructureresource",
+        "infrastructure.change_kubernetesingress",
+    )
     if problem:
         return problem
     namespace = _namespace(request, resource_id)
@@ -567,7 +587,11 @@ def delete_kubernetes_ingress(
     resource_id: int,
     item_id: int,
 ) -> tuple[int, None] | StaffProblem:
-    problem = _permission_problem(request, "infrastructure.delete_kubernetesingress")
+    problem = _permission_problem(
+        request,
+        "infrastructure.change_infrastructureresource",
+        "infrastructure.delete_kubernetesingress",
+    )
     if problem:
         return problem
     namespace = _namespace(request, resource_id)
@@ -595,7 +619,11 @@ def create_helm_release(
     resource_id: int,
     payload: HelmReleaseIn,
 ) -> tuple[int, HelmReleaseOut | dict[str, object]]:
-    problem = _permission_problem(request, "infrastructure.add_helmrelease")
+    problem = _permission_problem(
+        request,
+        "infrastructure.change_infrastructureresource",
+        "infrastructure.add_helmrelease",
+    )
     if problem:
         return problem
     namespace = _namespace(request, resource_id)
@@ -635,7 +663,11 @@ def update_helm_release(
     item_id: int,
     payload: HelmReleaseIn,
 ) -> HelmReleaseOut | StaffProblem:
-    problem = _permission_problem(request, "infrastructure.change_helmrelease")
+    problem = _permission_problem(
+        request,
+        "infrastructure.change_infrastructureresource",
+        "infrastructure.change_helmrelease",
+    )
     if problem:
         return problem
     namespace = _namespace(request, resource_id)
@@ -673,7 +705,11 @@ def delete_helm_release(
     resource_id: int,
     item_id: int,
 ) -> tuple[int, None] | StaffProblem:
-    problem = _permission_problem(request, "infrastructure.delete_helmrelease")
+    problem = _permission_problem(
+        request,
+        "infrastructure.change_infrastructureresource",
+        "infrastructure.delete_helmrelease",
+    )
     if problem:
         return problem
     namespace = _namespace(request, resource_id)
@@ -703,6 +739,7 @@ def create_kubernetes_persistent_storage(
 ) -> tuple[int, KubernetesPersistentStorageOut | dict[str, object]]:
     problem = _permission_problem(
         request,
+        "infrastructure.change_infrastructureresource",
         "infrastructure.add_kubernetespersistentstorage",
     )
     if problem:
@@ -758,6 +795,7 @@ def update_kubernetes_persistent_storage(
 ) -> KubernetesPersistentStorageOut | StaffProblem:
     problem = _permission_problem(
         request,
+        "infrastructure.change_infrastructureresource",
         "infrastructure.change_kubernetespersistentstorage",
     )
     if problem:
@@ -815,6 +853,7 @@ def delete_kubernetes_persistent_storage(
 ) -> tuple[int, None] | StaffProblem:
     problem = _permission_problem(
         request,
+        "infrastructure.change_infrastructureresource",
         "infrastructure.delete_kubernetespersistentstorage",
     )
     if problem:
