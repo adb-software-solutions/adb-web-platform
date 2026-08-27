@@ -175,7 +175,10 @@ Nested APIs provide CRUD for:
 - Kubernetes Persistent Storage.
 
 Every endpoint checks the relevant Django model capability and resolves parent
-resources through the shared Infrastructure scope policy. Permission and scope
+resources through the shared Infrastructure scope policy. Nested mutation
+endpoints additionally require `change_infrastructureresource`, keeping the
+parent resource's mutation capability as the outer gate as well as requiring
+the specific child-model add/change/delete permission. Permission and scope
 checks therefore remain backend-enforced even when the frontend hides actions.
 
 ## Resource projections and editing
