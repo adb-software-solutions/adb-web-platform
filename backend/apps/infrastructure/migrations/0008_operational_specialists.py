@@ -365,9 +365,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={
-                "ordering": ["cluster__resource__name", "namespace", "id"]
-            },
+            options={"ordering": ["cluster__resource__name", "namespace", "id"]},
         ),
         migrations.AddConstraint(
             model_name="kubernetesnamespaceprofile",
@@ -494,9 +492,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={
-                "ordering": ["namespace__cluster__resource__name", "name", "id"]
-            },
+            options={"ordering": ["namespace__cluster__resource__name", "name", "id"]},
         ),
         migrations.AddConstraint(
             model_name="kubernetesservice",
@@ -543,9 +539,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={
-                "ordering": ["namespace__cluster__resource__name", "name", "id"]
-            },
+            options={"ordering": ["namespace__cluster__resource__name", "name", "id"]},
         ),
         migrations.AddConstraint(
             model_name="kubernetesingress",
@@ -593,9 +587,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={
-                "ordering": ["namespace__cluster__resource__name", "name", "id"]
-            },
+            options={"ordering": ["namespace__cluster__resource__name", "name", "id"]},
         ),
         migrations.AddConstraint(
             model_name="helmrelease",
@@ -643,9 +635,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={
-                "ordering": ["namespace__cluster__resource__name", "name", "id"]
-            },
+            options={"ordering": ["namespace__cluster__resource__name", "name", "id"]},
         ),
         migrations.AddConstraint(
             model_name="kubernetespersistentstorage",
