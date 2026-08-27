@@ -21,6 +21,7 @@ from apps.infrastructure.ninja.admin_views import infrastructure_admin_router
 from apps.infrastructure.ninja.application_repository_views import application_repository_router
 from apps.infrastructure.ninja.data_application_views import data_application_specialist_router
 from apps.infrastructure.ninja.extended_views import infrastructure_extended_router
+from apps.infrastructure.ninja.operational_views import operational_specialist_router
 from apps.infrastructure.ninja.reconciliation_views import infrastructure_reconciliation_router
 from apps.infrastructure.ninja.resource_views import infrastructure_resource_router
 from apps.infrastructure.ninja.specialist_edit_views import infrastructure_specialist_edit_router
@@ -105,6 +106,7 @@ admin_router.add_router("", data_application_specialist_router)
 admin_router.add_router("", application_repository_router)
 admin_router.add_router("", web_domain_specialist_router)
 admin_router.add_router("", web_domain_nested_router)
+admin_router.add_router("", operational_specialist_router)
 admin_router.add_router("", monitoring_router)
 admin_router.add_router("", credential_router)
 admin_router.add_router("", knowledge_base_router)
