@@ -2,6 +2,7 @@ import { KnowledgeBasePanel } from "@/components/admin/KnowledgeBasePanel";
 import { MonitoringHealthPanel } from "@/components/admin/MonitoringHealthPanel";
 import { Container } from "@/components/ui";
 import { InfrastructureResourceWorkspace } from "./InfrastructureResourceWorkspace";
+import { OperationalEditPanel } from "./OperationalEditPanel";
 import { OperationalNestedPanel } from "./OperationalNestedPanel";
 
 export default async function InfrastructureResourcePage({
@@ -16,6 +17,7 @@ export default async function InfrastructureResourcePage({
         <Container className="py-8">
             <div className="space-y-6">
                 <InfrastructureResourceWorkspace resourceId={resourceId} />
+                <OperationalEditPanel resourceId={resourceId} />
                 <OperationalNestedPanel resourceId={resourceId} />
                 <MonitoringHealthPanel
                     resourceId={resourceId}
