@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date, datetime
 from typing import TypeAlias
 
@@ -56,7 +57,7 @@ def _iso(value: date | datetime | None) -> str | None:
 
 def _resource_out(
     resource: InfrastructureResource,
-    values: dict[str, SpecialistEditValue],
+    values: Mapping[str, SpecialistEditValue],
 ) -> InfrastructureSpecialistEditOut:
     return InfrastructureSpecialistEditOut(
         resource_id=resource.id,
@@ -69,7 +70,7 @@ def _resource_out(
         environment=resource.environment,
         criticality=resource.criticality,
         description=resource.description,
-        values=values,
+        values=dict(values),
     )
 
 
@@ -191,12 +192,16 @@ def get_infrastructure_specialist_edit_details(
     elif resource.resource_type == InfrastructureResource.ResourceType.SUBNET:
         result = _subnet_edit(resource)
     else:
-        values = operational_edit_values(resource)
-        if values is None:
-            values = data_application_edit_values(resource)
-        if values is None:
-            values = web_domain_edit_values(resource)
-        result = _resource_out(resource, values) if values is not None else None
+        operational_values = operational_edit_values(resource)
+        if operational_values is not None:
+            result = _resource_out(resource, operational_values)
+        else:
+            data_values = data_application_edit_values(resource)
+            if data_values is not None:
+                result = _resource_out(resource, data_values)
+            else:
+                web_values = web_domain_edit_values(resource)
+                result = _resource_out(resource, web_values) if web_values is not None else None
 
     if result is None:
         return _problem(
