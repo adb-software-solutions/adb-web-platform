@@ -930,7 +930,7 @@ export function ClientCommandCentre({
                             <StatCard label="Period end" value={formatDate(command.period_end)} />
                         </div>
                         <div className="mt-5 flex justify-end">
-                            <ButtonLink href={`/admin/time?client_id=${client.id}`} variant="secondary">
+                            <ButtonLink href={`/admin/time-tracking?client_id=${client.id}`} variant="secondary">
                                 Open Time Tracking
                             </ButtonLink>
                         </div>
