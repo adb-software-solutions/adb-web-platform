@@ -136,6 +136,22 @@ class DashboardWorkspaceAPITests(TestCase):
         loaded = self.client.get("/api/admin/dashboard")
         self.assertEqual(loaded.json()["layout"], [{"key": "my_tasks", "span": 12}])
 
+    def test_empty_preference_remains_empty(self) -> None:
+        self._grant("tasks", "view_task")
+
+        response = self.client.put(
+            "/api/admin/dashboard/preferences",
+            data={"layout": []},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["layout"], [])
+        self.assertEqual(DashboardPreference.objects.get(user=self.user).layout, [])
+        loaded = self.client.get("/api/admin/dashboard")
+        self.assertEqual(loaded.json()["layout"], [])
+        self.assertIsNone(loaded.json()["my_tasks"])
+
     def test_cannot_enable_widget_without_its_capability(self) -> None:
         self._grant("tasks", "view_task")
 
