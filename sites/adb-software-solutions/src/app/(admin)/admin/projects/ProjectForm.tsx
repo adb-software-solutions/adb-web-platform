@@ -63,9 +63,18 @@ function optionalAmount(value: string) {
     return value.trim() ? Number(value) : null;
 }
 
-export function ProjectForm({ projectId }: { projectId?: number }) {
+export function ProjectForm({
+    projectId,
+    initialClientId,
+}: {
+    projectId?: number;
+    initialClientId?: number;
+}) {
     const router = useRouter();
-    const [form, setForm] = useState<ProjectFormState>(EMPTY_FORM);
+    const [form, setForm] = useState<ProjectFormState>({
+        ...EMPTY_FORM,
+        client_id: initialClientId ?? null,
+    });
     const [clients, setClients] = useState<ClientOption[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -95,6 +104,12 @@ export function ProjectForm({ projectId }: { projectId?: number }) {
                         budget: project.budget ?? "",
                         hourly_rate: project.hourly_rate ?? "",
                     });
+                } else if (initialClientId && clientRows.some((client) => client.id === initialClientId)) {
+                    setForm((current) => ({
+                        ...current,
+                        ownership_type: "client",
+                        client_id: initialClientId,
+                    }));
                 }
             } catch (loadError) {
                 setError(
@@ -108,7 +123,7 @@ export function ProjectForm({ projectId }: { projectId?: number }) {
         }
 
         void load();
-    }, [projectId]);
+    }, [initialClientId, projectId]);
 
     function update<K extends keyof ProjectFormState>(key: K, value: ProjectFormState[K]) {
         setForm((current) => ({ ...current, [key]: value }));
