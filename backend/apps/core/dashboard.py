@@ -150,12 +150,13 @@ def _normalise_layout_entry(entry: Any) -> DashboardWidgetPreferenceOut | None:
 
 
 def dashboard_layout(user: User) -> list[DashboardWidgetPreferenceOut]:
-    available_keys = {spec.key for spec in available_widget_specs(user)}
+    available = available_widget_specs(user)
+    available_keys = {spec.key for spec in available}
     preference = DashboardPreference.objects.filter(user=user).first()
     if preference is None or not preference.layout:
         return [
             DashboardWidgetPreferenceOut(key=spec.key, span=spec.default_span)
-            for spec in available_widget_specs(user)
+            for spec in available
         ]
 
     result: list[DashboardWidgetPreferenceOut] = []
@@ -241,18 +242,20 @@ def _task_out(task: Task) -> DashboardTaskOut:
 def build_my_tasks(user: User) -> DashboardTaskWidgetOut:
     today = timezone.localdate()
     tasks = _scoped_tasks(user).filter(assigned_to=user, completed_at__isnull=True)
-    items = tasks.order_by("due_date", "-priority", "-created_at")[:6]
+    rows = tasks.order_by("due_date", "-priority", "-created_at")[:6]
     return DashboardTaskWidgetOut(
         open_count=tasks.count(),
         overdue_count=tasks.filter(due_date__lt=today).count(),
         today_count=tasks.filter(due_date=today).count(),
-        items=[_task_out(task) for task in items],
+        items=[_task_out(task) for task in rows],
     )
 
 
 def _visible_ticket_queues(user: User) -> QuerySet[TicketQueue]:
-    queues = TicketQueue.objects.filter(enabled=True)
-    return scope_ticket_queues_for_user(user, queues).order_by("ordering", "name")
+    return scope_ticket_queues_for_user(
+        user,
+        TicketQueue.objects.filter(enabled=True),
+    ).order_by("ordering", "name")
 
 
 def _default_ticket_queue_ids(user: User, queues: QuerySet[TicketQueue]) -> list[int]:
@@ -262,23 +265,22 @@ def _default_ticket_queue_ids(user: User, queues: QuerySet[TicketQueue]) -> list
     profile = StaffAccessProfile.objects.filter(user=user).first()
     if profile is None:
         return visible_ids
-    stored = list(
+    stored_ids = list(
         profile.default_ticket_queues.filter(id__in=visible_ids, enabled=True)
         .order_by("ordering", "name")
         .values_list("id", flat=True)
     )
-    return stored or visible_ids
+    return stored_ids or visible_ids
 
 
 def _visible_tickets(user: User) -> QuerySet[Ticket]:
     tickets = Ticket.objects.select_related("queue", "client", "assigned_to")
-    queues = _visible_ticket_queues(user)
-    selected_queue_ids = _default_ticket_queue_ids(user, queues)
+    queue_ids = _default_ticket_queue_ids(user, _visible_ticket_queues(user))
     if user.is_superuser:
-        return tickets.filter(queue_id__in=selected_queue_ids)
+        return tickets.filter(queue_id__in=queue_ids)
     clients = scope_clients_for_user(user)
     return tickets.filter(
-        Q(queue_id__in=selected_queue_ids) & (Q(client__isnull=True) | Q(client__in=clients))
+        Q(queue_id__in=queue_ids) & (Q(client__isnull=True) | Q(client__in=clients))
     ).distinct()
 
 
@@ -412,12 +414,11 @@ def build_technical_health(user: User) -> DashboardTechnicalHealthOut:
 
 def build_agenda(user: User) -> DashboardAgendaOut:
     today = timezone.localdate()
-    end = today + timedelta(days=7)
     tasks = _scoped_tasks(user).filter(
         assigned_to=user,
         completed_at__isnull=True,
         due_date__gte=today,
-        due_date__lte=end,
+        due_date__lte=today + timedelta(days=7),
     )
     rows = tasks.order_by("due_date", "-priority", "-created_at")[:8]
     return DashboardAgendaOut(
@@ -450,9 +451,7 @@ def build_dashboard_workspace(user: User) -> DashboardWorkspaceOut:
         active_timer=build_timer(user) if "active_timer" in enabled else None,
         lead_follow_up=build_leads(user) if "lead_follow_up" in enabled else None,
         current_projects=build_projects(user) if "current_projects" in enabled else None,
-        technical_health=(
-            build_technical_health(user) if "technical_health" in enabled else None
-        ),
+        technical_health=(build_technical_health(user) if "technical_health" in enabled else None),
         agenda=build_agenda(user) if "agenda" in enabled else None,
         recent_activity=build_activity() if "recent_activity" in enabled else None,
     )
