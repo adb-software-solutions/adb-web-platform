@@ -24,6 +24,24 @@ class Brand(models.Model):
         return self.name
 
 
+class DashboardPreference(models.Model):
+    """Server-persisted personal Dashboard/My Work layout for one staff user."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="dashboard_preference",
+    )
+    layout = models.JSONField(default=list, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["user_id"]
+
+    def __str__(self) -> str:
+        return f"Dashboard preferences for {self.user}"
+
+
 class AuditEvent(models.Model):
     """Append-only record of security-sensitive and operational actions."""
 
