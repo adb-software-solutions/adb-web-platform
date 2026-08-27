@@ -259,7 +259,7 @@ export function ClientList() {
                         void loadClients();
                     }}
                 >
-                    <ClientCommandCentre clientId={selectedClientId} />
+                    <ClientCommandCentre clientId={selectedClientId} presentation="drawer" />
                 </RecordDrawer>
             ) : null}
         </div>
