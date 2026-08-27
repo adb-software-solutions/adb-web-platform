@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from django.core.exceptions import ValidationError
-from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from .resource_models import InfrastructureResource, ProviderAccount
@@ -23,10 +22,7 @@ def _require_same_scope(
     target: InfrastructureResource,
     field_name: str,
 ) -> None:
-    if (
-        source.ownership_type != target.ownership_type
-        or source.client_id != target.client_id
-    ):
+    if source.ownership_type != target.ownership_type or source.client_id != target.client_id:
         raise ValidationError(
             {field_name: "Related operational resources must use the same ownership scope."}
         )
@@ -152,10 +148,11 @@ class BackupPlanProfile(models.Model):
             "Backup plan",
         )
         _validate_provider_scope(self.resource, self.provider_account)
-        if self.destination_storage_id:
+        destination_storage = self.destination_storage
+        if destination_storage is not None:
             _require_same_scope(
                 self.resource,
-                self.destination_storage.resource,
+                destination_storage.resource,
                 "destination_storage",
             )
 
@@ -245,13 +242,14 @@ class ContainerStackProfile(models.Model):
             InfrastructureResource.ResourceType.CONTAINER_STACK,
             "Container stack",
         )
-        if self.host_resource_id:
+        host_resource = self.host_resource
+        if host_resource is not None:
             _require_resource_type(
-                self.host_resource,
+                host_resource,
                 InfrastructureResource.ResourceType.SERVER,
                 "Container-stack host",
             )
-            _require_same_scope(self.resource, self.host_resource, "host_resource")
+            _require_same_scope(self.resource, host_resource, "host_resource")
 
     def __str__(self) -> str:
         return self.resource.name
@@ -293,7 +291,9 @@ class ContainerService(models.Model):
         if not isinstance(self.ports, list):
             raise ValidationError({"ports": "Container service ports must be stored as a list."})
         if not isinstance(self.volumes, list):
-            raise ValidationError({"volumes": "Container service volumes must be stored as a list."})
+            raise ValidationError(
+                {"volumes": "Container service volumes must be stored as a list."}
+            )
 
     def __str__(self) -> str:
         return f"{self.stack.resource.name}/{self.name}"
@@ -483,7 +483,8 @@ class KubernetesService(models.Model):
 
     def clean(self) -> None:
         super().clean()
-        if self.workload_id and self.workload.namespace_id != self.namespace_id:
+        workload = self.workload
+        if workload is not None and workload.namespace_id != self.namespace_id:
             raise ValidationError({"workload": "Workload must belong to the selected namespace."})
         if not isinstance(self.ports, list):
             raise ValidationError({"ports": "Kubernetes service ports must be stored as a list."})
@@ -526,7 +527,8 @@ class KubernetesIngress(models.Model):
 
     def clean(self) -> None:
         super().clean()
-        if self.target_service_id and self.target_service.namespace_id != self.namespace_id:
+        target_service = self.target_service
+        if target_service is not None and target_service.namespace_id != self.namespace_id:
             raise ValidationError(
                 {"target_service": "Ingress target service must belong to the selected namespace."}
             )
@@ -606,10 +608,11 @@ class KubernetesPersistentStorage(models.Model):
 
     def clean(self) -> None:
         super().clean()
-        if self.backing_storage_id:
+        backing_storage = self.backing_storage
+        if backing_storage is not None:
             _require_same_scope(
                 self.namespace.resource,
-                self.backing_storage.resource,
+                backing_storage.resource,
                 "backing_storage",
             )
         if not isinstance(self.access_modes, list):
@@ -728,8 +731,9 @@ class ScheduledJobProfile(models.Model):
             InfrastructureResource.ResourceType.SCHEDULED_JOB,
             "Scheduled job",
         )
-        if self.host_resource_id:
-            _require_same_scope(self.resource, self.host_resource, "host_resource")
+        host_resource = self.host_resource
+        if host_resource is not None:
+            _require_same_scope(self.resource, host_resource, "host_resource")
 
     def __str__(self) -> str:
         return self.resource.name
