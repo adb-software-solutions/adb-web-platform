@@ -112,7 +112,7 @@ class DashboardWorkspaceAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         keys = [item["key"] for item in payload["layout"]]
-        self.assertEqual(keys, ["my_tasks", "my_tickets"])
+        self.assertEqual(keys, ["my_tasks", "my_tickets", "agenda"])
         task_titles = {item["title"] for item in payload["my_tasks"]["items"]}
         self.assertEqual(task_titles, {"Internal task", "Allowed client task"})
         ticket_subjects = {item["subject"] for item in payload["my_tickets"]["items"]}
