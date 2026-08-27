@@ -8,6 +8,7 @@ from ninja import Router, Schema
 
 from apps.infrastructure.data_application_edit import data_application_edit_values
 from apps.infrastructure.models import InfrastructureResource, Network, ServerProfile, Subnet
+from apps.infrastructure.operational_edit import operational_edit_values
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
 from apps.infrastructure.web_domain_edit import web_domain_edit_values
 from authentication.ninja.schemas import ProblemDetail
@@ -190,7 +191,9 @@ def get_infrastructure_specialist_edit_details(
     elif resource.resource_type == InfrastructureResource.ResourceType.SUBNET:
         result = _subnet_edit(resource)
     else:
-        values = data_application_edit_values(resource)
+        values = operational_edit_values(resource)
+        if values is None:
+            values = data_application_edit_values(resource)
         if values is None:
             values = web_domain_edit_values(resource)
         result = _resource_out(resource, values) if values is not None else None
