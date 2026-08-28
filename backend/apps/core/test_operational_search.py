@@ -1,6 +1,8 @@
+import json
 from typing import Any
 
 from django.contrib.auth.models import Permission
+from django.http import HttpResponse
 from django.test import TestCase
 from django.utils import timezone
 
@@ -63,11 +65,35 @@ class OperationalSearchAPITests(TestCase):
             Permission.objects.get(content_type__app_label=app_label, codename=codename)
         )
 
+    def _search(
+        self,
+        query: str,
+        *,
+        client_id: int | None = None,
+        per_type: int = 5,
+    ) -> HttpResponse:
+        return self.client.post(
+            "/api/admin/search",
+            data=json.dumps(
+                {
+                    "q": query,
+                    "client_id": client_id,
+                    "per_type": per_type,
+                }
+            ),
+            content_type="application/json",
+        )
+
     @staticmethod
     def _flatten(payload: dict[str, Any]) -> list[dict[str, Any]]:
         groups = payload["groups"]
         assert isinstance(groups, list)
         return [result for group in groups for result in group["results"]]
+
+    def test_search_endpoint_does_not_accept_query_terms_in_get_urls(self) -> None:
+        response = self.client.get("/api/admin/search", {"q": "secret-like-value"})
+
+        self.assertEqual(response.status_code, 405)
 
     def test_search_respects_client_and_ticket_queue_scope(self) -> None:
         self._grant("clients", "view_project")
@@ -127,10 +153,7 @@ class OperationalSearchAPITests(TestCase):
             source=Ticket.Source.MANUAL,
         )
 
-        response = self.client.get(
-            "/api/admin/search",
-            {"q": "needle", "per_type": "10"},
-        )
+        response = self._search("needle", per_type=10)
 
         self.assertEqual(response.status_code, 200)
         results = self._flatten(response.json())
@@ -171,11 +194,14 @@ class OperationalSearchAPITests(TestCase):
                 sent_or_received_at=timezone.now(),
             )
 
-        response = self.client.get("/api/admin/search", {"q": "aurora-search-marker"})
+        response = self._search("aurora-search-marker")
 
         self.assertEqual(response.status_code, 200)
         tickets = [item for item in self._flatten(response.json()) if item["kind"] == "tickets"]
         self.assertEqual([item["id"] for item in tickets], [visible.id])
+        self.assertNotIn("aurora-search-marker", tickets[0]["title"])
+        self.assertNotIn("aurora-search-marker", tickets[0]["subtitle"])
+        self.assertNotIn("aurora-search-marker", tickets[0]["context"])
 
     def test_client_context_excludes_internal_and_other_client_records(self) -> None:
         self._grant("clients", "view_client")
@@ -199,14 +225,7 @@ class OperationalSearchAPITests(TestCase):
             start_date=today,
         )
 
-        response = self.client.get(
-            "/api/admin/search",
-            {
-                "q": "context project",
-                "client_id": str(self.client_a.id),
-                "per_type": "10",
-            },
-        )
+        response = self._search("context project", client_id=self.client_a.id, per_type=10)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["client_id"], self.client_a.id)
@@ -216,10 +235,7 @@ class OperationalSearchAPITests(TestCase):
     def test_inaccessible_client_context_returns_not_found(self) -> None:
         self._grant("clients", "view_client")
 
-        response = self.client.get(
-            "/api/admin/search",
-            {"q": "hidden", "client_id": str(self.client_b.id)},
-        )
+        response = self._search("hidden", client_id=self.client_b.id)
 
         self.assertEqual(response.status_code, 404)
 
@@ -245,8 +261,8 @@ class OperationalSearchAPITests(TestCase):
             credential_type=credential_type,
         )
 
-        metadata_response = self.client.get("/api/admin/search", {"q": "metadata needle"})
-        secret_response = self.client.get("/api/admin/search", {"q": "legacy-secret-marker"})
+        metadata_response = self._search("metadata needle")
+        secret_response = self._search("legacy-secret-marker")
 
         self.assertEqual(metadata_response.status_code, 200)
         credential_results = [
@@ -280,13 +296,13 @@ class OperationalSearchAPITests(TestCase):
             resource_type=InfrastructureResource.ResourceType.API,
         )
 
-        no_permission = self.client.get("/api/admin/search", {"q": "orion"})
+        no_permission = self._search("orion")
         self.assertEqual(no_permission.status_code, 200)
         self.assertEqual(no_permission.json()["groups"], [])
 
         self._grant("knowledge_base", "view_knowledgebasedocument")
         self._grant("infrastructure", "view_infrastructureresource")
-        allowed = self.client.get("/api/admin/search", {"q": "orion"})
+        allowed = self._search("orion")
 
         result_keys = {(item["kind"], item["id"]) for item in self._flatten(allowed.json())}
         self.assertIn(("knowledge", document.id), result_keys)
