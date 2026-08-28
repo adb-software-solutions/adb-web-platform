@@ -6,6 +6,7 @@ import {
     BuildingOffice2Icon,
     CalendarDaysIcon,
     CircleStackIcon,
+    ClockIcon,
     CloudIcon,
     Cog6ToothIcon,
     DocumentTextIcon,
@@ -20,7 +21,6 @@ import {
     ShareIcon,
     ShieldCheckIcon,
     SignalIcon,
-    StopwatchIcon,
     UsersIcon,
     XMarkIcon,
 } from "@heroicons/react/24/outline";
@@ -104,7 +104,7 @@ const navigation: NavigationGroup[] = [
             {
                 label: "Service levels",
                 href: "/admin/service-levels",
-                icon: StopwatchIcon,
+                icon: ClockIcon,
                 permissions: ["ticketing.view_ticket"],
             },
         ],
