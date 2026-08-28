@@ -278,7 +278,7 @@ The following are established platform architecture, not future-only ideas:
 - Django-backed identity/session/TOTP/WebAuthn and dedicated auth frontend;
 - Brand-aware CMS/public content isolation;
 - capability permissions plus Client/Ticket Queue scope;
-- append-only AuditEvent foundation;
+- append-only AuditEvent foundation with scoped Client/resource context;
 - combined ADB Software Solutions public + `/admin` Next.js application;
 - Client/Contact CRUD and lifecycle management;
 - Client Command Centre with permission-aware section navigation, current-first
@@ -295,7 +295,8 @@ The following are established platform architecture, not future-only ideas:
 - Task and Ticket live timers plus Project/Task/Ticket time context;
 - Time Tracking drill-down by Client/Project/Internal and period rather than a
   giant global history table;
-- a permission-scoped Task/Project Calendar foundation;
+- a permission-scoped Calendar covering dated Tasks, Projects and first-class
+  Events/Meetings/Milestones/Reminders;
 - unified Ticketing with Messages, Notes, Attachments, queues and operational
   focus views;
 - Microsoft Graph app-only Shared Mailbox sync and outbound delivery;
@@ -319,11 +320,16 @@ The following are established platform architecture, not future-only ideas:
   activation/access changes;
 - configurable server-persisted Dashboard/My Work with permission-aware widgets,
   scoped current-work projections and personal audit activity;
+- permission-aware global and Client-context operational search;
+- bounded Infrastructure topology, richer Client/resource Activity and dedicated
+  audit/security UX;
+- scoped operational notifications, Credential expiry/rotation health and
+  reminders, Ticket SLA/escalation health and Queue policy editing;
 - deterministic development data and CI/container foundations.
 
-The operational foundations through Dashboard/My Work are implemented. Stage 9
-now owns the remaining unified search, richer activity, notification and related
-operational-polish work.
+The internal operational platform is implemented through Stage 9 unified
+operational polish. The next sustained implementation stage is Stage 10 —
+Commercial and analytics.
 
 Credential-specific security and lifecycle rules are authoritative in
 `CREDENTIAL_VAULT_ARCHITECTURE.md`.
@@ -365,13 +371,16 @@ views, completion controls and the embedded live timer.
 
 ### Calendar
 
-A permission-aware Calendar foundation exists for dated Tasks/Projects. The
-next Calendar work is refinement rather than a from-scratch build:
+The permission-aware Calendar is a unified planning surface for dated Tasks,
+Projects and first-class `CalendarEvent` records. Events support Internal or
+Client ownership, optional Project context, event/meeting/milestone/reminder
+types, scheduled/completed/cancelled state, timed or all-day ranges, locations,
+meeting URLs and attendee email metadata.
 
-- richer day/week planning where useful;
-- stronger Project milestone support;
-- first-class Event/Meeting design later;
-- external calendar integration only after an explicit design decision.
+Calendar write actions remain Django-authorised and Client/Project scope is
+validated in the backend. Upcoming Events can participate in operational
+notifications. External calendar synchronisation remains deferred until an
+explicit provider and conflict/ownership design is agreed.
 
 ### Time
 
@@ -405,13 +414,15 @@ Infrastructure, Credentials, Knowledge and Activity without repeatedly returning
 to global registers.
 
 Its server-authoritative projection provides permission-aware current-work counts,
-open communication, selected-period Time summaries and safe recent Activity. The
+open communication, selected-period Time summaries and scoped recent Activity. The
 frontend provides current/history section behaviour and contextual create/deep-link
 actions while reusing the mature domain workspaces instead of duplicating them.
 
 Active Client-owned Credential metadata is integrated through the existing Vault
 capability; secret values remain behind the Vault's separate reveal/copy/download
-boundaries. See `CLIENT_COMMAND_CENTRE_ARCHITECTURE.md` for the Stage 6 contract.
+boundaries. See `CLIENT_COMMAND_CENTRE_ARCHITECTURE.md` for the Stage 6 contract
+and `UNIFIED_OPERATIONAL_POLISH_ARCHITECTURE.md` for the Stage 9 activity/search
+extension.
 
 ### Leads
 
@@ -458,6 +469,12 @@ visually/staff-only distinct.
 Per-user default Ticket Queues are server-backed. An empty stored selection
 means all accessible enabled queues; an explicit subset narrows default work
 views.
+
+Queue-owned first-response and resolution SLA targets are supported. Ticket
+SLA deadlines are recorded explicitly, current health is evaluated as healthy,
+warning, breached or waiting-on-customer, and authorised Queue administrators
+can edit the targets from the Service Levels workspace. Waiting on Customer
+suppresses escalation without rewriting recorded deadlines.
 
 ### Microsoft Graph model
 
@@ -521,12 +538,13 @@ The merged foundation includes:
 - native Source Repository specialists and typed Application/Repository links;
 - native Website/Website Endpoint, Domain/DNS Zone/DNS Record and TLS Certificate specialists;
 - nested Website endpoint, DNS record and TLS Domain-coverage operations in the shared resource workspace;
-- safe resource-centric create/edit/archive workflows and conservative legacy promotion.
+- safe resource-centric create/edit/archive workflows and conservative legacy promotion;
+- bounded permission-aware topology traversal over visible resource relationships.
 
-Monitoring, Knowledge Base and specialist technical operations extend the same
-shared resource identity and are now integrated into the Client Command Centre.
-Users & Access and Dashboard/My Work are also implemented; the next major
-ordered implementation stage is Stage 9 unified operational polish.
+Monitoring, Knowledge Base, specialist technical operations and topology extend
+the same shared resource identity and are integrated into the Client Command
+Centre. The operational implementation sequence is complete through Stage 9;
+Stage 10 commercial/analytics is next.
 
 ### 9.2 Credential Vault
 
@@ -546,10 +564,12 @@ It provides:
 - links to one or more Infrastructure Resources with ownership validation;
 - Client and Infrastructure contextual views;
 - atomic reconciliation of legacy plaintext fields into encrypted payloads;
-- fail-closed behaviour when encryption configuration is unavailable.
+- fail-closed behaviour when encryption configuration is unavailable;
+- metadata-only expiry and configurable rotation-interval health;
+- scoped expiry/rotation reminders without indexing or projecting secret values.
 
-Secret values must never enter normal search, logs, URLs, analytics or audit
-metadata.
+Secret values must never enter normal search, logs, URLs, analytics, notification
+text or audit metadata.
 
 Infrastructure, Monitoring, Graph, KB and later specialist records reference
 Credentials instead of duplicating secret material.
@@ -572,7 +592,8 @@ The current check types include:
 Checks produce result history and incidents with failure/recovery semantics.
 Celery Beat/workers schedule execution through reusable services. Global,
 Client-scoped and resource-context technical-health views surface current
-problems first.
+problems first. Active incidents can also participate in the scoped operational
+notification layer.
 
 Authenticated monitoring remains deliberately deferred until explicit
 authentication schemes are modelled. A Credential type alone must not be used
@@ -657,9 +678,11 @@ removed from the effective layout immediately when their required capability is
 lost. Technical Health uses the same Monitoring check + incident capability
 boundary as the normal Monitoring overview.
 
-The generic AuditEvent model does not currently provide reliable cross-domain
-Client/object scope. Recent Activity is therefore deliberately limited to the
-current staff user's own audit events. Richer scoped activity is Stage 9 work.
+Stage 9 extends the append-only AuditEvent foundation with explicit Client and
+Infrastructure Resource context, allowing richer scoped operational Activity
+without inferring object visibility from unsafe labels or metadata. Dashboard
+Recent Activity remains intentionally personal; broader Activity lives in its
+own permission-aware workspace.
 
 Credential secret values are never surfaced through Dashboard widgets.
 
@@ -670,47 +693,52 @@ security boundary.
 
 ## 12. Search, activity, notifications and operational polish
 
-Once the underlying workspaces are mature, add a coherent cross-domain layer
-rather than independent global search boxes everywhere.
+Stage 9 is implemented as a coherent cross-domain operational layer rather than
+independent search boxes, alert widgets and audit dumps.
 
 ### Search
 
-Permission-aware global and Client-context search should cover useful
-non-secret metadata from:
+Permission-aware global and Client-context search covers useful non-secret
+metadata across Clients, Contacts, Leads, Tickets and visible Ticket message
+text, Projects, Tasks, Knowledge Base, Infrastructure and Credential metadata.
 
-- Contacts;
-- Leads/history;
-- Tickets/messages where appropriate;
-- Projects;
-- Tasks;
-- KB documents;
-- Infrastructure;
-- credential metadata only.
+Search is a CSRF-aware POST action so arbitrary operator-entered terms do not
+enter URL/query-string logging or browser-history surfaces. Each result domain
+reuses its normal capability and object scope, and decrypted Credential payloads,
+legacy secret fields and encrypted payload data are never searched or returned.
 
-Decrypted credential payloads are never indexed.
+PostgreSQL/database-backed bounded search is sufficient initially. Dedicated
+search infrastructure remains unjustified until real scale or relevance quality
+requires it.
 
-PostgreSQL-backed search is acceptable initially. Dedicated search
-infrastructure is not justified until scale/quality requires it.
+### Activity and audit/security UX
 
-### Activity
+AuditEvent is append-only and can carry explicit Client and Infrastructure
+Resource context. The Activity workspace applies live scope before returning
+records, exposes sensitive request metadata only to an explicit permission, and
+supports acknowledgement by appending a new audit event rather than mutating the
+original history.
 
-Client and resource activity should eventually provide a useful chronological
-view of operational changes/events. It should build from safe domain events and
-audit records rather than dumping every database change.
+Client/resource Activity is intentionally operational history, not a database
+change feed. Credential activity can show safe metadata actions but never secret
+values.
 
-Commercial events can join the Client activity timeline later.
+### Notifications and operational health
 
-Credential activity may show safe events such as created/updated/archived or
-that a secret action occurred; it must never include the secret value.
+A server-backed Notification model provides deterministic, scoped operational
+alerts for overdue assigned Tasks, assigned Ticket SLA warnings/breaches,
+Credential expiry/rotation health, Monitoring incidents and upcoming Calendar
+Events. Read/dismiss state is persisted per staff user and notifications resolve
+when the underlying condition disappears.
 
-### Notifications and SLA refinements
+Credential Health is metadata-only and supports optional per-Credential rotation
+intervals. Service Levels records Queue-owned first-response/resolution targets
+and Ticket deadlines, exposes warning/breach triage, and permits authorised Queue
+policy editing. Infrastructure topology is bounded and permission-aware.
 
-Notifications, escalation/SLA behaviour and richer Calendar/Event integration
-remain later operational refinements. They should be designed after the core
-work surfaces are stable rather than embedded piecemeal into unrelated PRs.
-
-Credential expiry/rotation reminders can join this layer after the initial
-Vault is proven in real use.
+See `UNIFIED_OPERATIONAL_SEARCH_ARCHITECTURE.md` and
+`UNIFIED_OPERATIONAL_POLISH_ARCHITECTURE.md` for the detailed Stage 9 contracts,
+security boundaries and deliberate deferrals.
 
 ---
 
@@ -735,7 +763,8 @@ Agreed future areas include:
 - Lead-source conversion and revenue attribution.
 
 Detailed contract signing, accounting, tax, forecasting, retainer and SLA
-models are **not yet agreed**. Do not invent them during unrelated work.
+models beyond the implemented Ticket operational SLA layer are **not yet
+agreed**. Do not invent them during unrelated work.
 
 The commercial layer should reuse existing Client, Lead, Project, Ticket and
 Time context rather than create duplicate customer/work models.
@@ -792,8 +821,9 @@ model and portal design says otherwise.
 ## 16. Current ordered build plan
 
 The Credential Vault, structured technical-operations stack, Client Command
-Centre, Users & Access and Dashboard/My Work are complete through Stage 8. The
-next sustained implementation stage is Stage 9 — Unified operational polish.
+Centre, Users & Access, Dashboard/My Work and Stage 9 Unified operational polish
+are implemented. The next sustained implementation stage is Stage 10 —
+Commercial and analytics.
 
 ### Stage 1 — Core typed Infrastructure — implemented
 
@@ -865,7 +895,7 @@ The platform now has:
 - bounded safe Activity metadata foundation with no Credential secret values.
 
 See `CLIENT_COMMAND_CENTRE_ARCHITECTURE.md` for the integration and security
-boundary. Richer unified Activity/search remains deliberately part of Stage 9.
+boundary. Richer unified Activity/search is implemented in Stage 9.
 
 ### Stage 7 — Users & Access — implemented
 
@@ -895,18 +925,26 @@ See `USERS_ACCESS_ARCHITECTURE.md` for the implementation and security boundary.
 - audit of preference changes without storing widget data or secret values.
 
 See `DASHBOARD_MY_WORK_ARCHITECTURE.md` for the implementation and security
-boundary. Richer cross-domain Activity, search and notifications remain Stage 9.
+boundary. Cross-domain Activity, search and notifications are implemented in
+Stage 9.
 
-### Stage 9 — Unified operational polish
+### Stage 9 — Unified operational polish — implemented
 
-- global/Client search;
-- topology/navigation polish;
-- Client/resource Activity;
-- audit/security UX;
-- notifications;
-- Credential expiry/rotation health/reminders;
-- SLA/escalation refinements;
-- richer Calendar/Event behaviour where justified.
+- permission-aware global and Client-context search using body-only POST input;
+- navigation polish and bounded permission-aware Infrastructure topology;
+- explicit Client/resource AuditEvent context and richer scoped Activity;
+- dedicated audit/security UX with append-only acknowledgement semantics;
+- server-backed scoped operational notifications;
+- Credential expiry/rotation health and reminders without secret projection;
+- Ticket Queue first-response/resolution SLA policy, recorded deadlines,
+  warning/breach triage and escalation suppression while waiting on customer;
+- first-class Calendar Events/Meetings/Milestones/Reminders integrated with the
+  dated Task/Project Calendar;
+- canonical Stage 9 architecture/security documentation.
+
+See `UNIFIED_OPERATIONAL_SEARCH_ARCHITECTURE.md` and
+`UNIFIED_OPERATIONAL_POLISH_ARCHITECTURE.md` for the Stage 9 implementation and
+security boundaries.
 
 ### Stage 10 — Commercial and analytics
 
