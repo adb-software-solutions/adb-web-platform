@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
     BanknotesIcon,
     BuildingOffice2Icon,
+    CalendarDaysIcon,
     CircleStackIcon,
     CloudIcon,
     Cog6ToothIcon,
@@ -16,7 +17,10 @@ import {
     MegaphoneIcon,
     RectangleGroupIcon,
     ServerStackIcon,
+    ShareIcon,
+    ShieldCheckIcon,
     SignalIcon,
+    StopwatchIcon,
     UsersIcon,
     XMarkIcon,
 } from "@heroicons/react/24/outline";
@@ -75,6 +79,12 @@ const navigation: NavigationGroup[] = [
                 permissions: ["tasks.view_task"],
             },
             {
+                label: "Calendar",
+                href: "/admin/calendar",
+                icon: CalendarDaysIcon,
+                permissions: ["tasks.view_task", "clients.view_project", "tasks.view_calendarevent"],
+            },
+            {
                 label: "Time tracking",
                 href: "/admin/time-tracking",
                 icon: BanknotesIcon,
@@ -89,7 +99,13 @@ const navigation: NavigationGroup[] = [
                 label: "Tickets",
                 href: "/admin/tickets",
                 icon: LifebuoyIcon,
-                permissions: ["tickets.view_ticket"],
+                permissions: ["ticketing.view_ticket"],
+            },
+            {
+                label: "Service levels",
+                href: "/admin/service-levels",
+                icon: StopwatchIcon,
+                permissions: ["ticketing.view_ticket"],
             },
         ],
     },
@@ -108,6 +124,12 @@ const navigation: NavigationGroup[] = [
                 icon: KeyIcon,
                 permissions: ["credentials.view_storedcredential"],
             },
+            {
+                label: "Credential health",
+                href: "/admin/credentials/health",
+                icon: ShieldCheckIcon,
+                permissions: ["credentials.view_storedcredential"],
+            },
         ],
     },
     {
@@ -118,12 +140,19 @@ const navigation: NavigationGroup[] = [
                 href: "/admin/infrastructure",
                 icon: ServerStackIcon,
                 permissions: [
+                    "infrastructure.view_infrastructureresource",
                     "infrastructure.view_server",
                     "infrastructure.view_database",
                     "infrastructure.view_website",
                     "infrastructure.view_domain",
                     "infrastructure.view_application",
                 ],
+            },
+            {
+                label: "Topology",
+                href: "/admin/infrastructure/topology",
+                icon: ShareIcon,
+                permissions: ["infrastructure.view_infrastructureresource"],
             },
             {
                 label: "Applications",
@@ -158,6 +187,12 @@ const navigation: NavigationGroup[] = [
     {
         label: "Administration",
         items: [
+            {
+                label: "Activity & security",
+                href: "/admin/activity",
+                icon: ShieldCheckIcon,
+                permissions: ["core.view_auditevent"],
+            },
             {
                 label: "Users & access",
                 href: "/admin/access",
@@ -199,17 +234,13 @@ function SidebarContent({
                     onClick={onNavigate}
                     className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden"
                 >
-                    <div className="bg-adb-cyan-500 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-black text-slate-950">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-adb-cyan-500 font-black text-slate-950">
                         A
                     </div>
                     {!collapsed && (
                         <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-white">
-                                ADB Platform
-                            </div>
-                            <div className="truncate text-xs text-slate-500">
-                                Operations Console
-                            </div>
+                            <div className="truncate text-sm font-semibold text-white">ADB Platform</div>
+                            <div className="truncate text-xs text-slate-500">Operations Console</div>
                         </div>
                     )}
                 </Link>
@@ -230,36 +261,27 @@ function SidebarContent({
                     const items = group.items.filter(
                         (item) =>
                             !item.permissions ||
-                            item.permissions.some((permission) =>
-                                hasPermission(permission),
-                            ),
+                            item.permissions.some((permission) => hasPermission(permission)),
                     );
                     if (items.length === 0) return null;
 
                     return (
                         <div key={group.label}>
                             {!collapsed && (
-                                <p className="mb-2 px-3 text-[10px] font-bold tracking-[0.18em] text-slate-600 uppercase">
+                                <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
                                     {group.label}
                                 </p>
                             )}
                             <div className="space-y-1">
                                 {items.map((item) => {
-                                    const active = isActive(
-                                        pathname,
-                                        item.href,
-                                    );
+                                    const active = isActive(pathname, item.href);
                                     const Icon = item.icon;
                                     return (
                                         <Link
                                             key={`${group.label}-${item.label}`}
                                             href={item.href}
                                             onClick={onNavigate}
-                                            title={
-                                                collapsed
-                                                    ? item.label
-                                                    : undefined
-                                            }
+                                            title={collapsed ? item.label : undefined}
                                             className={`group flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
                                                 active
                                                     ? "bg-slate-800 text-white shadow-inner shadow-black/20"
@@ -273,11 +295,7 @@ function SidebarContent({
                                                         : "text-slate-500 group-hover:text-slate-300"
                                                 }`}
                                             />
-                                            {!collapsed && (
-                                                <span className="truncate">
-                                                    {item.label}
-                                                </span>
-                                            )}
+                                            {!collapsed && <span className="truncate">{item.label}</span>}
                                         </Link>
                                     );
                                 })}
@@ -290,12 +308,9 @@ function SidebarContent({
             <div className="border-t border-slate-800 p-4">
                 {!collapsed ? (
                     <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-                        <div className="text-xs font-medium text-slate-300">
-                            ADB Business Platform
-                        </div>
+                        <div className="text-xs font-medium text-slate-300">ADB Business Platform</div>
                         <div className="mt-1 text-[11px] leading-4 text-slate-600">
-                            CRM, support, projects and infrastructure in one
-                            place.
+                            CRM, support, projects and infrastructure in one place.
                         </div>
                     </div>
                 ) : (
@@ -306,11 +321,7 @@ function SidebarContent({
     );
 }
 
-export function Sidebar({
-    collapsed,
-    mobileOpen,
-    onCloseMobile,
-}: SidebarProps) {
+export function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) {
     return (
         <>
             <aside
