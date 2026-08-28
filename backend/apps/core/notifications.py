@@ -123,29 +123,26 @@ def _task_notifications(user: User) -> list[NotificationSpec]:
         due_date__lt=today,
     )
     if not user.is_superuser:
-        tasks = tasks.filter(
-            Q(ownership_type=OwnershipType.INTERNAL) | Q(client__in=clients)
-        )
+        tasks = tasks.filter(Q(ownership_type=OwnershipType.INTERNAL) | Q(client__in=clients))
 
     specs: list[NotificationSpec] = []
     for task in tasks.distinct().order_by("due_date", "-priority", "id")[:50]:
+        due_date = task.due_date
+        if due_date is None:
+            continue
         severity = (
             Notification.Severity.CRITICAL
             if task.priority >= 4
             else Notification.Severity.WARNING
         )
-        context = (
-            task.project.name
-            if task.project
-            else (str(task.client) if task.client else "Internal")
-        )
+        context = task.project.name if task.project else (str(task.client) if task.client else "Internal")
         specs.append(
             NotificationSpec(
                 source_key=f"task:overdue:{task.id}",
                 category=Notification.Category.TASK,
                 severity=severity,
                 title=f"Overdue task: {task.title}",
-                body=f"Due {task.due_date.isoformat()} · {context}",
+                body=f"Due {due_date.isoformat()} · {context}",
                 href=f"/admin/tasks/{task.id}",
                 client_id=task.client_id,
             )
@@ -221,8 +218,7 @@ def _credential_notifications(user: User) -> list[NotificationSpec]:
             title = f"Credential rotation due: {credential.name}"
             body = (
                 "Rotation is overdue."
-                if health.rotation_due_in_days is not None
-                and health.rotation_due_in_days < 0
+                if health.rotation_due_in_days is not None and health.rotation_due_in_days < 0
                 else "The configured rotation interval has been reached."
             )
         else:
@@ -249,9 +245,7 @@ def _monitor_notifications(user: User) -> list[NotificationSpec]:
     ):
         return []
     resources = scope_infrastructure_resources_for_user(user)
-    incidents = MonitorIncident.objects.select_related(
-        "monitor_check__resource__client"
-    ).filter(
+    incidents = MonitorIncident.objects.select_related("monitor_check__resource__client").filter(
         monitor_check__resource__in=resources,
         status__in=[MonitorIncident.Status.OPEN, MonitorIncident.Status.ACKNOWLEDGED],
     )
@@ -290,9 +284,7 @@ def _calendar_notifications(user: User) -> list[NotificationSpec]:
         starts_at__lte=upcoming_until,
     )
     if not user.is_superuser:
-        events = events.filter(
-            Q(ownership_type=OwnershipType.INTERNAL) | Q(client__in=clients)
-        )
+        events = events.filter(Q(ownership_type=OwnershipType.INTERNAL) | Q(client__in=clients))
 
     user_email = user.email.strip().lower()
     specs: list[NotificationSpec] = []
