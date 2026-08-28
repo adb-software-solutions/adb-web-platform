@@ -4,6 +4,7 @@ from typing import Any
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils.text import slugify
 
@@ -108,6 +109,12 @@ class StoredCredential(models.Model):
 
     expires_at = models.DateTimeField(blank=True, null=True)
     last_rotated_at = models.DateTimeField(blank=True, null=True)
+    rotation_interval_days = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(1)],
+        help_text="Optional maximum age before this credential should be rotated.",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
