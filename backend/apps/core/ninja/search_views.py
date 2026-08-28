@@ -9,7 +9,7 @@ from apps.core.operational_search import search_operational_records
 from authentication.models import User
 from authentication.ninja.schemas import ProblemDetail
 
-from .search_schemas import OperationalSearchOut
+from .search_schemas import OperationalSearchIn, OperationalSearchOut
 
 operational_search_router = Router(tags=["admin-operational-search"])
 StaffProblem = tuple[int, dict[str, Any]]
@@ -27,7 +27,7 @@ def _resolve_client(user: User, client_id: int | None) -> Client | None:
     return scope_clients_for_user(user).filter(id=client_id).first()
 
 
-@operational_search_router.get(
+@operational_search_router.post(
     "/search",
     response={
         200: OperationalSearchOut,
@@ -39,9 +39,7 @@ def _resolve_client(user: User, client_id: int | None) -> Client | None:
 )
 def operational_search(
     request: HttpRequest,
-    q: str,
-    client_id: int | None = None,
-    per_type: int = 5,
+    payload: OperationalSearchIn,
 ) -> OperationalSearchOut | StaffProblem:
     if not request.user.is_authenticated:
         return _problem(401, "User not authenticated", "unauthenticated")
@@ -52,7 +50,7 @@ def operational_search(
             "forbidden",
         )
 
-    query = q.strip()
+    query = payload.q.strip()
     if len(query) < 2:
         return _problem(
             400,
@@ -67,15 +65,15 @@ def operational_search(
         )
 
     user = cast(User, request.user)
-    client = _resolve_client(user, client_id)
-    if client_id is not None and client is None:
+    client = _resolve_client(user, payload.client_id)
+    if payload.client_id is not None and client is None:
         return _problem(404, "Client not found.", "not_found")
 
     groups = search_operational_records(
         user=user,
         query=query,
         client=client,
-        per_type=per_type,
+        per_type=payload.per_type,
     )
     return OperationalSearchOut(
         query=query,
