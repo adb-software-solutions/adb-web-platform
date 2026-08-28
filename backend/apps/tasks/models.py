@@ -245,6 +245,113 @@ class Task(models.Model):
         return self.title
 
 
+class CalendarEvent(models.Model):
+    """First-class scheduled event or meeting in Internal or Client context."""
+
+    class EventType(models.TextChoices):
+        EVENT = "event", "Event"
+        MEETING = "meeting", "Meeting"
+        MILESTONE = "milestone", "Milestone"
+        REMINDER = "reminder", "Reminder"
+
+    class Status(models.TextChoices):
+        SCHEDULED = "scheduled", "Scheduled"
+        COMPLETED = "completed", "Completed"
+        CANCELLED = "cancelled", "Cancelled"
+
+    ownership_type = models.CharField(
+        max_length=20,
+        choices=OwnershipType.choices,
+        default=OwnershipType.INTERNAL,
+    )
+    client = models.ForeignKey(
+        "clients.Client",
+        on_delete=models.CASCADE,
+        related_name="calendar_events",
+        null=True,
+        blank=True,
+    )
+    project = models.ForeignKey(
+        "clients.Project",
+        on_delete=models.SET_NULL,
+        related_name="calendar_events",
+        null=True,
+        blank=True,
+    )
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    event_type = models.CharField(
+        max_length=20,
+        choices=EventType.choices,
+        default=EventType.EVENT,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.SCHEDULED,
+        db_index=True,
+    )
+    starts_at = models.DateTimeField(db_index=True)
+    ends_at = models.DateTimeField(db_index=True)
+    all_day = models.BooleanField(default=False)
+    location = models.CharField(max_length=255, blank=True)
+    meeting_url = models.URLField(blank=True)
+    attendee_emails = models.JSONField(default=list, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="calendar_events_created",
+        null=True,
+        blank=True,
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="calendar_events_updated",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["starts_at", "id"]
+        constraints = [ownership_constraint("calendarevent_valid_ownership")]
+        indexes = [
+            models.Index(fields=["starts_at", "ends_at"], name="calendar_event_range_idx"),
+            models.Index(
+                fields=["ownership_type", "client", "status"],
+                name="calendar_event_owner_idx",
+            ),
+        ]
+
+    def clean(self) -> None:
+        super().clean()
+        validate_ownership(self)
+        self.title = self.title.strip()
+        self.location = self.location.strip()
+        self.meeting_url = self.meeting_url.strip()
+        self.attendee_emails = list(
+            dict.fromkeys(
+                str(value).strip().lower()
+                for value in self.attendee_emails
+                if str(value).strip()
+            )
+        )
+        if not self.title:
+            raise ValidationError({"title": "An event title is required."})
+        if self.ends_at < self.starts_at:
+            raise ValidationError({"ends_at": "Event end cannot precede its start."})
+        if self.project_id and self.project:
+            if self.project.ownership_type != self.ownership_type:
+                raise ValidationError({"project": "Event ownership must match its project."})
+            if self.project.client_id != self.client_id:
+                raise ValidationError({"client": "Event client must match its project."})
+
+    def __str__(self) -> str:
+        return self.title
+
+
 class TaskComment(models.Model):
     """Human discussion attached to a task."""
 
