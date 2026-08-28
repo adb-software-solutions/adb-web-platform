@@ -15,6 +15,8 @@ class InfrastructureTopologyAPITests(TestCase):
         self.user = User.objects.create_user(
             email="topology@example.test",
             password="test-password",
+            first_name="Topology",
+            last_name="User",
             is_staff=True,
         )
         self.allowed_client = Client.objects.create(
@@ -110,8 +112,6 @@ class InfrastructureTopologyAPITests(TestCase):
     def test_hidden_root_is_not_discoverable(self) -> None:
         hidden = self._resource("Hidden root", client=self.hidden_client)
 
-        response = self.client.get(
-            f"/api/admin/infrastructure/resources/{hidden.id}/topology"
-        )
+        response = self.client.get(f"/api/admin/infrastructure/resources/{hidden.id}/topology")
 
         self.assertEqual(response.status_code, 404)
