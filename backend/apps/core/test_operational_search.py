@@ -2,7 +2,6 @@ import json
 from typing import Any
 
 from django.contrib.auth.models import Permission
-from django.http import HttpResponse
 from django.test import TestCase
 from django.utils import timezone
 
@@ -71,7 +70,7 @@ class OperationalSearchAPITests(TestCase):
         *,
         client_id: int | None = None,
         per_type: int = 5,
-    ) -> HttpResponse:
+    ) -> Any:
         return self.client.post(
             "/api/admin/search",
             data=json.dumps(
