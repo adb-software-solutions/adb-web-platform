@@ -174,11 +174,7 @@ class OperationalSearchAPITests(TestCase):
         response = self.client.get("/api/admin/search", {"q": "aurora-search-marker"})
 
         self.assertEqual(response.status_code, 200)
-        tickets = [
-            item
-            for item in self._flatten(response.json())
-            if item["kind"] == "tickets"
-        ]
+        tickets = [item for item in self._flatten(response.json()) if item["kind"] == "tickets"]
         self.assertEqual([item["id"] for item in tickets], [visible.id])
 
     def test_client_context_excludes_internal_and_other_client_records(self) -> None:
@@ -214,11 +210,7 @@ class OperationalSearchAPITests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["client_id"], self.client_a.id)
-        projects = [
-            item
-            for item in self._flatten(response.json())
-            if item["kind"] == "projects"
-        ]
+        projects = [item for item in self._flatten(response.json()) if item["kind"] == "projects"]
         self.assertEqual([item["id"] for item in projects], [allowed.id])
 
     def test_inaccessible_client_context_returns_not_found(self) -> None:
@@ -265,10 +257,7 @@ class OperationalSearchAPITests(TestCase):
         self.assertEqual([item["id"] for item in credential_results], [visible.id])
         self.assertEqual(secret_response.status_code, 200)
         self.assertFalse(
-            any(
-                item["kind"] == "credentials"
-                for item in self._flatten(secret_response.json())
-            )
+            any(item["kind"] == "credentials" for item in self._flatten(secret_response.json()))
         )
 
     def test_knowledge_and_infrastructure_search_obey_capabilities(self) -> None:
@@ -299,8 +288,6 @@ class OperationalSearchAPITests(TestCase):
         self._grant("infrastructure", "view_infrastructureresource")
         allowed = self.client.get("/api/admin/search", {"q": "orion"})
 
-        result_keys = {
-            (item["kind"], item["id"]) for item in self._flatten(allowed.json())
-        }
+        result_keys = {(item["kind"], item["id"]) for item in self._flatten(allowed.json())}
         self.assertIn(("knowledge", document.id), result_keys)
         self.assertIn(("infrastructure", resource.id), result_keys)
