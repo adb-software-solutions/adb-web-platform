@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from django.db.models import QuerySet
 from django.http import HttpRequest
 from django.utils import timezone
 from ninja import Router
@@ -37,7 +38,7 @@ def _permission_problem(request: HttpRequest, permission: str) -> StaffProblem |
     return None
 
 
-def _visible_credentials(request: HttpRequest):
+def _visible_credentials(request: HttpRequest) -> QuerySet[StoredCredential]:
     return scope_credentials_for_user(request.user).select_related("client", "credential_type")
 
 
