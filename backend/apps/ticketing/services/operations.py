@@ -5,6 +5,7 @@ from datetime import datetime
 from django.utils import timezone
 
 from apps.ticketing.models import Ticket, TicketQueue
+from apps.ticketing.services.sla import reset_ticket_sla_deadlines
 from authentication.models import User
 
 
@@ -38,7 +39,7 @@ def set_ticket_priority(ticket: Ticket, priority: str) -> Ticket:
 
 
 def move_ticket_queue(ticket: Ticket, queue: TicketQueue) -> Ticket:
-    """Move a ticket to an enabled queue belonging to its Brand or a global queue."""
+    """Move a ticket and apply the destination Queue's SLA from the move time."""
     if queue.pk == ticket.queue_id:
         return ticket
     if not queue.enabled:
@@ -48,6 +49,7 @@ def move_ticket_queue(ticket: Ticket, queue: TicketQueue) -> Ticket:
 
     ticket.queue = queue
     ticket.save(update_fields=["queue", "updated_at"])
+    reset_ticket_sla_deadlines(ticket)
     return ticket
 
 
