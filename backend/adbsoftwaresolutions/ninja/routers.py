@@ -33,6 +33,7 @@ from apps.infrastructure.ninja.reconciliation_views import infrastructure_reconc
 from apps.infrastructure.ninja.resource_views import infrastructure_resource_router
 from apps.infrastructure.ninja.specialist_edit_views import infrastructure_specialist_edit_router
 from apps.infrastructure.ninja.specialist_views import infrastructure_specialist_router
+from apps.infrastructure.ninja.topology_views import topology_router
 from apps.infrastructure.ninja.web_domain_nested_views import web_domain_nested_router
 from apps.infrastructure.ninja.web_domain_views import web_domain_specialist_router
 from apps.knowledge_base.ninja.attachment_views import knowledge_attachment_router
@@ -122,6 +123,7 @@ admin_router.add_router("", web_domain_specialist_router)
 admin_router.add_router("", web_domain_nested_router)
 admin_router.add_router("", operational_specialist_router)
 admin_router.add_router("", operational_nested_router)
+admin_router.add_router("", topology_router)
 admin_router.add_router("", monitoring_router)
 admin_router.add_router("", credential_router)
 admin_router.add_router("", credential_lifecycle_router)
