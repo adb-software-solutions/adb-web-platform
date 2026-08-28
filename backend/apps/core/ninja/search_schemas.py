@@ -4,6 +4,12 @@ from ninja import Schema
 from pydantic import Field
 
 
+class OperationalSearchIn(Schema):
+    q: str
+    client_id: int | None = None
+    per_type: int = 5
+
+
 class OperationalSearchResultOut(Schema):
     kind: str
     id: int
