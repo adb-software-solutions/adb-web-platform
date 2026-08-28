@@ -33,4 +33,4 @@ celery==5.6.3
 
 # Direct integrations / security
 requests==2.34.2
-cryptography==50.0.0
+cryptography==50.0.1
