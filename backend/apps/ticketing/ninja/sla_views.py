@@ -8,18 +8,13 @@ from ninja import Router
 
 from apps.access_control.policies import scope_ticket_queues_for_user
 from apps.core.models import AuditEvent
-from apps.ticketing.models import Ticket, TicketQueue
+from apps.ticketing.models import Ticket
 from apps.ticketing.services.sla import evaluate_ticket_sla, reset_ticket_sla_deadlines
 from authentication.models import User
 from authentication.ninja.schemas import ProblemDetail
 
 from .admin_views import _visible_tickets
-from .sla_schemas import (
-    TicketQueueSLAOut,
-    TicketQueueSLAUpdateIn,
-    TicketSLAListOut,
-    TicketSLAOut,
-)
+from .sla_schemas import TicketQueueSLAOut, TicketQueueSLAUpdateIn, TicketSLAListOut, TicketSLAOut
 
 sla_router = Router(tags=["admin-ticket-sla"])
 StaffProblem = tuple[int, dict[str, Any]]
@@ -191,9 +186,12 @@ def ticket_sla_list(
         return _problem(403, "You do not have permission to view tickets.", "forbidden")
 
     tickets = _visible_tickets(request).select_related("queue", "client", "assigned_to")
-    tickets = tickets.exclude(
-        status__in=[Ticket.Status.CLOSED, Ticket.Status.SPAM]
-    ).order_by("first_response_due_at", "resolution_due_at", "-priority", "id")
+    tickets = tickets.exclude(status__in=[Ticket.Status.CLOSED, Ticket.Status.SPAM]).order_by(
+        "first_response_due_at",
+        "resolution_due_at",
+        "-priority",
+        "id",
+    )
     if assigned_to_me:
         tickets = tickets.filter(assigned_to=cast(User, request.user))
 
@@ -208,9 +206,7 @@ def ticket_sla_list(
         healthy_count=sum(item.overall_status == "healthy" for item in all_items),
         warning_count=sum(item.overall_status == "warning" for item in all_items),
         breached_count=sum(item.overall_status == "breached" for item in all_items),
-        waiting_customer_count=sum(
-            item.overall_status == "waiting_customer" for item in all_items
-        ),
+        waiting_customer_count=sum(item.overall_status == "waiting_customer" for item in all_items),
     )
 
 
