@@ -10,11 +10,7 @@ from apps.access_control.policies import scope_clients_for_user
 from apps.clients.models import Client
 from apps.core.models import AuditEvent, Notification
 from apps.core.notifications import refresh_notifications
-from apps.core.operational_activity import (
-    ActivityContext,
-    activity_page,
-    scoped_audit_events,
-)
+from apps.core.operational_activity import ActivityContext, activity_page, scoped_audit_events
 from apps.infrastructure.models import InfrastructureResource
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
 from authentication.models import User
@@ -95,8 +91,8 @@ def _resolve_activity_context(
 def _notification_out(notification: Notification) -> NotificationOut:
     return NotificationOut(
         id=notification.id,
-        category=notification.category,
-        severity=notification.severity,
+        category=cast(Any, notification.category),
+        severity=cast(Any, notification.severity),
         title=notification.title,
         body=notification.body,
         href=notification.href,
