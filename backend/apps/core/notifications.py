@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import timedelta
 
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from apps.access_control.policies import scope_clients_for_user
+from apps.access_control.policies import scope_clients_for_user, scope_ticket_queues_for_user
 from apps.core.models import Notification
 from apps.core.ownership import OwnershipType
 from apps.credentials.health import evaluate_credential_health
@@ -15,7 +16,9 @@ from apps.credentials.models import StoredCredential
 from apps.credentials.policies import scope_credentials_for_user
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
 from apps.monitoring.models import MonitorIncident
-from apps.tasks.models import Task
+from apps.tasks.models import CalendarEvent, Task
+from apps.ticketing.models import Ticket
+from apps.ticketing.services.sla import evaluate_ticket_sla
 from authentication.models import User
 
 
@@ -150,6 +153,51 @@ def _task_notifications(user: User) -> list[NotificationSpec]:
     return specs
 
 
+def _ticket_notifications(user: User) -> list[NotificationSpec]:
+    if not user.has_perm("ticketing.view_ticket"):
+        return []
+    queues = scope_ticket_queues_for_user(user)
+    clients = scope_clients_for_user(user)
+    tickets = Ticket.objects.select_related("queue", "client").filter(
+        queue__in=queues,
+        assigned_to=user,
+    )
+    if not user.is_superuser:
+        tickets = tickets.filter(Q(client__isnull=True) | Q(client__in=clients))
+    tickets = tickets.exclude(
+        status__in=[Ticket.Status.RESOLVED, Ticket.Status.CLOSED, Ticket.Status.SPAM]
+    )
+
+    specs: list[NotificationSpec] = []
+    for ticket in tickets.distinct().order_by("id")[:200]:
+        health = evaluate_ticket_sla(ticket)
+        if health.overall_status not in {"warning", "breached"}:
+            continue
+        severity = (
+            Notification.Severity.CRITICAL
+            if health.overall_status == "breached"
+            else Notification.Severity.WARNING
+        )
+        title = (
+            f"SLA breached: {ticket.reference}"
+            if health.overall_status == "breached"
+            else f"SLA approaching: {ticket.reference}"
+        )
+        due_text = health.next_due_at.isoformat() if health.next_due_at else "No pending deadline"
+        specs.append(
+            NotificationSpec(
+                source_key=f"ticket:sla:{ticket.id}",
+                category=Notification.Category.TICKET,
+                severity=severity,
+                title=title,
+                body=f"{ticket.subject} · {due_text}",
+                href=f"/admin/tickets/{ticket.id}",
+                client_id=ticket.client_id,
+            )
+        )
+    return specs
+
+
 def _credential_notifications(user: User) -> list[NotificationSpec]:
     if not user.has_perm("credentials.view_storedcredential"):
         return []
@@ -230,32 +278,57 @@ def _monitor_notifications(user: User) -> list[NotificationSpec]:
     return specs
 
 
+def _calendar_notifications(user: User) -> list[NotificationSpec]:
+    if not user.has_perm("tasks.view_calendarevent"):
+        return []
+    current = timezone.now()
+    upcoming_until = current + timedelta(hours=24)
+    clients = scope_clients_for_user(user)
+    events = CalendarEvent.objects.select_related("client").filter(
+        status=CalendarEvent.Status.SCHEDULED,
+        starts_at__gte=current,
+        starts_at__lte=upcoming_until,
+    )
+    if not user.is_superuser:
+        events = events.filter(
+            Q(ownership_type=OwnershipType.INTERNAL) | Q(client__in=clients)
+        )
+
+    user_email = user.email.strip().lower()
+    specs: list[NotificationSpec] = []
+    for event in events.distinct().order_by("starts_at", "id")[:100]:
+        attendees = {str(value).strip().lower() for value in event.attendee_emails}
+        if event.created_by_id != user.id and user_email not in attendees:
+            continue
+        specs.append(
+            NotificationSpec(
+                source_key=f"calendar:upcoming:{event.id}",
+                category=Notification.Category.CALENDAR,
+                severity=Notification.Severity.INFO,
+                title=f"Upcoming {event.get_event_type_display().lower()}: {event.title}",
+                body=f"Starts {event.starts_at.isoformat()}",
+                href="/admin/calendar",
+                client_id=event.client_id,
+            )
+        )
+    return specs
+
+
 def refresh_notifications(user: User) -> None:
     """Refresh deterministic operational alerts while preserving user read state."""
+    sources = [
+        ("task:overdue:", _task_notifications(user)),
+        ("ticket:sla:", _ticket_notifications(user)),
+        ("credential:health:", _credential_notifications(user)),
+        ("monitoring:incident:", _monitor_notifications(user)),
+        ("calendar:upcoming:", _calendar_notifications(user)),
+    ]
     with transaction.atomic():
-        task_specs = _task_notifications(user)
-        for spec in task_specs:
-            sync_notification(user, spec)
-        resolve_missing_notifications(
-            user,
-            "task:overdue:",
-            (spec.source_key for spec in task_specs),
-        )
-
-        credential_specs = _credential_notifications(user)
-        for spec in credential_specs:
-            sync_notification(user, spec)
-        resolve_missing_notifications(
-            user,
-            "credential:health:",
-            (spec.source_key for spec in credential_specs),
-        )
-
-        monitor_specs = _monitor_notifications(user)
-        for spec in monitor_specs:
-            sync_notification(user, spec)
-        resolve_missing_notifications(
-            user,
-            "monitoring:incident:",
-            (spec.source_key for spec in monitor_specs),
-        )
+        for prefix, specs in sources:
+            for spec in specs:
+                sync_notification(user, spec)
+            resolve_missing_notifications(
+                user,
+                prefix,
+                (spec.source_key for spec in specs),
+            )
