@@ -66,7 +66,10 @@ class Migration(migrations.Migration):
                 ("body", models.TextField(blank=True)),
                 ("href", models.CharField(blank=True, max_length=500)),
                 ("client_id", models.PositiveBigIntegerField(blank=True, db_index=True, null=True)),
-                ("resource_id", models.PositiveBigIntegerField(blank=True, db_index=True, null=True)),
+                (
+                    "resource_id",
+                    models.PositiveBigIntegerField(blank=True, db_index=True, null=True),
+                ),
                 ("read_at", models.DateTimeField(blank=True, null=True)),
                 ("dismissed_at", models.DateTimeField(blank=True, null=True)),
                 ("resolved_at", models.DateTimeField(blank=True, null=True)),
