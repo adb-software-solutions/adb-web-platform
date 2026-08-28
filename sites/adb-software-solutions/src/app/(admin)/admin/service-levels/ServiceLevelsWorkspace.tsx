@@ -1,6 +1,7 @@
 "use client";
 
 import { Button, Card, DataError, DataLoading, EmptyState } from "@/components/ui";
+import { useAuth } from "@/contexts/AuthContext";
 import { fetchAPI } from "@/lib/api/fetch";
 import { API_URL } from "@/lib/config";
 import Link from "next/link";
@@ -37,6 +38,27 @@ interface TicketSLAResponse {
     waiting_customer_count: number;
 }
 
+interface TicketQueue {
+    id: number;
+    name: string;
+    key: string;
+    brand_name: string | null;
+    enabled: boolean;
+}
+
+interface QueuePolicy {
+    queue_id: number;
+    queue_name: string;
+    first_response_sla_minutes: number | null;
+    resolution_sla_minutes: number | null;
+}
+
+interface QueuePolicyDraft extends QueuePolicy {
+    firstResponseDraft: string;
+    resolutionDraft: string;
+    saving: boolean;
+}
+
 function formatDate(value: string | null) {
     if (!value) return "Not applicable";
     return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(
@@ -51,12 +73,57 @@ function statusClasses(status: string) {
     return "border-emerald-900/60 bg-emerald-950/20 text-emerald-300";
 }
 
+function parseTarget(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parsed = Number(trimmed);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
 export function ServiceLevelsWorkspace() {
+    const { hasPermission } = useAuth();
     const [data, setData] = useState<TicketSLAResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [attentionOnly, setAttentionOnly] = useState(true);
     const [mineOnly, setMineOnly] = useState(false);
+    const [queuePolicies, setQueuePolicies] = useState<QueuePolicyDraft[]>([]);
+
+    const canViewQueues = hasPermission("ticketing.view_ticketqueue");
+    const canConfigureQueues = hasPermission("ticketing.configure_ticket_queues");
+
+    const loadQueuePolicies = useCallback(async () => {
+        if (!canViewQueues) {
+            setQueuePolicies([]);
+            return;
+        }
+        try {
+            const queues = (await fetchAPI(`${API_URL}/api/admin/ticket-queues`)) as TicketQueue[];
+            const enabledQueues = queues.filter((queue) => queue.enabled);
+            const policyResults = await Promise.allSettled(
+                enabledQueues.map(
+                    (queue) =>
+                        fetchAPI(`${API_URL}/api/admin/ticket-queues/${queue.id}/sla`) as Promise<QueuePolicy>,
+                ),
+            );
+            setQueuePolicies(
+                policyResults.flatMap((result) => {
+                    if (result.status !== "fulfilled") return [];
+                    const policy = result.value;
+                    return [
+                        {
+                            ...policy,
+                            firstResponseDraft: policy.first_response_sla_minutes?.toString() ?? "",
+                            resolutionDraft: policy.resolution_sla_minutes?.toString() ?? "",
+                            saving: false,
+                        },
+                    ];
+                }),
+            );
+        } catch {
+            setQueuePolicies([]);
+        }
+    }, [canViewQueues]);
 
     const load = useCallback(async () => {
         try {
@@ -80,11 +147,50 @@ export function ServiceLevelsWorkspace() {
         void load();
     }, [load]);
 
+    useEffect(() => {
+        void loadQueuePolicies();
+    }, [loadQueuePolicies]);
+
     async function recalculate(ticketId: number) {
         await fetchAPI(`${API_URL}/api/admin/tickets/${ticketId}/sla/recalculate`, {
             method: "POST",
         });
         await load();
+    }
+
+    function updateQueueDraft(queueId: number, field: "firstResponseDraft" | "resolutionDraft", value: string) {
+        setQueuePolicies((current) =>
+            current.map((policy) => (policy.queue_id === queueId ? { ...policy, [field]: value } : policy)),
+        );
+    }
+
+    async function saveQueuePolicy(policy: QueuePolicyDraft) {
+        const firstResponse = parseTarget(policy.firstResponseDraft);
+        const resolution = parseTarget(policy.resolutionDraft);
+        if (firstResponse === undefined || resolution === undefined) {
+            setError("SLA targets must be blank or a positive whole number of minutes.");
+            return;
+        }
+        try {
+            setError(null);
+            setQueuePolicies((current) =>
+                current.map((item) => (item.queue_id === policy.queue_id ? { ...item, saving: true } : item)),
+            );
+            await fetchAPI(`${API_URL}/api/admin/ticket-queues/${policy.queue_id}/sla`, {
+                method: "PUT",
+                body: JSON.stringify({
+                    first_response_sla_minutes: firstResponse,
+                    resolution_sla_minutes: resolution,
+                }),
+            });
+            await Promise.all([loadQueuePolicies(), load()]);
+        } catch (saveError) {
+            setError(saveError instanceof Error ? saveError.message : "Unable to save Queue SLA policy.");
+        } finally {
+            setQueuePolicies((current) =>
+                current.map((item) => (item.queue_id === policy.queue_id ? { ...item, saving: false } : item)),
+            );
+        }
     }
 
     if (loading && !data) return <DataLoading label="Loading Ticket service levels..." />;
@@ -150,6 +256,60 @@ export function ServiceLevelsWorkspace() {
                 <div className="rounded-lg border border-red-900/70 bg-red-950/40 px-4 py-3 text-sm text-red-200">
                     {error}
                 </div>
+            ) : null}
+
+            {queuePolicies.length > 0 ? (
+                <Card>
+                    <div className="border-b border-slate-800 px-5 py-4">
+                        <h2 className="font-semibold text-white">Queue SLA policies</h2>
+                        <p className="mt-1 text-xs text-slate-500">
+                            Targets are stored on each Ticket Queue. Blank disables that target for newly calculated Tickets.
+                        </p>
+                    </div>
+                    <div className="divide-y divide-slate-800">
+                        {queuePolicies.map((policy) => (
+                            <div key={policy.queue_id} className="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_12rem_12rem_auto] lg:items-end">
+                                <div>
+                                    <p className="font-medium text-slate-200">{policy.queue_name}</p>
+                                    <p className="mt-1 text-xs text-slate-600">Queue #{policy.queue_id}</p>
+                                </div>
+                                <label className="space-y-1 text-xs text-slate-500">
+                                    <span>First response · minutes</span>
+                                    <input
+                                        inputMode="numeric"
+                                        value={policy.firstResponseDraft}
+                                        disabled={!canConfigureQueues}
+                                        onChange={(event) => updateQueueDraft(policy.queue_id, "firstResponseDraft", event.target.value)}
+                                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 disabled:opacity-60"
+                                        placeholder="Disabled"
+                                    />
+                                </label>
+                                <label className="space-y-1 text-xs text-slate-500">
+                                    <span>Resolution · minutes</span>
+                                    <input
+                                        inputMode="numeric"
+                                        value={policy.resolutionDraft}
+                                        disabled={!canConfigureQueues}
+                                        onChange={(event) => updateQueueDraft(policy.queue_id, "resolutionDraft", event.target.value)}
+                                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 disabled:opacity-60"
+                                        placeholder="Disabled"
+                                    />
+                                </label>
+                                {canConfigureQueues ? (
+                                    <Button
+                                        variant="outline"
+                                        disabled={policy.saving}
+                                        onClick={() => void saveQueuePolicy(policy)}
+                                    >
+                                        {policy.saving ? "Saving..." : "Save policy"}
+                                    </Button>
+                                ) : (
+                                    <span className="pb-2 text-xs text-slate-600">Read only</span>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </Card>
             ) : null}
 
             <Card className="overflow-hidden">
