@@ -1,4 +1,4 @@
-from datetime import date
+from typing import Any
 
 from django.contrib.auth.models import Permission
 from django.test import TestCase
@@ -64,7 +64,7 @@ class OperationalSearchAPITests(TestCase):
         )
 
     @staticmethod
-    def _flatten(payload: dict[str, object]) -> list[dict[str, object]]:
+    def _flatten(payload: dict[str, Any]) -> list[dict[str, Any]]:
         groups = payload["groups"]
         assert isinstance(groups, list)
         return [result for group in groups for result in group["results"]]
@@ -73,23 +73,24 @@ class OperationalSearchAPITests(TestCase):
         self._grant("clients", "view_project")
         self._grant("tasks", "view_task")
         self._grant("ticketing", "view_ticket")
+        today = timezone.localdate()
 
         allowed_project = Project.objects.create(
             ownership_type=OwnershipType.CLIENT,
             client=self.client_a,
             name="Needle allowed project",
-            start_date=date.today(),
+            start_date=today,
         )
         Project.objects.create(
             ownership_type=OwnershipType.CLIENT,
             client=self.client_b,
             name="Needle hidden project",
-            start_date=date.today(),
+            start_date=today,
         )
         internal_project = Project.objects.create(
             ownership_type=OwnershipType.INTERNAL,
             name="Needle internal project",
-            start_date=date.today(),
+            start_date=today,
         )
         task_status = TaskStatus.objects.create(name="Search Open", order=1)
         allowed_task = Task.objects.create(
@@ -126,7 +127,10 @@ class OperationalSearchAPITests(TestCase):
             source=Ticket.Source.MANUAL,
         )
 
-        response = self.client.get("/api/admin/search", {"q": "needle", "per_type": 10})
+        response = self.client.get(
+            "/api/admin/search",
+            {"q": "needle", "per_type": "10"},
+        )
 
         self.assertEqual(response.status_code, 200)
         results = self._flatten(response.json())
@@ -180,27 +184,32 @@ class OperationalSearchAPITests(TestCase):
     def test_client_context_excludes_internal_and_other_client_records(self) -> None:
         self._grant("clients", "view_client")
         self._grant("clients", "view_project")
+        today = timezone.localdate()
         allowed = Project.objects.create(
             ownership_type=OwnershipType.CLIENT,
             client=self.client_a,
             name="Context project allowed",
-            start_date=date.today(),
+            start_date=today,
         )
         Project.objects.create(
             ownership_type=OwnershipType.INTERNAL,
             name="Context project internal",
-            start_date=date.today(),
+            start_date=today,
         )
         Project.objects.create(
             ownership_type=OwnershipType.CLIENT,
             client=self.client_b,
             name="Context project hidden",
-            start_date=date.today(),
+            start_date=today,
         )
 
         response = self.client.get(
             "/api/admin/search",
-            {"q": "context project", "client_id": self.client_a.id, "per_type": 10},
+            {
+                "q": "context project",
+                "client_id": str(self.client_a.id),
+                "per_type": "10",
+            },
         )
 
         self.assertEqual(response.status_code, 200)
@@ -217,7 +226,7 @@ class OperationalSearchAPITests(TestCase):
 
         response = self.client.get(
             "/api/admin/search",
-            {"q": "hidden", "client_id": self.client_b.id},
+            {"q": "hidden", "client_id": str(self.client_b.id)},
         )
 
         self.assertEqual(response.status_code, 404)
@@ -256,7 +265,10 @@ class OperationalSearchAPITests(TestCase):
         self.assertEqual([item["id"] for item in credential_results], [visible.id])
         self.assertEqual(secret_response.status_code, 200)
         self.assertFalse(
-            any(item["kind"] == "credentials" for item in self._flatten(secret_response.json()))
+            any(
+                item["kind"] == "credentials"
+                for item in self._flatten(secret_response.json())
+            )
         )
 
     def test_knowledge_and_infrastructure_search_obey_capabilities(self) -> None:
@@ -287,6 +299,8 @@ class OperationalSearchAPITests(TestCase):
         self._grant("infrastructure", "view_infrastructureresource")
         allowed = self.client.get("/api/admin/search", {"q": "orion"})
 
-        result_keys = {(item["kind"], item["id"]) for item in self._flatten(allowed.json())}
+        result_keys = {
+            (item["kind"], item["id"]) for item in self._flatten(allowed.json())
+        }
         self.assertIn(("knowledge", document.id), result_keys)
         self.assertIn(("infrastructure", resource.id), result_keys)
