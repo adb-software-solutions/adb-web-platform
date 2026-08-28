@@ -10,7 +10,11 @@ from apps.access_control.policies import scope_clients_for_user
 from apps.clients.models import Client
 from apps.core.models import AuditEvent, Notification
 from apps.core.notifications import refresh_notifications
-from apps.core.operational_activity import ActivityContext, activity_page
+from apps.core.operational_activity import (
+    ActivityContext,
+    activity_page,
+    scoped_audit_events,
+)
 from apps.infrastructure.models import InfrastructureResource
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
 from authentication.models import User
@@ -253,7 +257,7 @@ def acknowledge_security_event(
         return problem or _problem(401, "User not authenticated", "unauthenticated")
     if not user.has_perm("core.view_auditevent"):
         return _problem(403, "You do not have permission to view audit events.", "forbidden")
-    source = AuditEvent.objects.filter(id=event_id).first()
+    source = scoped_audit_events(user).filter(id=event_id).first()
     if source is None:
         return _problem(404, "Audit event not found.", "not_found")
     acknowledgement = AuditEvent.record(
