@@ -8,8 +8,8 @@ import {
     BellIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
-    MagnifyingGlassIcon,
 } from "@heroicons/react/24/outline";
+import { GlobalSearch } from "./GlobalSearch";
 
 interface TopBarProps {
     collapsed: boolean;
@@ -57,17 +57,7 @@ export function TopBar({
                 <Bars3Icon className="h-5 w-5" />
             </button>
 
-            <button
-                type="button"
-                className="group flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/70 px-3 text-left text-sm text-slate-500 transition hover:border-slate-700 hover:text-slate-300 md:max-w-xl"
-                title="Global search will search clients, tickets, projects, tasks and documentation"
-            >
-                <MagnifyingGlassIcon className="h-4 w-4 shrink-0" />
-                <span className="truncate">Search the platform...</span>
-                <kbd className="ml-auto hidden rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-[10px] text-slate-600 sm:block">
-                    ⌘K
-                </kbd>
-            </button>
+            <GlobalSearch />
 
             <div className="ml-auto flex items-center gap-2">
                 <button
