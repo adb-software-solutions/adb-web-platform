@@ -65,7 +65,6 @@ class CredentialCreateIn(Schema):
     status: CredentialStatusValue = "active"
     description: str = ""
     expires_at: datetime | None = None
-    rotation_interval_days: int | None = Field(default=None, ge=1, le=3650)
     values: dict[str, str] = Field(default_factory=dict)
     resource_links: list[CredentialResourceLinkIn] = Field(default_factory=list)
 
@@ -76,9 +75,6 @@ class CredentialUpdateIn(Schema):
     description: str | None = None
     expires_at: datetime | None = None
     clear_expires_at: bool = False
-    rotation_interval_days: int | None = Field(default=None, ge=1, le=3650)
-    clear_rotation_interval: bool = False
-    mark_rotated: bool = False
     values: dict[str, str] = Field(default_factory=dict)
     clear_secret_fields: list[str] = Field(default_factory=list)
     resource_links: list[CredentialResourceLinkIn] | None = None
@@ -98,12 +94,6 @@ class CredentialSummaryOut(Schema):
     url: str
     expires_at: datetime | None
     last_rotated_at: datetime | None
-    rotation_interval_days: int | None
-    rotation_due_at: datetime | None
-    expires_in_days: int | None
-    rotation_due_in_days: int | None
-    health_status: str
-    health_severity: str
     secret_field_keys: list[str]
     resource_count: int
     has_legacy_plaintext: bool
