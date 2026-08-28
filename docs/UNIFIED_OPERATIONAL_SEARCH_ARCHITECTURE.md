@@ -14,8 +14,20 @@ Credential Vault metadata.
 ## API
 
 ```text
-GET /api/admin/search?q=<query>&client_id=<optional>&per_type=<optional>
+POST /api/admin/search
+Content-Type: application/json
+
+{
+  "q": "search term",
+  "client_id": 123,
+  "per_type": 5
+}
 ```
+
+The search term is intentionally submitted in the CSRF-protected request body rather
+than a URL query string. Operators may accidentally paste sensitive material into a
+search box; keeping the term out of the URL reduces exposure through browser history,
+reverse-proxy/access logs and URL-oriented observability.
 
 Rules:
 
@@ -92,6 +104,9 @@ not introduced at this stage.
 
 Search does not load whole operational datasets into the browser. The server performs
 scope filtering, matching and per-domain limiting before returning results.
+
+The command palette debounces interactive searches and cancels superseded requests so
+a slower old query cannot replace a newer result set.
 
 ## Deliberate boundaries
 
