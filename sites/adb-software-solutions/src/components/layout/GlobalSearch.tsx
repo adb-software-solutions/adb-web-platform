@@ -63,35 +63,42 @@ export function GlobalSearch() {
     }, [clientId]);
 
     useEffect(() => {
-        if (!open || query.trim().length < 2) {
+        const trimmedQuery = query.trim();
+        if (!open || trimmedQuery.length < 2) {
             setData(null);
             setError(null);
             setLoading(false);
             return;
         }
 
+        const controller = new AbortController();
+        setLoading(true);
         const timer = window.setTimeout(() => {
             const run = async () => {
                 try {
-                    setLoading(true);
                     setError(null);
-                    const params = new URLSearchParams({ q: query.trim(), per_type: "6" });
+                    const params = new URLSearchParams({ q: trimmedQuery, per_type: "6" });
                     if (clientOnly && clientId) params.set("client_id", String(clientId));
                     const response = (await fetchAPI(
                         `${API_BASE_URL}/admin/search?${params.toString()}`,
+                        { signal: controller.signal },
                     )) as SearchResponse;
-                    setData(response);
+                    if (!controller.signal.aborted) setData(response);
                 } catch (reason) {
+                    if (controller.signal.aborted) return;
                     setData(null);
                     setError(reason instanceof Error ? reason.message : "Search failed.");
                 } finally {
-                    setLoading(false);
+                    if (!controller.signal.aborted) setLoading(false);
                 }
             };
             void run();
         }, 180);
 
-        return () => window.clearTimeout(timer);
+        return () => {
+            window.clearTimeout(timer);
+            controller.abort();
+        };
     }, [clientId, clientOnly, open, query]);
 
     function show() {
