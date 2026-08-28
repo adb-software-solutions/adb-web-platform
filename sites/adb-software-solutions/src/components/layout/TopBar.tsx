@@ -5,11 +5,11 @@ import { getAccountUrl } from "@/lib/config";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import {
     Bars3Icon,
-    BellIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import { GlobalSearch } from "./GlobalSearch";
+import { NotificationBell } from "./NotificationBell";
 
 interface TopBarProps {
     collapsed: boolean;
@@ -60,13 +60,7 @@ export function TopBar({
             <GlobalSearch />
 
             <div className="ml-auto flex items-center gap-2">
-                <button
-                    type="button"
-                    className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-800 hover:text-white"
-                    aria-label="Notifications"
-                >
-                    <BellIcon className="h-5 w-5" />
-                </button>
+                <NotificationBell />
 
                 <Menu as="div" className="relative">
                     <MenuButton className="flex items-center gap-2 rounded-lg p-1.5 transition hover:bg-slate-800">
