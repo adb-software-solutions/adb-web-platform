@@ -19,6 +19,8 @@ class CredentialLifecycleAPITests(TestCase):
         self.user = User.objects.create_user(
             email="vault-health@example.test",
             password="test-password",
+            first_name="Vault",
+            last_name="Health",
             is_staff=True,
         )
         self.allowed_client = Client.objects.create(
