@@ -333,9 +333,7 @@ class CalendarEvent(models.Model):
         self.meeting_url = self.meeting_url.strip()
         self.attendee_emails = list(
             dict.fromkeys(
-                str(value).strip().lower()
-                for value in self.attendee_emails
-                if str(value).strip()
+                str(value).strip().lower() for value in self.attendee_emails if str(value).strip()
             )
         )
         if not self.title:
