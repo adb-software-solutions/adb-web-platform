@@ -16,6 +16,7 @@ from apps.clients.ninja.time_views import time_tracking_router
 from apps.core.ninja.admin_views import core_admin_router
 from apps.core.ninja.dashboard_views import dashboard_router
 from apps.core.ninja.resource_views import resource_admin_router
+from apps.core.ninja.search_views import operational_search_router
 from apps.credentials.ninja.views import credential_router
 from apps.crm.ninja.admin_views import crm_admin_router
 from apps.crm.ninja.email_views import lead_email_router
@@ -79,6 +80,7 @@ api.add_router("/website", website_router)
 admin_router = Router(tags=["admin"])
 admin_router.add_router("", staff_access_router)
 admin_router.add_router("", dashboard_router)
+admin_router.add_router("", operational_search_router)
 admin_router.add_router("", core_admin_router)
 admin_router.add_router("", clients_admin_router)
 admin_router.add_router("", client_overview_router)
