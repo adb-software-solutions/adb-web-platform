@@ -77,12 +77,15 @@ export function GlobalSearch() {
             const run = async () => {
                 try {
                     setError(null);
-                    const params = new URLSearchParams({ q: trimmedQuery, per_type: "6" });
-                    if (clientOnly && clientId) params.set("client_id", String(clientId));
-                    const response = (await fetchAPI(
-                        `${API_BASE_URL}/admin/search?${params.toString()}`,
-                        { signal: controller.signal },
-                    )) as SearchResponse;
+                    const response = (await fetchAPI(`${API_BASE_URL}/admin/search`, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            q: trimmedQuery,
+                            client_id: clientOnly && clientId ? clientId : null,
+                            per_type: 6,
+                        }),
+                        signal: controller.signal,
+                    })) as SearchResponse;
                     if (!controller.signal.aborted) setData(response);
                 } catch (reason) {
                     if (controller.signal.aborted) return;
