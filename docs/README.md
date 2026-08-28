@@ -74,6 +74,9 @@ decision says otherwise:
 - `UNIFIED_OPERATIONAL_SEARCH_ARCHITECTURE.md` — Stage 9 permission-aware global
   and Client-context search, Ticket-message discovery and Credential secret
   boundaries.
+- `UNIFIED_OPERATIONAL_POLISH_ARCHITECTURE.md` — complete Stage 9 integration:
+  scoped Activity/audit UX, notifications, Credential lifecycle health, Ticket
+  SLAs, resource topology, Calendar Events and navigation/security boundaries.
 - `AUTH_FRONTEND_NEXTJS_MIGRATION.md` — completed authentication frontend
   migration record and guardrails.
 - `DEVELOPMENT_DATA.md` — deterministic local development data.
