@@ -71,6 +71,9 @@ decision says otherwise:
   workflow.
 - `MICROSOFT_GRAPH_TICKETING_SETUP.md` — Microsoft 365 Shared Mailbox app-only
   deployment runbook and Vault-backed certificate handling.
+- `UNIFIED_OPERATIONAL_SEARCH_ARCHITECTURE.md` — Stage 9 permission-aware global
+  and Client-context search, Ticket-message discovery and Credential secret
+  boundaries.
 - `AUTH_FRONTEND_NEXTJS_MIGRATION.md` — completed authentication frontend
   migration record and guardrails.
 - `DEVELOPMENT_DATA.md` — deterministic local development data.
