@@ -3,7 +3,7 @@
 import { Button, Card, DataError, DataLoading, EmptyState } from "@/components/ui";
 import { fetchAPI } from "@/lib/api/fetch";
 import { API_URL } from "@/lib/config";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 interface ActivityItem {
     id: number;
@@ -29,6 +29,28 @@ interface ActivityResponse {
     metadata_visible: boolean;
 }
 
+interface ClientOption {
+    id: number;
+    name: string;
+    company: string;
+}
+
+interface ClientPage {
+    items: ClientOption[];
+}
+
+interface ResourceOption {
+    id: number;
+    name: string;
+    client_id: number | null;
+    client_name: string | null;
+    resource_type: string;
+}
+
+interface ResourcePage {
+    items: ResourceOption[];
+}
+
 function labelAction(action: string) {
     return action.replaceAll(".", " · ").replaceAll("_", " ");
 }
@@ -38,12 +60,40 @@ export function ActivityWorkspace() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
+    const [clientId, setClientId] = useState<number | null>(null);
+    const [resourceId, setResourceId] = useState<number | null>(null);
+    const [clients, setClients] = useState<ClientOption[]>([]);
+    const [resources, setResources] = useState<ResourceOption[]>([]);
+
+    useEffect(() => {
+        async function loadContextOptions() {
+            const [clientResult, resourceResult] = await Promise.allSettled([
+                fetchAPI(`${API_URL}/api/admin/clients?page_size=100`) as Promise<ClientPage>,
+                fetchAPI(
+                    `${API_URL}/api/admin/infrastructure/resources?page_size=100&lifecycle=current`,
+                ) as Promise<ResourcePage>,
+            ]);
+            if (clientResult.status === "fulfilled") setClients(clientResult.value.items);
+            if (resourceResult.status === "fulfilled") setResources(resourceResult.value.items);
+        }
+        void loadContextOptions();
+    }, []);
+
+    const visibleResources = useMemo(
+        () =>
+            resources.filter(
+                (resource) => clientId === null || resource.client_id === clientId,
+            ),
+        [clientId, resources],
+    );
 
     const load = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
             const query = new URLSearchParams({ page: String(page), page_size: "50" });
+            if (clientId !== null) query.set("client_id", String(clientId));
+            if (resourceId !== null) query.set("resource_id", String(resourceId));
             setData(
                 (await fetchAPI(`${API_URL}/api/admin/activity?${query.toString()}`)) as ActivityResponse,
             );
@@ -52,7 +102,7 @@ export function ActivityWorkspace() {
         } finally {
             setLoading(false);
         }
-    }, [page]);
+    }, [clientId, page, resourceId]);
 
     useEffect(() => {
         void load();
@@ -63,6 +113,12 @@ export function ActivityWorkspace() {
             method: "POST",
         });
         await load();
+    }
+
+    function changeClient(value: string) {
+        setClientId(value ? Number(value) : null);
+        setResourceId(null);
+        setPage(1);
     }
 
     if (loading && !data) return <DataLoading label="Loading operational activity..." />;
@@ -77,7 +133,7 @@ export function ActivityWorkspace() {
                     </p>
                     <h1 className="mt-2 text-2xl font-semibold text-white">Operational activity</h1>
                     <p className="mt-1 max-w-3xl text-sm text-slate-400">
-                        Append-only operational history filtered through your current Client and resource access.
+                        Append-only platform, Client and resource history filtered through your current object access.
                         Sensitive request metadata is shown only when your role explicitly permits it.
                     </p>
                 </div>
@@ -85,6 +141,56 @@ export function ActivityWorkspace() {
                     Refresh
                 </Button>
             </div>
+
+            <Card className="p-4">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_auto] xl:items-end">
+                    <label className="space-y-1 text-xs text-slate-500">
+                        <span>Client context</span>
+                        <select
+                            value={clientId ?? ""}
+                            onChange={(event) => changeClient(event.target.value)}
+                            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+                        >
+                            <option value="">Platform-wide</option>
+                            {clients.map((client) => (
+                                <option key={client.id} value={client.id}>
+                                    {client.company || client.name}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <label className="space-y-1 text-xs text-slate-500">
+                        <span>Resource context</span>
+                        <select
+                            value={resourceId ?? ""}
+                            onChange={(event) => {
+                                setResourceId(event.target.value ? Number(event.target.value) : null);
+                                setPage(1);
+                            }}
+                            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+                        >
+                            <option value="">All visible resources</option>
+                            {visibleResources.map((resource) => (
+                                <option key={resource.id} value={resource.id}>
+                                    {resource.name} · {resource.resource_type.replaceAll("_", " ")}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    {(clientId !== null || resourceId !== null) ? (
+                        <Button
+                            variant="ghost"
+                            onClick={() => {
+                                setClientId(null);
+                                setResourceId(null);
+                                setPage(1);
+                            }}
+                        >
+                            Clear context
+                        </Button>
+                    ) : null}
+                </div>
+            </Card>
 
             {error ? (
                 <div className="rounded-lg border border-red-900/70 bg-red-950/40 px-4 py-3 text-sm text-red-200">
@@ -95,7 +201,9 @@ export function ActivityWorkspace() {
             <Card>
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-5 py-4">
                     <div>
-                        <h2 className="font-semibold text-slate-100">Audit trail</h2>
+                        <h2 className="font-semibold text-slate-100">
+                            {resourceId !== null ? "Resource activity" : clientId !== null ? "Client activity" : "Audit trail"}
+                        </h2>
                         <p className="text-xs text-slate-500">{data?.total ?? 0} visible events</p>
                     </div>
                     <span className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-400">
