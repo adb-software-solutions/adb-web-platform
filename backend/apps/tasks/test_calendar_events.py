@@ -18,6 +18,8 @@ class CalendarEventAPITests(TestCase):
         self.user = User.objects.create_user(
             email="calendar@example.test",
             password="test-password",
+            first_name="Calendar",
+            last_name="User",
             is_staff=True,
         )
         self.allowed_client = Client.objects.create(
