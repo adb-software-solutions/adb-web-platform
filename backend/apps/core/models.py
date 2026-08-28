@@ -83,6 +83,8 @@ class AuditEvent(models.Model):
         resource_id: int | None = None
         meta = getattr(target, "_meta", None)
         label = getattr(meta, "label_lower", "") if meta is not None else ""
+        if label == "clients.client":
+            client_id = getattr(target, "pk", client_id)
         if label == "infrastructure.infrastructureresource":
             resource_id = getattr(target, "pk", None)
 
