@@ -230,7 +230,7 @@ def work_calendar(
         [*project_items, *event_items, *task_items],
         key=lambda item: (
             item.start_date,
-            item.starts_at or "",
+            item.starts_at.isoformat() if item.starts_at else "",
             item.kind != "event",
             item.title.lower(),
         ),
@@ -295,7 +295,11 @@ def create_calendar_event(
     payload: CalendarEventCreateIn,
 ) -> tuple[int, CalendarEventDetailOut | dict[str, object]]:
     if not request.user.is_authenticated:
-        return 401, {"message": "User not authenticated", "success": False, "code": "unauthenticated"}
+        return 401, {
+            "message": "User not authenticated",
+            "success": False,
+            "code": "unauthenticated",
+        }
     if not request.user.has_perm("tasks.add_calendarevent"):
         return 403, {
             "message": "You do not have permission to create calendar events.",
