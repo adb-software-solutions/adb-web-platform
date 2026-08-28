@@ -1,0 +1,178 @@
+"use client";
+
+import { Button, Card, DataError, DataLoading, EmptyState } from "@/components/ui";
+import { fetchAPI } from "@/lib/api/fetch";
+import { API_URL } from "@/lib/config";
+import { useCallback, useEffect, useState } from "react";
+
+interface ActivityItem {
+    id: number;
+    action: string;
+    actor_name: string;
+    target_type: string;
+    target_id: string;
+    target_label: string;
+    client_id: number | null;
+    resource_id: number | null;
+    metadata: Record<string, unknown>;
+    ip_address: string | null;
+    user_agent: string;
+    occurred_at: string;
+}
+
+interface ActivityResponse {
+    items: ActivityItem[];
+    page: number;
+    page_size: number;
+    total: number;
+    total_pages: number;
+    metadata_visible: boolean;
+}
+
+function labelAction(action: string) {
+    return action.replaceAll(".", " · ").replaceAll("_", " ");
+}
+
+export function ActivityWorkspace() {
+    const [data, setData] = useState<ActivityResponse | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
+
+    const load = useCallback(async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const query = new URLSearchParams({ page: String(page), page_size: "50" });
+            setData(
+                (await fetchAPI(`${API_URL}/api/admin/activity?${query.toString()}`)) as ActivityResponse,
+            );
+        } catch (loadError) {
+            setError(loadError instanceof Error ? loadError.message : "Unable to load activity.");
+        } finally {
+            setLoading(false);
+        }
+    }, [page]);
+
+    useEffect(() => {
+        void load();
+    }, [load]);
+
+    async function acknowledge(eventId: number) {
+        await fetchAPI(`${API_URL}/api/admin/audit-events/${eventId}/acknowledge`, {
+            method: "POST",
+        });
+        await load();
+    }
+
+    if (loading && !data) return <DataLoading label="Loading operational activity..." />;
+    if (error && !data) return <DataError message={error} onRetry={() => void load()} />;
+
+    return (
+        <div className="space-y-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-adb-cyan-400">
+                        Stage 9 · Audit & security
+                    </p>
+                    <h1 className="mt-2 text-2xl font-semibold text-white">Operational activity</h1>
+                    <p className="mt-1 max-w-3xl text-sm text-slate-400">
+                        Append-only operational history filtered through your current Client and resource access.
+                        Sensitive request metadata is shown only when your role explicitly permits it.
+                    </p>
+                </div>
+                <Button variant="outline" onClick={() => void load()}>
+                    Refresh
+                </Button>
+            </div>
+
+            {error ? (
+                <div className="rounded-lg border border-red-900/70 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+                    {error}
+                </div>
+            ) : null}
+
+            <Card>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-5 py-4">
+                    <div>
+                        <h2 className="font-semibold text-slate-100">Audit trail</h2>
+                        <p className="text-xs text-slate-500">{data?.total ?? 0} visible events</p>
+                    </div>
+                    <span className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-400">
+                        {data?.metadata_visible ? "Sensitive metadata permitted" : "Sensitive metadata hidden"}
+                    </span>
+                </div>
+
+                <div className="divide-y divide-slate-800">
+                    {data?.items.map((item) => (
+                        <div key={item.id} className="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-semibold text-adb-cyan-200">
+                                        {labelAction(item.action)}
+                                    </span>
+                                    <span className="text-xs text-slate-500">
+                                        {new Intl.DateTimeFormat("en-GB", {
+                                            dateStyle: "medium",
+                                            timeStyle: "short",
+                                        }).format(new Date(item.occurred_at))}
+                                    </span>
+                                </div>
+                                <p className="mt-2 text-sm text-slate-200">
+                                    <span className="font-medium">{item.actor_name || "System"}</span>
+                                    {item.target_label ? ` · ${item.target_label}` : ""}
+                                </p>
+                                <p className="mt-1 text-xs text-slate-500">
+                                    {item.target_type || "platform"}
+                                    {item.target_id ? ` #${item.target_id}` : ""}
+                                    {item.client_id ? ` · Client ${item.client_id}` : ""}
+                                    {item.resource_id ? ` · Resource ${item.resource_id}` : ""}
+                                </p>
+                                {data?.metadata_visible && Object.keys(item.metadata).length > 0 ? (
+                                    <pre className="mt-3 overflow-x-auto rounded-lg border border-slate-800 bg-slate-950 p-3 text-[11px] text-slate-400">
+                                        {JSON.stringify(item.metadata, null, 2)}
+                                    </pre>
+                                ) : null}
+                                {data?.metadata_visible && (item.ip_address || item.user_agent) ? (
+                                    <p className="mt-2 break-all text-[11px] text-slate-600">
+                                        {item.ip_address || "No IP"} · {item.user_agent || "No user agent"}
+                                    </p>
+                                ) : null}
+                            </div>
+                            {!item.action.startsWith("audit.acknowledged") ? (
+                                <Button variant="ghost" onClick={() => void acknowledge(item.id)}>
+                                    Acknowledge
+                                </Button>
+                            ) : null}
+                        </div>
+                    ))}
+                </div>
+            </Card>
+
+            {!loading && data?.items.length === 0 ? (
+                <EmptyState
+                    title="No activity in scope"
+                    description="Operational and security events will appear here as scoped actions are recorded."
+                />
+            ) : null}
+
+            {(data?.total_pages ?? 0) > 1 ? (
+                <div className="flex items-center justify-end gap-3 text-sm text-slate-400">
+                    <Button variant="outline" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>
+                        Previous
+                    </Button>
+                    <span>
+                        Page {page} of {data?.total_pages ?? 1}
+                    </span>
+                    <Button
+                        variant="outline"
+                        disabled={page >= (data?.total_pages ?? 1)}
+                        onClick={() => setPage((value) => value + 1)}
+                    >
+                        Next
+                    </Button>
+                </div>
+            ) : null}
+        </div>
+    );
+}
