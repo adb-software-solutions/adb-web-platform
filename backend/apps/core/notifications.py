@@ -131,11 +131,11 @@ def _task_notifications(user: User) -> list[NotificationSpec]:
         if due_date is None:
             continue
         severity = (
-            Notification.Severity.CRITICAL
-            if task.priority >= 4
-            else Notification.Severity.WARNING
+            Notification.Severity.CRITICAL if task.priority >= 4 else Notification.Severity.WARNING
         )
-        context = task.project.name if task.project else (str(task.client) if task.client else "Internal")
+        context = (
+            task.project.name if task.project else (str(task.client) if task.client else "Internal")
+        )
         specs.append(
             NotificationSpec(
                 source_key=f"task:overdue:{task.id}",
