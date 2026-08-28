@@ -18,6 +18,7 @@ from apps.core.ninja.dashboard_views import dashboard_router
 from apps.core.ninja.operational_views import operational_polish_router
 from apps.core.ninja.resource_views import resource_admin_router
 from apps.core.ninja.search_views import operational_search_router
+from apps.credentials.ninja.lifecycle_views import credential_lifecycle_router
 from apps.credentials.ninja.views import credential_router
 from apps.crm.ninja.admin_views import crm_admin_router
 from apps.crm.ninja.email_views import lead_email_router
@@ -121,6 +122,7 @@ admin_router.add_router("", operational_specialist_router)
 admin_router.add_router("", operational_nested_router)
 admin_router.add_router("", monitoring_router)
 admin_router.add_router("", credential_router)
+admin_router.add_router("", credential_lifecycle_router)
 admin_router.add_router("", knowledge_base_router)
 admin_router.add_router("", knowledge_attachment_router)
 admin_router.add_router("", resource_admin_router)
