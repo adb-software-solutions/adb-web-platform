@@ -118,8 +118,7 @@ def resource_topology(
             break
 
     resources = {
-        resource.id: resource
-        for resource in visible.filter(id__in=node_ids).order_by("name", "id")
+        resource.id: resource for resource in visible.filter(id__in=node_ids).order_by("name", "id")
     }
     edges = [
         TopologyEdgeOut(
