@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import uuid
+from datetime import timedelta
 from typing import Any
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 from apps.clients.models import Client, ClientContact
 from apps.core.models import Brand
@@ -73,6 +76,18 @@ class TicketQueue(models.Model):
     )
     purpose = models.CharField(max_length=120, blank=True)
     default_priority = models.CharField(max_length=20, default="normal")
+    first_response_sla_minutes = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text="Optional first-response target applied to tickets entering this queue.",
+    )
+    resolution_sla_minutes = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text="Optional resolution target applied to tickets entering this queue.",
+    )
     enabled = models.BooleanField(default=True)
     ordering = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -230,6 +245,8 @@ class Ticket(models.Model):
         blank=True,
     )
     first_response_at = models.DateTimeField(null=True, blank=True)
+    first_response_due_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    resolution_due_at = models.DateTimeField(null=True, blank=True, db_index=True)
     last_message_at = models.DateTimeField(null=True, blank=True, db_index=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
@@ -249,6 +266,16 @@ class Ticket(models.Model):
     def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.reference:
             self.reference = f"ADB-{uuid.uuid4().hex[:10].upper()}"
+        if self._state.adding:
+            baseline = timezone.now()
+            if self.first_response_due_at is None and self.queue.first_response_sla_minutes:
+                self.first_response_due_at = baseline + timedelta(
+                    minutes=self.queue.first_response_sla_minutes
+                )
+            if self.resolution_due_at is None and self.queue.resolution_sla_minutes:
+                self.resolution_due_at = baseline + timedelta(
+                    minutes=self.queue.resolution_sla_minutes
+                )
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
