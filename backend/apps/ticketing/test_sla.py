@@ -20,6 +20,8 @@ class TicketSLATests(TestCase):
         self.user = User.objects.create_user(
             email="sla@example.test",
             password="test-password",
+            first_name="SLA",
+            last_name="User",
             is_staff=True,
         )
         self.client_record = Client.objects.create(
