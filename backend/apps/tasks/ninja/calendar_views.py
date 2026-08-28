@@ -254,17 +254,25 @@ def _resolve_event_scope(
     client: Client | None = None
     if ownership_type == OwnershipType.CLIENT:
         if client_id is None:
-            return None, None, _problem(
-                "Client events require a Client.",
-                "client_required",
+            return (
+                None,
+                None,
+                _problem(
+                    "Client events require a Client.",
+                    "client_required",
+                ),
             )
         client = scope_clients_for_user(request.user).filter(id=client_id).first()
         if client is None:
             return None, None, _problem("Client not found.", "not_found", 404)
     elif client_id is not None:
-        return None, None, _problem(
-            "Internal events cannot select a Client.",
-            "invalid_ownership",
+        return (
+            None,
+            None,
+            _problem(
+                "Internal events cannot select a Client.",
+                "invalid_ownership",
+            ),
         )
 
     project: Project | None = None
@@ -273,9 +281,13 @@ def _resolve_event_scope(
         if project is None:
             return None, None, _problem("Project not found.", "not_found", 404)
         if project.ownership_type != ownership_type or project.client_id != client_id:
-            return None, None, _problem(
-                "Project ownership must match the Event context.",
-                "invalid_project",
+            return (
+                None,
+                None,
+                _problem(
+                    "Project ownership must match the Event context.",
+                    "invalid_project",
+                ),
             )
     return client, project, None
 
