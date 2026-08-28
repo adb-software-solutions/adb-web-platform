@@ -56,6 +56,8 @@ class AuditEvent(models.Model):
     target_type = models.CharField(max_length=150, blank=True)
     target_id = models.CharField(max_length=255, blank=True)
     target_label = models.CharField(max_length=255, blank=True)
+    client_id = models.PositiveBigIntegerField(null=True, blank=True, db_index=True)
+    resource_id = models.PositiveBigIntegerField(null=True, blank=True, db_index=True)
     metadata = models.JSONField(default=dict, blank=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.TextField(blank=True)
@@ -72,6 +74,31 @@ class AuditEvent(models.Model):
         target = f" {self.target_type}:{self.target_id}" if self.target_type else ""
         return f"{actor} {self.action}{target}"
 
+    @staticmethod
+    def _target_context(target: Any | None) -> tuple[int | None, int | None]:
+        if target is None:
+            return None, None
+
+        client_id = getattr(target, "client_id", None)
+        resource_id: int | None = None
+        meta = getattr(target, "_meta", None)
+        label = getattr(meta, "label_lower", "") if meta is not None else ""
+        if label == "infrastructure.infrastructureresource":
+            resource_id = getattr(target, "pk", None)
+
+        resource = getattr(target, "resource", None)
+        if resource is not None:
+            resource_id = getattr(resource, "pk", resource_id)
+            client_id = getattr(resource, "client_id", client_id)
+
+        monitor_check = getattr(target, "monitor_check", None)
+        monitor_resource = getattr(monitor_check, "resource", None)
+        if monitor_resource is not None:
+            resource_id = getattr(monitor_resource, "pk", resource_id)
+            client_id = getattr(monitor_resource, "client_id", client_id)
+
+        return client_id, resource_id
+
     @classmethod
     def record(
         cls,
@@ -81,17 +108,81 @@ class AuditEvent(models.Model):
         target: Any | None = None,
         target_label: str = "",
         metadata: dict[str, Any] | None = None,
+        client_id: int | None = None,
+        resource_id: int | None = None,
         ip_address: str | None = None,
         user_agent: str = "",
     ) -> AuditEvent:
         """Create an audit event without serialising sensitive target fields."""
+        inferred_client_id, inferred_resource_id = cls._target_context(target)
         return cls.objects.create(
             actor=actor if getattr(actor, "is_authenticated", False) else None,
             action=action,
             target_type=target._meta.label_lower if target is not None else "",
             target_id=str(target.pk) if target is not None else "",
             target_label=target_label or (str(target) if target is not None else ""),
+            client_id=client_id if client_id is not None else inferred_client_id,
+            resource_id=resource_id if resource_id is not None else inferred_resource_id,
             metadata=metadata or {},
             ip_address=ip_address,
             user_agent=user_agent,
         )
+
+
+class Notification(models.Model):
+    """Server-backed operational alert/read state for one staff user."""
+
+    class Category(models.TextChoices):
+        TASK = "task", "Task"
+        TICKET = "ticket", "Ticket"
+        CREDENTIAL = "credential", "Credential"
+        MONITORING = "monitoring", "Monitoring"
+        SECURITY = "security", "Security"
+        CALENDAR = "calendar", "Calendar"
+        GENERAL = "general", "General"
+
+    class Severity(models.TextChoices):
+        INFO = "info", "Information"
+        WARNING = "warning", "Warning"
+        CRITICAL = "critical", "Critical"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="operational_notifications",
+    )
+    category = models.CharField(max_length=24, choices=Category.choices)
+    severity = models.CharField(
+        max_length=16,
+        choices=Severity.choices,
+        default=Severity.INFO,
+    )
+    source_key = models.CharField(max_length=255)
+    title = models.CharField(max_length=255)
+    body = models.TextField(blank=True)
+    href = models.CharField(max_length=500, blank=True)
+    client_id = models.PositiveBigIntegerField(null=True, blank=True, db_index=True)
+    resource_id = models.PositiveBigIntegerField(null=True, blank=True, db_index=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    dismissed_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "source_key"],
+                name="unique_operational_notification_source",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["user", "resolved_at", "dismissed_at", "created_at"],
+                name="notification_user_state_idx",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user}: {self.title}"
