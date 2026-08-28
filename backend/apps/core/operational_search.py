@@ -5,10 +5,8 @@ from django.db.models import Q, QuerySet
 from apps.access_control.policies import scope_clients_for_user, scope_ticket_queues_for_user
 from apps.clients.models import Client, ClientContact, Project
 from apps.core.ownership import OwnershipType
-from apps.credentials.models import StoredCredential
 from apps.credentials.policies import scope_credentials_for_user
 from apps.crm.models import Lead
-from apps.infrastructure.models import InfrastructureResource
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
 from apps.knowledge_base.models import KnowledgeBaseDocument
 from apps.tasks.models import Task
@@ -42,7 +40,9 @@ def _client_owned_scope(user: User, client: Client | None) -> Q:
         return Q(client=client)
     if user.is_superuser:
         return Q()
-    return Q(ownership_type=OwnershipType.INTERNAL) | Q(client__in=scope_clients_for_user(user))
+    return Q(ownership_type=OwnershipType.INTERNAL) | Q(
+        client__in=scope_clients_for_user(user)
+    )
 
 
 def _append_group(
@@ -101,13 +101,14 @@ def _search_contacts(
     limit: int,
 ) -> list[OperationalSearchResultOut]:
     if not (
-        user.has_perm("clients.view_client") and user.has_perm("clients.view_clientcontact")
+        user.has_perm("clients.view_client")
+        and user.has_perm("clients.view_clientcontact")
     ):
         return []
     clients = scope_clients_for_user(user)
-    contacts: QuerySet[ClientContact] = ClientContact.objects.select_related("client").filter(
-        client__in=clients
-    )
+    contacts: QuerySet[ClientContact] = ClientContact.objects.select_related(
+        "client"
+    ).filter(client__in=clients)
     if client is not None:
         contacts = contacts.filter(client=client)
     rows = contacts.filter(
@@ -156,7 +157,11 @@ def _search_leads(
             title=row.company or row.name,
             subtitle=" · ".join(
                 part
-                for part in [row.name if row.company else "", row.email, row.status.name if row.status else ""]
+                for part in [
+                    row.name if row.company else "",
+                    row.email,
+                    row.status.name if row.status else "",
+                ]
                 if part
             ),
             context=row.brand.name if row.brand else "Lead",
@@ -209,7 +214,9 @@ def _search_tickets(
                 kind="tickets",
                 id=row.id,
                 title=row.subject,
-                subtitle=f"{row.reference} · {row.queue.name} · {row.get_status_display()}",
+                subtitle=(
+                    f"{row.reference} · {row.queue.name} · {row.get_status_display()}"
+                ),
                 context=context,
                 href=f"/admin/tickets/{row.id}",
                 client_id=client_id,
@@ -228,7 +235,9 @@ def _search_projects(
 ) -> list[OperationalSearchResultOut]:
     if not user.has_perm("clients.view_project"):
         return []
-    projects = Project.objects.select_related("client").filter(_client_owned_scope(user, client))
+    projects = Project.objects.select_related("client").filter(
+        _client_owned_scope(user, client)
+    )
     rows = projects.filter(
         Q(name__icontains=query) | Q(description__icontains=query)
     ).order_by("-updated_at", "-id")[:limit]
@@ -361,7 +370,10 @@ def _search_infrastructure(
                 kind="infrastructure",
                 id=row.id,
                 title=row.name,
-                subtitle=f"{row.get_resource_type_display()} · {row.get_lifecycle_status_display()}",
+                subtitle=(
+                    f"{row.get_resource_type_display()} · "
+                    f"{row.get_lifecycle_status_display()}"
+                ),
                 context=context,
                 href=f"/admin/infrastructure/resources/{row.id}",
                 client_id=client_id,
@@ -380,7 +392,9 @@ def _search_credentials(
 ) -> list[OperationalSearchResultOut]:
     if not user.has_perm("credentials.view_storedcredential"):
         return []
-    credentials = scope_credentials_for_user(user).select_related("client", "credential_type")
+    credentials = scope_credentials_for_user(user).select_related(
+        "client", "credential_type"
+    )
     if client is not None:
         credentials = credentials.filter(client=client)
     # Deliberately search only fields already exposed by ordinary Credential metadata
