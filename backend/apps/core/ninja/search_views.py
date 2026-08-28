@@ -54,9 +54,17 @@ def operational_search(
 
     query = q.strip()
     if len(query) < 2:
-        return _problem(400, "Search queries must contain at least two characters.", "query_too_short")
+        return _problem(
+            400,
+            "Search queries must contain at least two characters.",
+            "query_too_short",
+        )
     if len(query) > 160:
-        return _problem(400, "Search queries may contain at most 160 characters.", "query_too_long")
+        return _problem(
+            400,
+            "Search queries may contain at most 160 characters.",
+            "query_too_long",
+        )
 
     user = cast(User, request.user)
     client = _resolve_client(user, client_id)
