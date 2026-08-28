@@ -27,6 +27,8 @@ class OperationalPolishAPITests(TestCase):
         self.other = User.objects.create_user(
             email="other@example.test",
             password="test-password",
+            first_name="Other",
+            last_name="User",
             is_staff=True,
         )
         self.allowed_client = Client.objects.create(
@@ -173,9 +175,7 @@ class OperationalPolishAPITests(TestCase):
         initial = self.client.get("/api/admin/notifications").json()
         notification_id = initial["items"][0]["id"]
 
-        dismissed = self.client.post(
-            f"/api/admin/notifications/{notification_id}/dismiss"
-        )
+        dismissed = self.client.post(f"/api/admin/notifications/{notification_id}/dismiss")
         refreshed = self.client.get("/api/admin/notifications")
 
         self.assertEqual(dismissed.status_code, 200)
