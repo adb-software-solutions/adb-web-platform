@@ -4,11 +4,15 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.access_control.policies import scope_clients_for_user
 from apps.core.models import Notification
 from apps.core.ownership import OwnershipType
+from apps.credentials.health import evaluate_credential_health
+from apps.credentials.models import StoredCredential
+from apps.credentials.policies import scope_credentials_for_user
 from apps.infrastructure.policies import scope_infrastructure_resources_for_user
 from apps.monitoring.models import MonitorIncident
 from apps.tasks.models import Task
@@ -117,8 +121,8 @@ def _task_notifications(user: User) -> list[NotificationSpec]:
     )
     if not user.is_superuser:
         tasks = tasks.filter(
-            ownership_type=OwnershipType.INTERNAL
-        ) | tasks.filter(client__in=clients)
+            Q(ownership_type=OwnershipType.INTERNAL) | Q(client__in=clients)
+        )
 
     specs: list[NotificationSpec] = []
     for task in tasks.distinct().order_by("due_date", "-priority", "id")[:50]:
@@ -127,7 +131,11 @@ def _task_notifications(user: User) -> list[NotificationSpec]:
             if task.priority >= 4
             else Notification.Severity.WARNING
         )
-        context = task.project.name if task.project else (str(task.client) if task.client else "Internal")
+        context = (
+            task.project.name
+            if task.project
+            else (str(task.client) if task.client else "Internal")
+        )
         specs.append(
             NotificationSpec(
                 source_key=f"task:overdue:{task.id}",
@@ -137,6 +145,50 @@ def _task_notifications(user: User) -> list[NotificationSpec]:
                 body=f"Due {task.due_date.isoformat()} · {context}",
                 href=f"/admin/tasks/{task.id}",
                 client_id=task.client_id,
+            )
+        )
+    return specs
+
+
+def _credential_notifications(user: User) -> list[NotificationSpec]:
+    if not user.has_perm("credentials.view_storedcredential"):
+        return []
+    credentials = (
+        scope_credentials_for_user(user)
+        .select_related("client")
+        .filter(status=StoredCredential.Status.ACTIVE)
+    )
+    specs: list[NotificationSpec] = []
+    for credential in credentials.order_by("name", "id")[:500]:
+        health = evaluate_credential_health(credential)
+        if health.severity == "info":
+            continue
+        if health.status == "expired":
+            title = f"Expired credential: {credential.name}"
+            body = "The configured credential expiry date has passed."
+        elif health.status in {"expiring", "expiring_soon"}:
+            title = f"Credential expiring: {credential.name}"
+            body = f"Expires in {health.expires_in_days} day(s)."
+        elif health.status in {"rotation_due", "rotation_overdue"}:
+            title = f"Credential rotation due: {credential.name}"
+            body = (
+                "Rotation is overdue."
+                if health.rotation_due_in_days is not None
+                and health.rotation_due_in_days < 0
+                else "The configured rotation interval has been reached."
+            )
+        else:
+            title = f"Credential rotation approaching: {credential.name}"
+            body = f"Rotation due in {health.rotation_due_in_days} day(s)."
+        specs.append(
+            NotificationSpec(
+                source_key=f"credential:health:{credential.id}",
+                category=Notification.Category.CREDENTIAL,
+                severity=health.severity,
+                title=title,
+                body=body,
+                href=f"/admin/credentials/{credential.id}",
+                client_id=credential.client_id,
             )
         )
     return specs
@@ -184,7 +236,20 @@ def refresh_notifications(user: User) -> None:
         task_specs = _task_notifications(user)
         for spec in task_specs:
             sync_notification(user, spec)
-        resolve_missing_notifications(user, "task:overdue:", (spec.source_key for spec in task_specs))
+        resolve_missing_notifications(
+            user,
+            "task:overdue:",
+            (spec.source_key for spec in task_specs),
+        )
+
+        credential_specs = _credential_notifications(user)
+        for spec in credential_specs:
+            sync_notification(user, spec)
+        resolve_missing_notifications(
+            user,
+            "credential:health:",
+            (spec.source_key for spec in credential_specs),
+        )
 
         monitor_specs = _monitor_notifications(user)
         for spec in monitor_specs:
