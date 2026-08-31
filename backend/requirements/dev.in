@@ -9,7 +9,7 @@
 typing-extensions==4.16.0
 
 # For sorting imports
-isort==8.0.1
+isort==9.0.1
 
 # Python reformatter
 black==26.5.1
