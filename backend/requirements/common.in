@@ -21,7 +21,7 @@ django-unfold==0.104.1
 svg.py==1.10.0
 cairosvg==2.9.0
 django-ninja==1.6.3
-pydantic[email]==2.13.4
+pydantic[email]==2.13.5
 inquirer==3.4.1
 channels==4.3.2
 starlette==1.6.0
