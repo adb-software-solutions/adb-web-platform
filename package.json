@@ -28,7 +28,7 @@
         "@typescript-eslint/eslint-plugin": "^8.67.0",
         "autoprefixer": "^10.5.4",
         "eslint-config-prettier": "^10.1.8",
-        "eslint-plugin-formatjs": "^6.4.20",
+        "eslint-plugin-formatjs": "^6.6.1",
         "eslint-plugin-import": "^2.32.0",
         "eslint-plugin-no-jquery": "^6.0.0",
         "eslint-plugin-unicorn": "^65.0.1",
