@@ -24,7 +24,7 @@
         "@types/react-dom": "^19.2.0",
         "clsx": "^2.1.1",
         "eslint": "^9.39.2",
-        "eslint-config-next": "^16.3.0",
+        "eslint-config-next": "^16.3.4",
         "headlessui": "^0.0.0",
         "heroicons": "^2.2.0",
         "katex": "^0.18.4",
