@@ -571,9 +571,9 @@ django-coverage-plugin==3.2.2 \
     --hash=sha256:66c9bdb2756762d6bef3510548bb228e1e8465ff1cd2b372775b82624e85e0b4 \
     --hash=sha256:fcc507ee02f3a8f7c1d79b6eba1bafebb4a95b5055801987b715f4f88270c441
     # via -r requirements/dev.in
-django-debug-toolbar==7.1.1 \
-    --hash=sha256:2fb4093d95e6f87258606c55f4d2aa45d1847b17a415525a9dceac02e937a836 \
-    --hash=sha256:e1385b22fb17bff4dc51cf782679a7926676405e8d013ada1e3d8a6bfc47fdb3
+django-debug-toolbar==8.0.0 \
+    --hash=sha256:329dfd6e1c26d9b4501a5cc69294c8bb734206ccb1bd36e96afc4d14128b630a \
+    --hash=sha256:cae32d3e441e608f39f3f1ca6b3f028c38d5d04d74c98d8ab96d46022dee3163
     # via -r requirements/common.in
 django-filter==26.1 \
     --hash=sha256:66ea04031b068c77c86e1ac26ced7a3f8f13ce797f5795751707e3deefc58054 \
