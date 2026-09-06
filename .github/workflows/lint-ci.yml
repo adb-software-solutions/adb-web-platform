@@ -2,7 +2,7 @@ name: Repository Lint CI
 
 on:
     push:
-        branches: ["main"]
+        branches: [main]
         paths:
             - "backend/**"
             - "sites/**"
@@ -40,32 +40,8 @@ concurrency:
 
 jobs:
     lint:
-        name: Run Repository Linters
-        runs-on: ubuntu-latest
-        env:
-            SECRET_KEY: lint-only-secret-key
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
-            - uses: pnpm/action-setup@v4.1.0
-              with:
-                  version: 10.15.0
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: "22"
-                  cache: pnpm
-                  cache-dependency-path: pnpm-lock.yaml
-            - run: pnpm install --frozen-lockfile
-            - uses: actions/setup-python@v5
-              with:
-                  python-version: "3.12"
-                  cache: pip
-                  cache-dependency-path: backend/requirements/dev.txt
-            - run: pip install -r backend/requirements/dev.txt
-            - name: Install shell lint tools
-              run: |
-                  tools/setup/install-shellcheck
-                  tools/setup/install-shfmt
-            - run: git fetch origin main
-            - run: tools/lint
+        permissions:
+            contents: read
+        uses: adb-software-solutions/github-actions-workflows/.github/workflows/lint.yml@v1
+        with:
+            pnpm-version: 10.15.0
