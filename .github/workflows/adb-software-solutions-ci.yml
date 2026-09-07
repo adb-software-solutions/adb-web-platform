@@ -45,49 +45,15 @@ jobs:
     build:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         needs: [frontend, trivy]
-        runs-on: ubuntu-latest
         permissions:
             contents: read
-        steps:
-            - uses: actions/checkout@v7
-
-            - name: Generate production environment
-              run: |
-                  {
-                    echo "NEXT_PUBLIC_GTM_ID=${NEXT_PUBLIC_GTM_ID}";
-                    echo "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}";
-                  } > sites/adb-software-solutions/.ci.env
-              env:
-                  NEXT_PUBLIC_GTM_ID: ${{ secrets.NEXT_PUBLIC_GTM_ID }}
-                  NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-
-            - name: Log in to DigitalOcean Container Registry
-              run: echo "${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}" | docker login -u doctl --password-stdin registry.digitalocean.com
-
-            - name: Build and push Docker image
-              run: |
-                  image="registry.digitalocean.com/${{ vars.DO_REGISTRY_NAME }}/adb-web-platform-adb-software-solutions"
-                  docker build \
-                    -f Dockerfile.adb-software-solutions \
-                    -t "${image}:${GITHUB_SHA}" \
-                    -t "${image}:latest" \
-                    .
-                  docker push "${image}:${GITHUB_SHA}"
-                  docker push "${image}:latest"
-
-            - name: Scan immutable Docker image
-              uses: aquasecurity/trivy-action@v0.36.0
-              with:
-                  scan-type: image
-                  image-ref: registry.digitalocean.com/${{ vars.DO_REGISTRY_NAME }}/adb-web-platform-adb-software-solutions:${{ github.sha }}
-                  severity: HIGH,CRITICAL
-                  output: trivy-adb-software-solutions-image-scan.txt
-              env:
-                  TRIVY_USERNAME: doctl
-                  TRIVY_PASSWORD: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-
-            - name: Upload Docker image scan
-              uses: actions/upload-artifact@v6
-              with:
-                  name: trivy-image-scan-adb-software-solutions
-                  path: trivy-adb-software-solutions-image-scan.txt
+            id-token: write
+        uses: adb-software-solutions/github-actions-workflows/.github/workflows/docker-build-push.yml@v1
+        with:
+            application: adb-web-platform
+            images: '["adb-software-solutions"]'
+            infisical-identity-id: 199f317a-d030-4f03-bbd7-ebf986030b09
+            infisical-registry-project-id: 848009f4-aa7d-45e2-8fb6-404bd8f25115
+            infisical-application-project-id: 51df9308-efb3-45b0-94ed-bf641f076acf
+            build-env-file: sites/adb-software-solutions/.ci.env
+            optional-build-env-keys: '["NEXT_PUBLIC_GTM_ID","NEXT_PUBLIC_API_URL"]'
