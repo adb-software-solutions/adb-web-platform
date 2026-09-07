@@ -1,40 +1,28 @@
-name: Production Deployment
+name: Deploy ADB Web Platform to Production
 
 on:
     push:
         branches: [deploy]
     workflow_dispatch:
+        inputs:
+            image_tag:
+                description: Docker image tag to deploy (use a full Git SHA for rollback)
+                required: true
+                default: latest
+                type: string
+
+permissions:
+    contents: read
+    id-token: write
 
 jobs:
     deploy:
-        name: Deploy Full Stack
-        runs-on: ubuntu-latest
-        if: github.repository != 'adb-software-solutions/project-template' && github.ref == 'refs/heads/deploy'
-        container:
-            image: adbsoftwaresolutions/ansible-runner:latest
-            options: --user root
-            env:
-                HOME: /root
-        steps:
-            - name: Checkout deploy repository
-              uses: actions/checkout@v4
-              with:
-                  repository: adb-software-solutions/adb-deploy
-                  token: ${{ secrets.DEPLOY_REPO_PAT }}
-            - name: Set up SSH
-              run: |
-                  mkdir -p /root/.ssh
-                  echo "${{ secrets.DEPLOY_SSH_KEY }}" > /root/.ssh/id_ed25519
-                  chmod 600 /root/.ssh/id_ed25519
-                  ssh-keyscan -p "${{ vars.DEPLOY_SSH_PORT }}" "${{ vars.DEPLOY_SSH_HOST }}" >> /root/.ssh/known_hosts
-            - name: Install Ansible collections
-              run: ansible-galaxy collection install -r requirements.yml
-            - name: Deploy full stack
-              run: |
-                  ansible-playbook site.yml -i inventories/production/hosts.ini \
-                    --extra-vars "site=${{ vars.DEPLOY_SITE }}" \
-                    --extra-vars "cloudflare_api_token=${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-                    --extra-vars "backend_secret_key=${{ secrets.BACKEND_SECRET_KEY }}" \
-                    --extra-vars "db_name=${{ secrets.DB_NAME }}" \
-                    --extra-vars "db_user=${{ secrets.DB_USER }}" \
-                    --extra-vars "db_password=${{ secrets.DB_PASSWORD }}"
+        name: Deploy ADB Web Platform to Production
+        uses: adb-software-solutions/github-actions-workflows/.github/workflows/deploy-application.yml@v1
+        with:
+            application: adb-web-platform
+            image-tag: ${{ inputs.image_tag || 'latest' }}
+            infisical-identity-id: f2517025-8db2-45fa-9df5-a9dce1a5e1f6
+            infisical-application-project-id: 51df9308-efb3-45b0-94ed-bf641f076acf
+            infisical-deployment-bootstrap-project-id: a1f87e48-bbea-4952-9498-723c15ba8c38
+            infisical-infrastructure-project-id: d39c5ad0-b79f-4f12-b081-9aec36fdca8e
