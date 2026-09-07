@@ -595,9 +595,9 @@ django-stubs-ext==6.1.0 \
     --hash=sha256:57273506823274700a707c8f404dfb52a12c4554daf1468dfb2bff857bb22074 \
     --hash=sha256:d5635a481f5bdf2e04d533a8b602d3b9a28f073deffc85b83048dd20032e4d20
     # via django-stubs
-django-unfold==0.104.1 \
-    --hash=sha256:13b52e8100f2d844568cf08a2057cacd3686bc1083e0e491d05fc688025c966f \
-    --hash=sha256:4eece526e1e80f5133632acae260cc53ab2f52020ff9f64bb98d9c9c738d9888
+django-unfold==0.105.0 \
+    --hash=sha256:0051c43185bc54807d522fad50663a5b1332ae0e54ebe490b1f6c879cc6962db \
+    --hash=sha256:b72880caa376bdc893c2e256dd990812c0301f269e0b977a6b9b4342c6606477
     # via -r requirements/common.in
 dnspython==2.7.0 \
     --hash=sha256:b4c34b7d10b51bcc3a5071e7b8dee77939f1e878477eeecc965e9835f63c6c86 \
