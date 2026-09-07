@@ -25,6 +25,7 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
         permissions:
             contents: read
+            id-token: write
         uses: adb-software-solutions/github-actions-workflows/.github/workflows/frontend-ci.yml@v1
         with:
             pnpm-version: 10.15.0
