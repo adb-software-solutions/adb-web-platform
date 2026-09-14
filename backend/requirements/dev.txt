@@ -1406,9 +1406,9 @@ types-pillow==10.2.0.20240822 \
     --hash=sha256:559fb52a2ef991c326e4a0d20accb3bb63a7ba8d40eb493e0ecb0310ba52f0d3 \
     --hash=sha256:d9dab025aba07aeb12fd50a6799d4eac52a9603488eca09d7662543983f16c5d
     # via -r requirements/mypy.in
-types-psycopg2==2.9.21.20260724 \
-    --hash=sha256:4f87890dd06cea99e3bb0536330ffc2a7320e69059dc1ee0e2c884ef2718f2b4 \
-    --hash=sha256:db31031c37de823a2b21c787cb84832174fdda2a99a8b1af648206f19cc32f8c
+types-psycopg2==2.9.21.20260911 \
+    --hash=sha256:429920488100aa22c220f40aaaac96270125ea64333cf159858e422daa7d8174 \
+    --hash=sha256:834373add0aaf2497401acc49c41c540c4adfdec9bcc265f0460bb0808826a7d
     # via -r requirements/mypy.in
 types-pytz==2026.3.1.20260727 \
     --hash=sha256:42ac44e83645bfceb46597342c8fb8ec028a1407e2feae9c5c539986eab6b57a \
