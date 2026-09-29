@@ -6,7 +6,7 @@ mypy==2.3.1
 
 types-psycopg2==2.9.21.20260724
 types-requests==2.33.0.20260712
-types-pytz==2026.3.1.20260727
+types-pytz==2026.4.0.20260926
 types-Markdown==3.10.2.20260712
 
 django-stubs==6.1.0
