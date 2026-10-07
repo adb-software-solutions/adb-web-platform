@@ -12,7 +12,7 @@ typing-extensions==4.16.0
 isort==8.0.1
 
 # Python reformatter
-black==26.5.1
+black==26.10.0
 
 # For linting Git commit messages
 gitlint-core==0.19.1
