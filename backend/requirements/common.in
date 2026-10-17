@@ -37,7 +37,7 @@ prometheus-client==0.26.0
 
 # Direct integrations / security
 requests==2.34.2
-cryptography==50.0.0
+cryptography==50.0.2
 
 # Socket-based ICMP monitoring (no external ping executable)
 icmplib==3.0.4
