@@ -20,6 +20,8 @@ export default {
                 ],
             },
         ],
+        // Stylelint 17 checks at-rule preludes; Tailwind's @apply takes class names.
+        "at-rule-prelude-no-invalid": [true, {ignoreAtRules: ["apply"]}],
         "custom-property-pattern": null,
         "import-notation": null,
         "function-no-unknown": [

@@ -189,8 +189,4 @@ class CustomGroup(Group):
 
 from authentication.passkeys.models import Passkey, PasskeyChallenge  # noqa: F401
 from authentication.sessions.models import UserSession  # noqa: F401
-from authentication.twofactor.models import (  # noqa: F401
-    RecoveryCode,
-    TwoFactorChallenge,
-    TwoFactorMethod,
-)
+from authentication.twofactor.models import RecoveryCode, TwoFactorChallenge, TwoFactorMethod  # noqa: F401
