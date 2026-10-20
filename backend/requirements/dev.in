@@ -9,16 +9,16 @@
 typing-extensions==4.16.0
 
 # For sorting imports
-isort==8.0.1
+isort==9.0.2
 
 # Python reformatter
-black==26.5.1
+black==26.10.1
 
 # For linting Git commit messages
 gitlint-core==0.19.1
 
 # Needed for updating the locked pip dependencies
-pip-tools==7.6.1
+pip-tools==7.6.2
 
 # Linting framework
 adamlint==1.1.0
@@ -27,8 +27,9 @@ adamlint==1.1.0
 codespell==2.4.3
 
 # For code coverage
-coverage==7.15.4
+coverage==7.16.2
 django-coverage-plugin==3.2.2
 
-flake8==7.3.0
-ruff==0.16.3
+flake8==7.4.1
+ruff==0.17.1
+sh>=2.2.4  # Security: GHSA-q38v-wp89-2w55 (transitive).
