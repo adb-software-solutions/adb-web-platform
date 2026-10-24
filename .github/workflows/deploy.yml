@@ -25,14 +25,14 @@ jobs:
             infisical-registry-project-id: 848009f4-aa7d-45e2-8fb6-404bd8f25115
             # Built from this commit and deployed by its SHA (build-on-deploy).
             build-images: >-
-              [{"image": "adb-software-solutions", "build-env-file": "sites/adb-software-solutions/.ci.env", "optional-build-env-keys": ["NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_AUTH_URL", "NEXT_PUBLIC_SITE_URL"]},
-              "adb-technology",
-              "adb-web-designs",
-              {"image": "analytics-adb-software-solutions", "build-env-file": "sites/analytics-adb-software-solutions/.ci.env", "optional-build-env-keys": ["NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_AUTH_URL", "NEXT_PUBLIC_ANALYTICS_URL", "NEXT_PUBLIC_WEB_DESIGNS_URL", "NEXT_PUBLIC_TECHNOLOGY_URL"]},
-              {"image": "auth-adb-software-solutions", "build-env-file": "sites/auth-adb-software-solutions/.ci.env", "optional-build-env-keys": ["NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_AUTH_URL", "NEXT_PUBLIC_WEB_DESIGNS_URL", "NEXT_PUBLIC_TECHNOLOGY_URL", "NEXT_PUBLIC_ANALYTICS_URL"]},
-              "backend",
-              "celery-worker",
-              "celery-beat"]
+                [{"image": "adb-software-solutions", "build-env-file": "sites/adb-software-solutions/.ci.env", "optional-build-env-keys": ["NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_AUTH_URL", "NEXT_PUBLIC_SITE_URL"]},
+                "adb-technology",
+                "adb-web-designs",
+                {"image": "analytics-adb-software-solutions", "build-env-file": "sites/analytics-adb-software-solutions/.ci.env", "optional-build-env-keys": ["NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_AUTH_URL", "NEXT_PUBLIC_ANALYTICS_URL", "NEXT_PUBLIC_WEB_DESIGNS_URL", "NEXT_PUBLIC_TECHNOLOGY_URL"]},
+                {"image": "auth-adb-software-solutions", "build-env-file": "sites/auth-adb-software-solutions/.ci.env", "optional-build-env-keys": ["NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_AUTH_URL", "NEXT_PUBLIC_WEB_DESIGNS_URL", "NEXT_PUBLIC_TECHNOLOGY_URL", "NEXT_PUBLIC_ANALYTICS_URL"]},
+                "backend",
+                "celery-worker",
+                "celery-beat"]
             infisical-identity-id: f2517025-8db2-45fa-9df5-a9dce1a5e1f6
             infisical-application-project-id: 51df9308-efb3-45b0-94ed-bf641f076acf
             infisical-deployment-bootstrap-project-id: a1f87e48-bbea-4952-9498-723c15ba8c38
