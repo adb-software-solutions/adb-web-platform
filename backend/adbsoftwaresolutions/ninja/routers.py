@@ -66,6 +66,7 @@ from apps.website.ninja.media_views import website_media_router
 from apps.website.ninja.views import website_misc_router, website_public_router
 from authentication.auth_service.views import auth_service_router
 from authentication.ninja.views import auth_router
+from authentication.oauth.views import oauth_router
 from authentication.sessions.views import sessions_router
 
 logger = logging.getLogger(__name__)
@@ -80,6 +81,7 @@ api.add_router("/analytics", analytics_router)
 api.add_router("/auth", auth_router)
 api.add_router("/auth-service", auth_service_router)
 api.add_router("/sessions", sessions_router)
+api.add_router("/oauth", oauth_router)
 
 public_router = Router(tags=["public"])
 public_router.add_router("", website_public_router)

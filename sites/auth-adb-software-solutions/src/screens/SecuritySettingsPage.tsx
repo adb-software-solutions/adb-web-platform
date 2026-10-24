@@ -1,4 +1,5 @@
 import Alert from "@/components/Alert";
+import ConnectedApplications from "@/components/ConnectedApplications";
 import {useAuth} from "@/contexts/AuthContext";
 import {authApi, Session} from "@/utils/api";
 import {getDefaultAppUrl, getRedirectUrl} from "@/utils/config";
@@ -695,6 +696,8 @@ export default function SecuritySettingsPage() {
                             )}
                         </div>
                     </div>
+
+                    <ConnectedApplications />
 
                     <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-900/20">
                         <h4 className="text-sm font-medium text-amber-800 dark:text-amber-200">

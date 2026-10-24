@@ -39,6 +39,13 @@ TECHNOLOGY_FRONTEND_URL = os.environ.get(
     "http://localhost:3003",
 )
 
+# Public origin of the OAuth authorisation server (this backend). Issued in
+# discovery metadata and authorisation responses, so it must match the URL
+# clients reach the backend on.
+OAUTH_ISSUER = os.environ.get("OAUTH_ISSUER", "").strip() or (
+    "http://localhost:8000" if DEBUG else f"https://api.{SITE_DOMAIN}"
+)
+
 # Kept as a compatibility alias while older email/auth code is migrated to the
 # explicit application URLs above.
 FRONTEND_URL = os.environ.get("FRONTEND_URL", SOFTWARE_SOLUTIONS_FRONTEND_URL)

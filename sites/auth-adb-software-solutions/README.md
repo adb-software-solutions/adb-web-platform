@@ -11,7 +11,8 @@ This application provides the shared authentication and account-security fronten
 - password reset and password changes;
 - session/device management;
 - passkey enrolment, rename and deletion;
-- redirect-based sign-in for the ADB marketing and administration applications.
+- redirect-based sign-in for the ADB marketing and administration applications;
+- OAuth consent and connected applications for external services (see `../../docs/OAUTH_AUTHORIZATION_SERVER.md`).
 
 Django remains the authority for sessions, CSRF, authentication, TOTP and WebAuthn. Do not introduce Auth.js/NextAuth, browser-stored JWTs or another authentication authority into this application.
 
@@ -57,6 +58,8 @@ Authenticated account-security routes:
 - `/setup-2fa`
 - `/account`
 - `/account/security`
+- `/oauth/consent` — OAuth consent for external services; only superusers can
+  approve. Connected applications are listed on the security page.
 
 `/account` redirects to `/account/security`.
 

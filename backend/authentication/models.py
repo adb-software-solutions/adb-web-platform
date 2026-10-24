@@ -187,6 +187,13 @@ class CustomGroup(Group):
         verbose_name_plural = _("groups")
 
 
+from authentication.oauth.models import (  # noqa: F401
+    OAuthAuthorizationRequest,
+    OAuthClient,
+    OAuthGrant,
+    OAuthResourceServer,
+    OAuthToken,
+)
 from authentication.passkeys.models import Passkey, PasskeyChallenge  # noqa: F401
 from authentication.sessions.models import UserSession  # noqa: F401
 from authentication.twofactor.models import RecoveryCode, TwoFactorChallenge, TwoFactorMethod  # noqa: F401
