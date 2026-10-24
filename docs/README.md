@@ -70,6 +70,9 @@ decision says otherwise:
   next work.
 - `DOMAIN_MODEL_AUDIT.md` — domain/model decisions.
 - `PERMISSIONS_AND_ACCESS_MODEL.md` — staff capability and object scope.
+- [OAUTH_AUTHORIZATION_SERVER.md](./OAUTH_AUTHORIZATION_SERVER.md) — OAuth 2.1
+  authorisation server for external services such as MCP servers,
+  superuser-only consent, resource server registration.
 - `CREDENTIAL_VAULT_ARCHITECTURE.md` — encrypted Credential storage, typed
   templates, secret-action permissions, auditing, resource links, browser
   handling, key rotation and legacy-secret reconciliation.

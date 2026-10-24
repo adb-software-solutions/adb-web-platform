@@ -41,6 +41,12 @@ RATE_LIMITS = {
     "email_verify": RateLimitConfig(requests=5, window=3600, block_duration=0),
     # Passkey discovery auth: 10 per minute per IP
     "passkey_discover": RateLimitConfig(requests=10, window=60, block_duration=60),
+    # OAuth: registration is unauthenticated, so keep it tight; token and
+    # authorise calls happen once per login or hourly refresh per client.
+    "oauth_register": RateLimitConfig(requests=10, window=3600, block_duration=3600),
+    "oauth_authorize": RateLimitConfig(requests=30, window=60, block_duration=300),
+    "oauth_token": RateLimitConfig(requests=60, window=60, block_duration=300),
+    "oauth_introspect_failure": RateLimitConfig(requests=10, window=60, block_duration=300),
     # API general: 100 requests per minute
     "api_general": RateLimitConfig(requests=100, window=60, block_duration=0),
 }

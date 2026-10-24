@@ -601,6 +601,16 @@ reads environment values directly. Existing certificate/client-secret Vault
 connections remain supported, but new platform setup uses Infisical. Graph secrets
 must be scoped to backend/worker runtime identities, never frontend build contexts.
 
+## OAuth client authorisation
+
+Only active superusers can authorise OAuth clients for external services.
+This is a deliberate exception to least privilege: the services protected so
+far are the platform owner's personal tooling. The backend re-checks the rule
+on every code exchange, refresh and introspection, so demoting or deactivating
+the account revokes access immediately. Widening it requires a narrow
+capability and permission-boundary tests. See
+[the OAuth authorisation server guide](OAUTH_AUTHORIZATION_SERVER.md).
+
 ## Celery platform administration
 
 The native `/admin/celery` dashboard and every API/control endpoint require an

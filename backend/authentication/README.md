@@ -3,19 +3,23 @@
 Django is the single identity/session authority. The browser counterpart is the
 [dedicated account application](../../sites/auth-adb-software-solutions/README.md).
 
-| Location                                                    | Responsibility                                               |
-| ----------------------------------------------------------- | ------------------------------------------------------------ |
-| [models.py](./models.py)                                    | User and shared identity models                              |
-| [backends.py](./backends.py)                                | Authentication backends                                      |
-| [auth_service/](./auth_service/)                            | Login, account and recovery endpoints; `tests/` covers views |
-| [twofactor/](./twofactor/)                                  | TOTP, recovery codes, models and `tests/`                    |
-| [passkeys/](./passkeys/)                                    | WebAuthn verification, models, security logs and `tests/`    |
-| [sessions/](./sessions/)                                    | Session models, helpers and management endpoints             |
-| [ninja/](./ninja/)                                          | Shared identity API contracts                                |
-| [queries.py](./queries.py) / [mutations.py](./mutations.py) | Identity reads and writes                                    |
-| [ratelimit.py](./ratelimit.py)                              | Authentication throttling                                    |
-| [migrations/](./migrations/)                                | Identity database history                                    |
-| [templates/](./templates/)                                  | Server-owned authentication templates                        |
+| Location                                                    | Responsibility                                                |
+| ----------------------------------------------------------- | ------------------------------------------------------------- |
+| [models.py](./models.py)                                    | User and shared identity models                               |
+| [backends.py](./backends.py)                                | Authentication backends                                       |
+| [auth_service/](./auth_service/)                            | Login, account and recovery endpoints; `tests/` covers views  |
+| [twofactor/](./twofactor/)                                  | TOTP, recovery codes, models and `tests/`                     |
+| [passkeys/](./passkeys/)                                    | WebAuthn verification, models, security logs and `tests/`     |
+| [sessions/](./sessions/)                                    | Session models, helpers and management endpoints              |
+| [oauth/](./oauth/)                                          | OAuth 2.1 authorisation server; `tests/` covers flow/boundary |
+| [ninja/](./ninja/)                                          | Shared identity API contracts                                 |
+| [queries.py](./queries.py) / [mutations.py](./mutations.py) | Identity reads and writes                                     |
+| [ratelimit.py](./ratelimit.py)                              | Authentication throttling                                     |
+| [migrations/](./migrations/)                                | Identity database history                                     |
+| [templates/](./templates/)                                  | Server-owned authentication templates                         |
+
+The OAuth design, superuser-only rule and resource-server setup are in
+[OAUTH_AUTHORIZATION_SERVER.md](../../docs/OAUTH_AUTHORIZATION_SERVER.md).
 
 Run `tools/test-backend authentication` from the repository root, or select a
 subdomain such as `authentication.passkeys.tests`. Business staff capabilities
