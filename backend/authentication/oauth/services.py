@@ -187,8 +187,12 @@ def build_redirect(redirect_uri: str, params: dict[str, str]) -> str:
 # ============================================================================
 
 
-def register_client(metadata: dict[str, Any]) -> OAuthClient:
-    """Register a public client from RFC 7591 metadata."""
+def register_client(metadata: dict[str, Any]) -> tuple[OAuthClient, str]:
+    """Register a client from RFC 7591 metadata.
+
+    Returns the client and its secret, which is empty for public clients.
+    Confidential clients (such as claude.ai's connectors) still need PKCE.
+    """
     redirect_uris = metadata.get("redirect_uris")
     if not isinstance(redirect_uris, list) or not redirect_uris:
         raise OAuthError("invalid_redirect_uri", "At least one redirect URI is required.")
@@ -198,11 +202,8 @@ def register_client(metadata: dict[str, Any]) -> OAuthClient:
         validate_redirect_uri(uri)
 
     auth_method = metadata.get("token_endpoint_auth_method", OAuthClient.AUTH_METHOD_NONE)
-    if auth_method != OAuthClient.AUTH_METHOD_NONE:
-        raise OAuthError(
-            "invalid_client_metadata",
-            "Only public clients using PKCE may register dynamically.",
-        )
+    if auth_method not in dict(OAuthClient.AUTH_METHOD_CHOICES):
+        raise OAuthError("invalid_client_metadata", "Unsupported token endpoint auth method.")
 
     grant_types = metadata.get("grant_types", ["authorization_code", "refresh_token"])
     if not isinstance(grant_types, list) or "authorization_code" not in grant_types:
@@ -218,17 +219,20 @@ def register_client(metadata: dict[str, Any]) -> OAuthClient:
     if not isinstance(client_name, str):
         raise OAuthError("invalid_client_metadata", "client_name must be a string.")
 
-    return OAuthClient.objects.create(
+    secret = "" if auth_method == OAuthClient.AUTH_METHOD_NONE else generate_secret()
+    client = OAuthClient.objects.create(
         client_id=generate_secret(CLIENT_ID_PREFIX),
         client_name=client_name.strip()[:MAX_CLIENT_NAME_LENGTH] or "Unnamed client",
         redirect_uris=redirect_uris,
-        token_endpoint_auth_method=OAuthClient.AUTH_METHOD_NONE,
+        token_endpoint_auth_method=auth_method,
+        client_secret_hash=hash_secret(secret) if secret else "",
         is_dynamically_registered=True,
     )
+    return client, secret
 
 
-def registration_response(client: OAuthClient) -> dict[str, Any]:
-    return {
+def registration_response(client: OAuthClient, secret: str = "") -> dict[str, Any]:
+    response: dict[str, Any] = {
         "client_id": client.client_id,
         "client_id_issued_at": int(client.created_at.timestamp()),
         "client_name": client.client_name,
@@ -237,6 +241,10 @@ def registration_response(client: OAuthClient) -> dict[str, Any]:
         "grant_types": ["authorization_code", "refresh_token"],
         "response_types": ["code"],
     }
+    if secret:
+        response["client_secret"] = secret
+        response["client_secret_expires_at"] = 0
+    return response
 
 
 def create_confidential_client(

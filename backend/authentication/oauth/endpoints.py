@@ -209,12 +209,12 @@ def register(request: HttpRequest) -> HttpResponse:
         )
 
     try:
-        client = services.register_client(metadata)
+        client, secret = services.register_client(metadata)
     except OAuthError as exc:
         return _error(exc)
 
     logger.info("Registered OAuth client %s (%s)", client.client_id, client.client_name)
-    return _no_store(JsonResponse(services.registration_response(client), status=201))
+    return _no_store(JsonResponse(services.registration_response(client, secret), status=201))
 
 
 @csrf_exempt
