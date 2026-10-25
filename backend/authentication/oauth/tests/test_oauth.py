@@ -160,13 +160,23 @@ class MetadataAndRegistrationTests(OAuthTestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["error"], "invalid_redirect_uri")
 
-    def test_rejects_confidential_dynamic_registration(self) -> None:
+    def test_registers_confidential_client(self) -> None:
+        data = self.register(token_endpoint_auth_method="client_secret_post")
+        self.assertEqual(data["token_endpoint_auth_method"], "client_secret_post")
+        self.assertEqual(data["client_secret_expires_at"], 0)
+        client = OAuthClient.objects.get(client_id=data["client_id"])
+        self.assertTrue(services.secret_matches(data["client_secret"], client.client_secret_hash))
+
+    def test_public_client_gets_no_secret(self) -> None:
+        self.assertNotIn("client_secret", self.register())
+
+    def test_rejects_unknown_auth_method(self) -> None:
         response = self.client.post(
             "/oauth/register",
             json.dumps(
                 {
                     "redirect_uris": ["https://app.example/callback"],
-                    "token_endpoint_auth_method": "client_secret_basic",
+                    "token_endpoint_auth_method": "private_key_jwt",
                 }
             ),
             content_type="application/json",
