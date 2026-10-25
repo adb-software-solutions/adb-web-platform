@@ -28,7 +28,7 @@ automatically; Celery's automatic result-summary logs are excluded.
 - Per-task logs with timestamps, severity filters, attempt numbers, older/newer
   pages and Follow live. Logs render as text, including multiline tracebacks.
 - Succeeded/failed completions and average durations for the last 24 hours,
-  with hourly activity bars.
+  with hourly activity bars grouped in UTC so clock changes keep distinct hours.
 - Code-configured Beat jobs and their schedules. This is the configured schedule,
   not proof that Beat is running; operate exactly one Beat scheduler as before.
 

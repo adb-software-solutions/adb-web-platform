@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from datetime import timedelta
+from datetime import UTC, timedelta
 from typing import Any
 
 from celery.schedules import maybe_schedule
@@ -157,7 +157,8 @@ def overview() -> OverviewOut:
         }
     )
     series = (
-        completions.annotate(hour=TruncHour("finished_at"))
+        # Use absolute hours so DST folds cannot merge distinct completion buckets.
+        completions.annotate(hour=TruncHour("finished_at", tzinfo=UTC))
         .values("hour")
         .annotate(
             succeeded=Count("id", filter=Q(state="SUCCESS")),
