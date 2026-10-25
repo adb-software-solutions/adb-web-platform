@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -304,6 +304,44 @@ class CeleryDashboardTests(TestCase):
         )
         self.assertEqual(purge_celery_history(), 1)
         self.assertTrue(CeleryTaskExecution.objects.filter(pk="pending").exists())
+
+    def test_overview_uses_distinct_utc_hours_across_clock_changes(self) -> None:
+        for now in (
+            datetime(2026, 7, 1, 12, 30, tzinfo=UTC),
+            datetime(2026, 10, 25, 0, 30, tzinfo=UTC),
+            datetime(2026, 10, 25, 1, 30, tzinfo=UTC),
+            datetime(2026, 3, 29, 1, 30, tzinfo=UTC),
+        ):
+            with self.subTest(now=now), timezone.override("Europe/London"):
+                CeleryTaskExecution.objects.all().delete()
+                current_hour = now.replace(minute=0)
+                previous_hour = current_hour - timedelta(hours=1)
+                for task_id, state, finished_at in (
+                    ("current", "SUCCESS", now),
+                    ("previous", "FAILURE", now - timedelta(hours=1)),
+                ):
+                    record(task_id, "test.task", state)
+                    CeleryTaskExecution.objects.filter(pk=task_id).update(finished_at=finished_at)
+                with (
+                    patch("apps.core.celery_dashboard.services.timezone.now", return_value=now),
+                    patch("apps.core.celery_dashboard.services.snapshot") as live,
+                ):
+                    live.return_value = {
+                        "checked_at": now,
+                        "broker_available": True,
+                        "workers": [],
+                        "queues": [],
+                        "warning": "",
+                    }
+                    result = overview()
+                self.assertEqual(len(result.hours), 24)
+                self.assertEqual(len({hour.hour for hour in result.hours}), 24)
+                self.assertEqual(result.hours[-1].hour, current_hour)
+                self.assertEqual(result.hours[-1].succeeded, 1)
+                self.assertEqual(result.hours[-2].hour, previous_hour)
+                self.assertEqual(result.hours[-2].failed, 1)
+                self.assertEqual(sum(hour.succeeded for hour in result.hours), 1)
+                self.assertEqual(sum(hour.failed for hour in result.hours), 1)
 
     def test_sse_topic_requires_current_superuser_access(self) -> None:
         change = LiveChange("celery", global_scope=True, superuser_only=True)
