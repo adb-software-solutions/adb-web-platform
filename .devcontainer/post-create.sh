@@ -58,6 +58,8 @@ if [ -f .pre-commit-config.yaml ]; then
 fi
 
 git config --global --add safe.directory /workspace
+bash .devcontainer/scripts/install-claude
+bash .devcontainer/scripts/install-codex
 
 MARK_BEGIN="# >>> devcontainer: ensure (venv) prompt begin >>>"
 MARK_END="# <<< devcontainer: ensure (venv) prompt end <<<"
