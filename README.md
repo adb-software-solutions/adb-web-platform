@@ -497,14 +497,14 @@ the development Compose stack:
 
 | Component          | Requirement                                                                                                                                                          |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PostgreSQL         | Private access, provider-required TLS, backups and restore testing                                                                                                   |
+| PostgreSQL         | Private access, backups and restore testing. Production runs PostgreSQL 18 as a container beside the app on ws04 (`SQL_SSL=disable`); use TLS for a managed provider |
 | Cache Redis        | Shared by API/worker replicas for cache, distributed locks and SSE Pub/Sub                                                                                           |
 | Session Redis      | Shared session store; avoid eviction/flushes that unexpectedly sign users out                                                                                        |
 | Celery Redis       | Broker/results isolated from cache and sessions; appropriate persistence and `noeviction` policy for queued work                                                     |
 | Backend image      | Existing `Dockerfile.backend` starts Gunicorn with an ASGI Uvicorn worker on 8000                                                                                    |
 | Worker image       | Existing `Dockerfile.celery-worker`; `CELERY_QUEUE=general`; include encryption/integration variables                                                                |
 | Beat image         | Existing `Dockerfile.celery-beat`; run exactly one scheduler; its schedule state is `/tmp/celerybeat-schedule` and does not need persisting                          |
-| Frontend images    | Software Solutions (3000), auth (3004), Web Designs (3002), Technology (3003), Analytics (3005); build with production public URLs                                   |
+| Frontend images    | Software Solutions, Web Designs and Technology (3000 in their images), auth (3004), Analytics (3005); build with production public URLs                              |
 | Runtime users      | Backend, worker and Beat run as `www-data` (uid/gid 33); frontends as `nextjs` (uid 1001). Media and static mounts must belong to uid 33                             |
 | Attachment storage | Persist `backend/media` (container path `/opt/adb-software-solutions/media`), shared between API/attachment workers; keep protected attachments behind governed APIs |
 | Static assets      | Backend entrypoint runs `collectstatic`; arrange serving of its `staticfiles` output                                                                                 |
@@ -533,6 +533,10 @@ Before directing traffic to a new release:
 python manage.py migrate --noinput
 python manage.py check --deploy
 ```
+
+adb-deploy runs `migrate` and `collectstatic` on every deploy, but not
+`check --deploy`; run that by hand (for example with `docker exec`) after
+changing security settings.
 
 Review every deployment-check finding against the trusted TLS proxy and current
 security settings. Point DNS to the deployed services, terminate TLS and forward
@@ -564,9 +568,11 @@ or completed monitoring check results in an event and a frontend API refresh
 without a page reload. See the [live updates guide](docs/LIVE_UPDATES_ARCHITECTURE.md)
 for scopes and reconnect/fallback behaviour.
 
-CI builds/publishes application images on `main`; production deployment is the
-existing `.github/workflows/deploy.yml` workflow (the `deploy` branch or manual
-image-tag dispatch). Its reusable deployment workflow/infrastructure lives in
+Pull-request CI builds the images without pushing them; nothing is published
+from `main`. Production deployment is `.github/workflows/deploy.yml`: a push to
+the `deploy` branch builds every image from that commit, pushes it tagged with
+the full Git SHA and deploys it. A manual dispatch with `image_tag` set to an
+earlier SHA rolls back without rebuilding. Its reusable deployment workflow/infrastructure lives in
 `adb-software-solutions/github-actions-workflows`; production manifests are not
 maintained in this repository. Supply the variables/services above there using
 the current Infisical projects. This guide documents prerequisites; it does not

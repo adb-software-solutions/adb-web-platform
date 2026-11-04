@@ -2,9 +2,11 @@
 
 Use each app guide to find models, business rules, APIs and tests.
 
+- Analytics (`analytics/`, no guide yet) — Session-authenticated APIs behind the standalone Analytics workspace: scoped GA4 and Search Console reporting, independent of staff operations.
 - [Staff capabilities and object scopes](access_control/README.md) — Staff access profiles, Client grants and Ticket Queue grants. Django permissions supply capabilities; this app supplies object visibility.
 - [Clients, Contacts, Projects and Time](clients/README.md) — The main operational context for Client work. This app also owns Projects, manual Time Entries and persistent Running Timers, including first-class Internal work.
 - [Shared platform foundations](core/README.md) — Brand identity, audit history, preferences and cross-domain operational projections. Brand identity is separate from Client/Internal ownership.
+- [GitHub integration](github_integration/README.md) — GitHub App installations, repository projections on Infrastructure SourceRepository records and the internal GitHub dashboard.
 - [Encrypted Credential Vault](credentials/README.md) — Client/Internal credential metadata and encrypted secret payloads. Metadata access and secret reveal/copy/download are separate permissioned capabilities.
 - [Leads and commercial enquiries](crm/README.md) — Lead assignment, lifecycle, Client conversion and communication projections. Email remains part of the shared Ticket/Graph pipeline.
 - [Technical resources and topology](infrastructure/README.md) — Structured Client/Internal resources, specialist technical records and typed relationships. Legacy identity bridges and reconciliation remain explicit until migration is complete.

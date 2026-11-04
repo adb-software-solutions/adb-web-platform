@@ -10,10 +10,13 @@ The system is not only an email archive. It is a current-first work queue with
 Client/Contact/Vendor context, assignment, priority, internal notes, time
 tracking, governed attachments and deterministic routing.
 
-Microsoft Graph certificate/private-key/client-secret material is stored through
-the Credential Vault. The secret-storage and human secret-action contract is
-defined in `CREDENTIAL_VAULT_ARCHITECTURE.md`; Microsoft deployment details are
-in `MICROSOFT_GRAPH_TICKETING_SETUP.md`.
+The platform Graph connection's tenant/client IDs, certificate and private key
+are Infisical-injected environment values (`MICROSOFT_GRAPH_*`), read at runtime
+by an `environment_certificate` connection; see
+[Microsoft Graph configuration authority](#microsoft-graph-configuration-authority).
+Vault-backed certificate/client-secret connections remain supported but are not
+used for new setup. Microsoft deployment details are in
+`MICROSOFT_GRAPH_TICKETING_SETUP.md`.
 
 ---
 
@@ -30,8 +33,8 @@ in `MICROSOFT_GRAPH_TICKETING_SETUP.md`.
 - Operational mailboxes are Microsoft 365 Shared Mailboxes.
 - Database Mailbox records determine which technically accessible mailboxes the
   ADB application actually synchronises.
-- Graph authentication secrets live in Vault Credentials rather than duplicate
-  plaintext Ticketing settings.
+- Graph authentication secrets come from the runtime environment (Infisical),
+  never from Ticketing settings or API responses.
 - Ingestion and delivery are idempotent/retry-safe where possible.
 - Threading never relies on subject text alone.
 - Classification/routing is deterministic and explainable first; AI is not a
@@ -54,13 +57,15 @@ Key concerns:
 - tenant ID;
 - application/client ID;
 - authentication method;
-- encrypted certificate/client-secret Credential reference;
+- for the platform connection, `environment_certificate` (secrets read from the
+  runtime environment); legacy connections may instead reference a Vault
+  certificate/client-secret Credential;
 - enabled/verification/error state;
 - timestamps.
 
-Certificate/private-key/client-secret material belongs in the Credential Vault,
-not ordinary Graph settings responses. Backend service decryption is distinct
-from human reveal/copy/download permission.
+Certificate/private-key/client-secret material never appears in Graph settings
+responses. For a legacy Vault-backed connection, backend service decryption is
+distinct from human reveal/copy/download permission.
 
 For the normal ADB tenant, one enabled Graph connection is reused by every
 configured Ticketing Shared Mailbox.
@@ -208,7 +213,7 @@ The normal ADB configuration is:
 ```text
 one Microsoft 365 tenant
     + one Entra application
-    + one certificate Credential in the Vault
+    + one certificate in Infisical (MICROSOFT_GRAPH_* environment values)
     + one MicrosoftGraphConnection
     + many configured Shared Mailboxes
 ```
@@ -244,15 +249,15 @@ grants are additive.
 
 ### Credential boundary
 
-The Exchange scope answers which Microsoft resources the app may access. The
-Vault answers how ADB stores the app's certificate/private-key material and who
-may perform human secret actions. The enabled Mailbox rows answer which Shared
+The Exchange scope answers which Microsoft resources the app may access.
+Infisical (scoped to the backend and worker runtime identities) holds the app's
+certificate/private-key material. The enabled Mailbox rows answer which Shared
 Mailboxes ADB actually synchronises.
 
 These are three separate controls and must not be conflated.
 
-See `CREDENTIAL_VAULT_ARCHITECTURE.md` for encryption/key rotation and
-`MICROSOFT_GRAPH_TICKETING_SETUP.md` for deployment.
+See `MICROSOFT_GRAPH_TICKETING_SETUP.md` for deployment, and
+`CREDENTIAL_VAULT_ARCHITECTURE.md` for legacy Vault-backed connections.
 
 ### Adding a Shared Mailbox
 
@@ -291,9 +296,10 @@ Celery handles mailbox sync and outbound delivery. Reusable Graph/message
 business logic belongs in services so it can be tested and reused outside task
 functions.
 
-The Celery/service path decrypts the linked Graph Credential server-side and
-never needs a human reveal operation. Every process that performs that work must
-have the appropriate `CREDENTIAL_ENCRYPTION_KEYS` key ring.
+The Celery/service path reads the Graph certificate from its runtime environment
+and never needs a human reveal operation. Graph workers need the
+`MICROSOFT_GRAPH_*` values, not `CREDENTIAL_ENCRYPTION_KEYS` (that key ring is
+only needed for legacy Vault-backed connections).
 
 One remaining resilience refinement is the rare ambiguous-send case where
 Microsoft may accept a send but the worker loses the provider response before
