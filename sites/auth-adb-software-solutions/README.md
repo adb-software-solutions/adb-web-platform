@@ -20,8 +20,7 @@ Django remains the authority for sessions, CSRF, authentication, TOTP and WebAut
 
 The development port map is:
 
-- Admin: `http://localhost:3000`
-- ADB Software Solutions: `http://localhost:3001`
+- ADB Software Solutions (combined public site and admin): `http://localhost:3000`
 - ADB Web Designs: `http://localhost:3002`
 - ADB Technology: `http://localhost:3003`
 - Authentication: `http://localhost:3004`

@@ -6,6 +6,11 @@ This document is the implementation companion to `PLATFORM_MASTER_PLAN.md`.
 It records what is implemented by the platform at this point in the build and
 what remains in the agreed sequence.
 
+> **Historical snapshot.** The details below date from 2026-08-28. Since then,
+> public-website work (Stage 11) moved ahead of Stage 10 at the owner's request,
+> and analytics, the OAuth authorisation server and further Celery work
+> have landed. Treat the code and the other canonical `docs/` as current.
+
 Snapshot for this refresh:
 
 - date: **2026-08-28**;

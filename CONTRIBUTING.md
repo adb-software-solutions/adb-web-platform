@@ -9,7 +9,7 @@ Prefer straightforward implementations and measurable benefits over infrastructu
 The recommended environment is VS Code with Dev Containers.
 
 ```bash
-git clone git@github.com:adb-software-solutions/adbsoftwaresolutions.co.uk.git
+git clone git@github.com:adb-software-solutions/adb-web-platform.git
 cd adbsoftwaresolutions.co.uk
 code .
 ```

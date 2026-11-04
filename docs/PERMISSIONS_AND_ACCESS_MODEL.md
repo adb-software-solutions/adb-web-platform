@@ -393,8 +393,8 @@ explicit future architecture deliberately introduces such a capability.
 
 ## 12. Users & Access administration
 
-The backend access model exists; the custom Users & Access operational
-experience remains to be completed.
+The backend access model and the Users & Access admin workspace
+(`/admin/access` in the Software Solutions site) are both implemented.
 
 Only identities with explicit access-administration capability may change
 another staff user's permissions or scope.

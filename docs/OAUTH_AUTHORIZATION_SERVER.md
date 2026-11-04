@@ -37,14 +37,14 @@ capability and add permission-boundary tests.
 The issuer is `OAUTH_ISSUER`, defaulting to `https://api.$SITE_DOMAIN` in
 production and `http://localhost:8000` with `DEBUG=1`.
 
-| Endpoint                                      | Standard  | Notes                                                                                                  |
-| --------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------ |
-| `GET /.well-known/oauth-authorization-server` | RFC 8414  | Discovery metadata.                                                                                    |
-| `POST /oauth/register`                        | RFC 7591  | Public clients only (`token_endpoint_auth_method=none`). Rate limited.                                 |
-| `GET /oauth/authorize`                        | OAuth 2.1 | Code flow only, S256 PKCE mandatory, `resource` mandatory (RFC 8707). Redirects to the consent screen. |
-| `POST /oauth/token`                           | OAuth 2.1 | `authorization_code` and `refresh_token` grants.                                                       |
-| `POST /oauth/introspect`                      | RFC 7662  | Resource servers only, HTTP Basic `<resource server id>:<secret>`.                                     |
-| `POST /oauth/revoke`                          | RFC 7009  | Revoking a refresh token revokes the whole grant.                                                      |
+| Endpoint                                      | Standard  | Notes                                                                                                        |
+| --------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------ |
+| `GET /.well-known/oauth-authorization-server` | RFC 8414  | Discovery metadata.                                                                                          |
+| `POST /oauth/register`                        | RFC 7591  | Public (`none`, the default) or confidential (`client_secret_basic`/`_post`, one-time secret). Rate limited. |
+| `GET /oauth/authorize`                        | OAuth 2.1 | Code flow only, S256 PKCE mandatory, `resource` mandatory (RFC 8707). Redirects to the consent screen.       |
+| `POST /oauth/token`                           | OAuth 2.1 | `authorization_code` and `refresh_token` grants.                                                             |
+| `POST /oauth/introspect`                      | RFC 7662  | Resource servers only, HTTP Basic `<resource server id>:<secret>`.                                           |
+| `POST /oauth/revoke`                          | RFC 7009  | Revoking a refresh token revokes the whole grant.                                                            |
 
 Browser consent lives in the authentication frontend at `/oauth/consent`, which
 calls:
