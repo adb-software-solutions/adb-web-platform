@@ -1,4 +1,6 @@
-FROM node:22-alpine AS builder
+# Debian (glibc) in both stages: pnpm installs the sharp binary for the
+# build stage's C library, so the runner has to match it.
+FROM node:22-bookworm-slim AS builder
 RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
 WORKDIR /app
 COPY . .
@@ -10,14 +12,25 @@ RUN pnpm --dir sites/adb-software-solutions build
 # COPY --from keeps this ownership; everything else stays root-owned.
 RUN chown -R 1001:1001 sites/adb-software-solutions/.next
 
-FROM node:22-alpine AS runner
+FROM node:22-bookworm-slim AS runner
+# next/image resizes with sharp (libvips), whose native memory the
+# default allocator kept after bursts of resizes. jemalloc, which sharp
+# recommends for long-running servers, hands it back to the OS.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libjemalloc2 \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s "$(find /usr/lib -name libjemalloc.so.2 | head -n 1)" \
+        /usr/local/lib/libjemalloc.so.2 \
+    && test -e /usr/local/lib/libjemalloc.so.2
+ENV LD_PRELOAD=/usr/local/lib/libjemalloc.so.2
 # pnpm goes in a shared directory rather than root's home, so the
 # unprivileged user can run it without downloading it again.
 ENV COREPACK_HOME=/usr/local/share/corepack
 RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
 
 # Create a non-root user
-RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001 -G nodejs
+RUN groupadd -g 1001 nodejs \
+    && useradd -u 1001 -g nodejs -m -s /usr/sbin/nologin nextjs
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=builder /app /app
