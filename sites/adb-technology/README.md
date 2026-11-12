@@ -53,4 +53,6 @@ and rejects production/non-local configuration. Remove demos before launch.
 `public/brand/logo-light.png` uses the cyan/navy artwork for light pages.
 `logo-cyan-white.png` uses cyan/white, matching the other ADB websites on dark pages
 and social cards. Its editable vector source is `public/brand/logo-cyan-white.svg`;
-retain the transparent background and export at 2400 × 1520 when updating it.
+retain the transparent background and export at 768 × 486 when updating it.
+The logos are shown at about 130 px wide, and next/image decodes the whole
+source on every resize, so a larger export only costs server memory.
