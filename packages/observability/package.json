@@ -16,6 +16,6 @@
         "@prometheus-io/client": "0.16.1"
     },
     "devDependencies": {
-        "next": "^16.4.2"
+        "next": "^16.4.6"
     }
 }

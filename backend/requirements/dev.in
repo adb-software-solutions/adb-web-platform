@@ -18,7 +18,7 @@ black==26.10.1
 gitlint-core==0.19.1
 
 # Needed for updating the locked pip dependencies
-pip-tools==7.6.2
+pip-tools==7.7.0
 
 # Linting framework
 adamlint==1.1.0
@@ -27,9 +27,9 @@ adamlint==1.1.0
 codespell==2.4.3
 
 # For code coverage
-coverage==7.16.2
+coverage==7.17.3
 django-coverage-plugin==3.2.2
 
-flake8==7.4.1
-ruff==0.17.1
+flake8==7.5.0
+ruff==0.17.5
 sh>=2.2.4  # Security: GHSA-q38v-wp89-2w55 (transitive).
