@@ -38,7 +38,8 @@
         "postcss": "^8.5.33",
         "prettier-plugin-tailwindcss": "^0.8.1",
         "stylelint-config-standard": "^41.0.0",
-        "tailwindcss": "^4.3.5"
+        "tailwindcss": "^4.3.5",
+        "vite": "^6.4.6"
     },
     "packageManager": "pnpm@10.15.0"
 }
